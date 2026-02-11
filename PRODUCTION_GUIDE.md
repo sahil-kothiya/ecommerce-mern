@@ -269,7 +269,8 @@ const productSchema = Joi.object({
 
 ```env
 # Database
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/db
+# Replace with your actual MongoDB connection string
+MONGODB_URI=mongodb+srv://<username>:<password>@<your-cluster>.mongodb.net/<database>
 MONGODB_REPLICA_SET=rs0
 
 # Redis (Optional - for multi-server deployments)

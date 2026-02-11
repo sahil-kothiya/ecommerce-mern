@@ -135,7 +135,7 @@ mv ProductService.optimized.js ProductService.js
 ```env
 # .env
 NODE_ENV=production
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/db
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<database>
 JWT_SECRET=your-super-secret-key
 ```
 

@@ -30,10 +30,11 @@ Your backend is trying to connect to MongoDB at `localhost:27017`, but MongoDB i
 
 4. **Get Connection String:**
    - Click "Databases" → "Connect" → "Connect your application"
-   - Copy the connection string (looks like):
+   - Copy the connection string (it will look similar to this example):
    ```
-   mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/enterprise-ecommerce?retryWrites=true&w=majority
+   mongodb+srv://<your-username>:<your-password>@<your-cluster>.mongodb.net/<database-name>?retryWrites=true&w=majority
    ```
+   - Note: Replace the placeholders with your actual credentials from MongoDB Atlas
 
 5. **Update `.env` file:**
    ```bash
@@ -46,9 +47,9 @@ Your backend is trying to connect to MongoDB at `localhost:27017`, but MongoDB i
    MONGODB_URI=mongodb://localhost:27017/enterprise-ecommerce
    ```
    
-   With your Atlas connection string:
+   With your Atlas connection string (get this from MongoDB Atlas dashboard):
    ```env
-   MONGODB_URI=mongodb+srv://youruser:yourpassword@cluster0.xxxxx.mongodb.net/enterprise-ecommerce?retryWrites=true&w=majority
+   MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/enterprise-ecommerce?retryWrites=true&w=majority
    ```
 
 6. **Restart the server** - It should connect now! ✅

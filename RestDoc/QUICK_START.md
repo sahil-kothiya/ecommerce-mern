@@ -50,8 +50,8 @@ FRONTEND_URL=http://localhost:3000
 
 # Database - UPDATE THESE!
 MONGODB_URI=mongodb://localhost:27017/enterprise-ecommerce
-# Or use MongoDB Atlas:
-# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/ecommerce
+# Or use MongoDB Atlas (replace with your actual credentials):
+# MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/ecommerce
 
 # Redis - UPDATE THESE!
 REDIS_HOST=localhost
