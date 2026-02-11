@@ -1,6 +1,7 @@
 # MongoDB Setup Guide for Windows
 
 ## Current Issue
+
 Your backend is trying to connect to MongoDB at `localhost:27017`, but MongoDB is not running.
 
 ## Quick Solutions
@@ -23,7 +24,6 @@ Your backend is trying to connect to MongoDB at `localhost:27017`, but MongoDB i
    - Click "Database Access" → "Add New Database User"
    - Create username/password (save these!)
    - Set role to "Atlas admin"
-   
    - Click "Network Access" → "Add IP Address"
    - Click "Allow Access from Anywhere" (for development)
    - Confirm
@@ -31,23 +31,28 @@ Your backend is trying to connect to MongoDB at `localhost:27017`, but MongoDB i
 4. **Get Connection String:**
    - Click "Databases" → "Connect" → "Connect your application"
    - Copy the connection string (it will look similar to this example):
+
    ```
    mongodb+srv://<your-username>:<your-password>@<your-cluster>.mongodb.net/<database-name>?retryWrites=true&w=majority
    ```
+
    - Note: Replace the placeholders with your actual credentials from MongoDB Atlas
 
 5. **Update `.env` file:**
+
    ```bash
    cd d:\wamp64\www\New-Enterprice-Ecommerce\backend
    notepad .env
    ```
-   
+
    Replace:
+
    ```env
    MONGODB_URI=mongodb://localhost:27017/enterprise-ecommerce
    ```
-   
+
    With your Atlas connection string (get this from MongoDB Atlas dashboard):
+
    ```env
    MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/enterprise-ecommerce?retryWrites=true&w=majority
    ```
@@ -72,15 +77,17 @@ Your backend is trying to connect to MongoDB at `localhost:27017`, but MongoDB i
    - Accept default settings
 
 3. **Start MongoDB:**
+
    ```powershell
    # Check if service is running
    Get-Service -Name MongoDB
-   
+
    # If not running, start it:
    net start MongoDB
    ```
 
 4. **Verify it's running:**
+
    ```powershell
    # Should show MongoDB listening on 27017
    netstat -an | findstr "27017"
@@ -97,12 +104,14 @@ Your backend is trying to connect to MongoDB at `localhost:27017`, but MongoDB i
 1. **Make sure Docker Desktop is running**
 
 2. **Start MongoDB with Docker Compose:**
+
    ```powershell
    cd d:\wamp64\www\New-Enterprice-Ecommerce
    docker-compose up -d mongodb
    ```
 
 3. **Verify it's running:**
+
    ```powershell
    docker ps
    ```
@@ -116,6 +125,7 @@ Your backend is trying to connect to MongoDB at `localhost:27017`, but MongoDB i
 After choosing any option above, verify the connection:
 
 1. **Backend should start successfully:**
+
    ```
    ✅ MongoDB connected successfully
    ✅ Redis connected successfully
@@ -133,6 +143,7 @@ After choosing any option above, verify the connection:
 Your backend also needs Redis. Here are quick options:
 
 ### Option A: Use Upstash (Cloud Redis - Free tier)
+
 1. Go to https://upstash.com/
 2. Sign up free
 3. Create Redis database
@@ -144,9 +155,11 @@ Your backend also needs Redis. Here are quick options:
    ```
 
 ### Option B: Install Redis locally
+
 Since Redis doesn't run natively on Windows:
 
 **Use WSL2 (Windows Subsystem for Linux):**
+
 ```powershell
 # Install WSL2 if not already installed
 wsl --install
@@ -162,6 +175,7 @@ redis-cli ping
 ```
 
 ### Option C: Use Docker
+
 ```powershell
 cd d:\wamp64\www\New-Enterprice-Ecommerce
 docker-compose up -d redis

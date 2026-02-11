@@ -11,7 +11,6 @@ export const config = {
 
     // Database
     mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/enterprise-ecommerce',
-    mongodbTestUri: process.env.MONGODB_TEST_URI || 'mongodb://localhost:27017/enterprise-ecommerce-test',
 
     // JWT
     jwt: {

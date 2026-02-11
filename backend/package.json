@@ -12,12 +12,12 @@
         "lint": "eslint . --ext .js",
         "lint:fix": "eslint . --ext .js --fix",
         "format": "prettier --write \"src/**/*.js\"",
-        "seed": "node runSeeder.js",
-        "seed:categories": "node runSeeder.js categories",
-        "seed:brands": "node runSeeder.js brands",
-        "seed:variants": "node runSeeder.js variants",
-        "seed:products": "node runSeeder.js products",
-        "seed:all": "node runSeeder.js all"
+        "seed": "node scripts/seed.js",
+        "seed:minimal": "node scripts/seed.js -- --minimal",
+        "seed:development": "node scripts/seed.js -- --development",
+        "seed:production": "node scripts/seed.js -- --production",
+        "seed:products": "node scripts/seed.js -- --skip-users",
+        "queue:start": "node src/queues/worker.js"
     },
     "keywords": [
         "ecommerce",
@@ -32,6 +32,7 @@
         "express": "^4.21.1",
         "mongoose": "^8.8.0",
         "bcryptjs": "^2.4.3",
+        "bull": "^4.12.0",
         "jsonwebtoken": "^9.0.2",
         "dotenv": "^16.4.5",
         "cors": "^2.8.5",

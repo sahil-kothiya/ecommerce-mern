@@ -7,12 +7,16 @@ export const protect = async (req, res, next) => {
     try {
         let token;
 
-        // Check for token in headers
+        // Check for token in headers first (priority)
         if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
             token = req.headers.authorization.split(' ')[1];
         }
-        // Check for token in cookies
-        else if (req.cookies.token) {
+        // Check for token in cookies (accessToken)
+        else if (req.cookies?.accessToken) {
+            token = req.cookies.accessToken;
+        }
+        // Fallback to generic token cookie
+        else if (req.cookies?.token) {
             token = req.cookies.token;
         }
 
@@ -77,14 +81,17 @@ export const optionalAuth = async (req, res, next) => {
 
         if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
             token = req.headers.authorization.split(' ')[1];
-        } else if (req.cookies.token) {
+        } else if (req.cookies?.accessToken) {
+            token = req.cookies.accessToken;
+        } else if (req.cookies?.token) {
             token = req.cookies.token;
         }
 
         if (token) {
             try {
                 const decoded = jwt.verify(token, config.jwt.secret);
-                const user = await User.findById(decoded.id);
+                const userId = decoded.userId || decoded.id;
+                const user = await User.findById(userId);
                 if (user && user.status === 'active') {
                     req.user = user;
                 }

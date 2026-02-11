@@ -25,6 +25,7 @@ npm run install:all
 ```
 
 This installs:
+
 - 📦 Backend: Express, Mongoose, Redis, JWT, etc.
 - 📦 Frontend: React 18.3, Vite, Redux, Tailwind
 - 📦 Dev tools: ESLint, Prettier, Nodemon
@@ -34,6 +35,7 @@ This installs:
 Create `.env` files from templates:
 
 **Backend** (`backend/.env`):
+
 ```bash
 # Copy template
 cd backend
@@ -41,6 +43,7 @@ copy .env.example .env
 ```
 
 Edit `backend/.env`:
+
 ```env
 # Server
 NODE_ENV=development
@@ -77,12 +80,14 @@ STRIPE_PUBLISHABLE_KEY=
 ```
 
 **Frontend** (`frontend/.env`):
+
 ```bash
 cd ../frontend
 copy .env.example .env
 ```
 
 Edit `frontend/.env`:
+
 ```env
 VITE_API_URL=http://localhost:5000/api
 VITE_APP_NAME=Enterprise Ecommerce
@@ -91,16 +96,19 @@ VITE_APP_NAME=Enterprise Ecommerce
 ### Step 3: Start Development Servers
 
 **Option A: Start Everything**
+
 ```bash
 # From project root
 npm run dev
 ```
 
 This runs:
+
 - ✅ Backend API on `http://localhost:5000`
 - ✅ Frontend on `http://localhost:3000`
 
 **Option B: Start Individually**
+
 ```bash
 # Terminal 1 - Backend
 npm run dev:backend
@@ -112,9 +120,11 @@ npm run dev:frontend
 ## Verify Installation
 
 ### 1. Check Backend
+
 Open browser: `http://localhost:5000/health`
 
 Should see:
+
 ```json
 {
   "success": true,
@@ -125,15 +135,18 @@ Should see:
 ```
 
 ### 2. Check Frontend
+
 Open browser: `http://localhost:3000`
 
 Should see the Enterprise E-commerce homepage!
 
 ### 3. Check Database Connection
+
 Look for these logs in backend terminal:
+
 ```
 ✅ MongoDB connected successfully
-✅ Redis connected successfully  
+✅ Redis connected successfully
 🚀 Server running on port 5000 in development mode
 ```
 
@@ -153,6 +166,7 @@ docker-compose down
 ```
 
 Services will be available at:
+
 - Frontend: `http://localhost:3000`
 - Backend: `http://localhost:5000`
 - MongoDB: `localhost:27017`
@@ -165,6 +179,7 @@ Services will be available at:
 **Problem:** `Error connecting to MongoDB`
 
 **Solution:**
+
 ```bash
 # Check if MongoDB is running
 # On Windows:
@@ -181,6 +196,7 @@ Update `MONGODB_URI` in `backend/.env` with your connection string.
 **Problem:** `Error connecting to Redis`
 
 **Solution:**
+
 ```bash
 # On Windows, install Redis via:
 # 1. WSL2 + Ubuntu, then: sudo apt install redis-server
@@ -197,6 +213,7 @@ redis-server
 **Problem:** `Port 5000 already in use`
 
 **Solution:**
+
 ```bash
 # Change port in backend/.env
 PORT=5001
@@ -212,6 +229,7 @@ taskkill /PID <PID> /F
 **Problem:** `Cannot find module 'express'`
 
 **Solution:**
+
 ```bash
 # Delete node_modules and reinstall
 rimraf node_modules backend/node_modules frontend/node_modules
@@ -223,6 +241,7 @@ npm run install:all
 **Problem:** Vite errors or blank page
 
 **Solution:**
+
 ```bash
 # Clear cache and reinstall
 cd frontend
@@ -308,21 +327,23 @@ npm run clean            # Remove node_modules and dist
 ## Environment Variables Reference
 
 ### Backend `.env`
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `NODE_ENV` | Environment (development/production) | ✅ Yes |
-| `PORT` | API server port | ✅ Yes |
-| `MONGODB_URI` | MongoDB connection string | ✅ Yes |
-| `REDIS_HOST` | Redis server host | ✅ Yes |
-| `REDIS_PORT` | Redis server port | ✅ Yes |
-| `JWT_SECRET` | JWT signing secret | ✅ Yes |
-| `SMTP_HOST` | Email server host | ❌ Optional |
-| `STRIPE_SECRET_KEY` | Stripe API key | ❌ Optional |
+
+| Variable            | Description                          | Required    |
+| ------------------- | ------------------------------------ | ----------- |
+| `NODE_ENV`          | Environment (development/production) | ✅ Yes      |
+| `PORT`              | API server port                      | ✅ Yes      |
+| `MONGODB_URI`       | MongoDB connection string            | ✅ Yes      |
+| `REDIS_HOST`        | Redis server host                    | ✅ Yes      |
+| `REDIS_PORT`        | Redis server port                    | ✅ Yes      |
+| `JWT_SECRET`        | JWT signing secret                   | ✅ Yes      |
+| `SMTP_HOST`         | Email server host                    | ❌ Optional |
+| `STRIPE_SECRET_KEY` | Stripe API key                       | ❌ Optional |
 
 ### Frontend `.env`
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `VITE_API_URL` | Backend API URL | ✅ Yes |
+
+| Variable        | Description      | Required    |
+| --------------- | ---------------- | ----------- |
+| `VITE_API_URL`  | Backend API URL  | ✅ Yes      |
 | `VITE_APP_NAME` | Application name | ❌ Optional |
 
 ## Support

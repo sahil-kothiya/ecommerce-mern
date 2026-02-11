@@ -1,9 +1,4 @@
-/**
- * @fileoverview Product Service Layer
- * @description Handles all product-related business logic including CRUD operations, filtering, and search
- * @author Enterprise E-Commerce Team
- * @version 1.0.0
- */
+
 
 import { Product } from '../models/Product.js';
 import { Category } from '../models/Category.js';

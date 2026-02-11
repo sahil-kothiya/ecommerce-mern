@@ -1,13 +1,4 @@
-/**
- * @fileoverview Enhanced File Upload Middleware
- * @description Secure file upload handling with validation, multiple upload types, and storage management
- * @module middleware/upload
- * @requires multer
- * @requires path
- * @requires fs
- * @author Enterprise E-Commerce Team
- * @version 2.0.0
- */
+
 
 import multer from 'multer';
 import path from 'path';

@@ -1,16 +1,5 @@
-/**
- * @fileoverview Error Boundary Component
- * @description React Error Boundary for catching and handling runtime errors gracefully
- * @author Enterprise E-Commerce Team
- * @version 1.0.0
- */
-
 import React from 'react';
 
-/**
- * Error Boundary Component
- * @description Catches JavaScript errors in child components and displays fallback UI
- */
 class ErrorBoundary extends React.Component {
     constructor(props) {
         super(props);

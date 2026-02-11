@@ -1,16 +1,5 @@
-/**
- * @fileoverview API Client with Interceptors
- * @description Centralized API client with request/response interceptors, error handling, and retry logic
- * @author Enterprise E-Commerce Team
- * @version 2.0.0
- */
-
 import { API_CONFIG } from '../constants';
 
-/**
- * API Client Class
- * @description Handles all HTTP requests with interceptors and error handling
- */
 class ApiClient {
     constructor() {
         this.baseURL = API_CONFIG.BASE_URL;
@@ -112,6 +101,7 @@ class ApiClient {
                     'Content-Type': 'application/json',
                     ...finalConfig.headers
                 },
+                credentials: 'include', // Include cookies for cross-origin requests
                 ...(finalConfig.body && { body: JSON.stringify(finalConfig.body) }),
                 ...(finalConfig.signal && { signal: finalConfig.signal })
             };

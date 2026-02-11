@@ -1,19 +1,7 @@
-/**
- * @fileoverview Enhanced Product Form Component
- * @description Comprehensive product creation/editing with multiple image uploads, drag-drop, and variant management
- * @component ProductFormEnhanced
- * @author Enterprise E-Commerce Team
- * @version 2.0.0
- */
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_CONFIG } from '../../../constants';
 
-/**
- * ProductFormEnhanced Component
- * @description Advanced product form with image management, variants, and comprehensive validation
- */
 const ProductFormEnhanced = () => {
     const { id } = useParams();
     const navigate = useNavigate();

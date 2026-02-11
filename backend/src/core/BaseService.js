@@ -1,18 +1,6 @@
-/**
- * @fileoverview Base Service class implementing common business logic patterns
- * @description Provides reusable methods for all service classes
- * @author Enterprise E-Commerce Team
- * @version 1.0.0
- */
-
 import { AppError } from '../middleware/errorHandler.js';
 import { logger } from '../utils/logger.js';
 
-/**
- * Base Service Class
- * @description Abstract service providing common business logic operations
- * @abstract
- */
 export class BaseService {
     /**
      * Creates an instance of BaseService

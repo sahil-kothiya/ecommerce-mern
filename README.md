@@ -93,29 +93,108 @@ enterprise-ecommerce/
 - npm 9+
 - Redis (optional, for distributed caching)
 
-### Installation
+### **⚡ Fastest Setup (Recommended)**
 
 ```bash
-# Clone repository
+# 1. Clone and navigate to project
 git clone <repository-url>
-cd enterprise-ecommerce
+cd New-Enterprice-Ecommerce
 
-# Install all dependencies
-npm run install:all
+# 2. Install dependencies for both frontend and backend
+cd backend && npm install
+cd ../frontend && npm install && cd ..
 
-# Setup environment variables
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
-
-# Configure your .env files
-# MONGODB_URI, JWT_SECRET, etc.
-
-# Seed database (optional)
-npm run seed
-
-# Start development servers
+# 3. Start everything with one command
 npm run dev
 ```
+
+**That's it!** 🎉 Your application will start:
+
+- **Backend API:** http://localhost:5001
+- **Frontend:** http://localhost:5173 (or next available port)
+
+### **🗄️ Optional Database Seeding**
+
+```bash
+# Seed with sample data (admin and user accounts)
+cd backend
+npm run seed:minimal      # Quick seed (100 products, 50 users)
+# OR
+npm run seed             # Full seed (10K products, 1K users)
+```
+
+### **🔑 Demo Credentials**
+
+- **Admin:** admin@admin.com / password123
+- **User:** user@admin.com / password123
+
+Use the quick login buttons on the login page for instant access.
+
+---
+
+## 📁 Project Structure
+
+```
+New-Enterprice-Ecommerce/
+├── backend/                   # Node.js/Express API (Port 5001)
+│   ├── src/
+│   │   ├── core/             # BaseController, BaseService classes
+│   │   ├── controllers/      # HTTP request handlers
+│   │   ├── services/         # Business logic layer
+│   │   ├── models/           # Mongoose schemas/models
+│   │   ├── routes/           # API route definitions
+│   │   ├── middleware/       # Auth, validation, error handling
+│   │   └── validators/       # Input validation rules
+│   └── package.json          # Backend dependencies
+├── frontend/                  # React/Vite Client (Port 5173+)
+│   ├── src/
+│   │   ├── components/       # Reusable React components
+│   │   ├── pages/            # Page-level components
+│   │   ├── services/         # API client services
+│   │   ├── store/            # Redux Toolkit stores
+│   │   └── hooks/            # Custom React hooks (13 available)
+│   └── package.json          # Frontend dependencies
+└── .github/instructions/     # Development guidelines
+```
+
+---
+
+## 🛠️ Development Commands
+
+### **Daily Development**
+
+```bash
+# Start both frontend and backend (from project root)
+npm run dev
+
+# OR start individually:
+cd backend && npm run dev     # Backend only (port 5001)
+cd frontend && npm run dev    # Frontend only (port 5173+)
+```
+
+### **Database Operations**
+
+```bash
+cd backend
+npm run seed                  # Full seed (10K products, 1K users)
+npm run seed:minimal          # Quick seed (100 products, 50 users)
+npm run seed:development      # Dev seed (1K products, 100 users)
+```
+
+### **Troubleshooting**
+
+```bash
+# Fix port conflicts (Windows)
+netstat -ano | findstr :5001
+Stop-Process -Id <PID> -Force
+
+# Or kill all node processes
+taskkill /f /im node.exe
+```
+
+---
+
+## ⚙️ Environment Setup
 
 ### Environment Variables
 
@@ -124,10 +203,10 @@ npm run dev
 ```env
 NODE_ENV=development
 PORT=5001
-MONGODB_URI=mongodb://localhost:27017/ecommerce
-REDIS_URL=redis://localhost:6379
+MONGODB_URI=mongodb://localhost:27017/enterprise-ecommerce
 JWT_SECRET=your-super-secret-key-min-32-characters
 JWT_EXPIRE=7d
+FRONTEND_URL=http://localhost:5173
 ```
 
 **Frontend (.env):**
@@ -500,7 +579,6 @@ API_URL=http://localhost:5000
 
 # Database
 MONGODB_URI=mongodb://localhost:27017/enterprise-ecommerce
-MONGODB_TEST_URI=mongodb://localhost:27017/enterprise-ecommerce-test
 
 # Redis
 REDIS_HOST=localhost

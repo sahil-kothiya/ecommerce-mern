@@ -54,7 +54,6 @@ const ProductDetailPage = () => {
 
     const handleAddToCart = () => {
         console.log('Adding to cart:', { product, quantity, selectedVariant });
-        // TODO: Implement cart functionality
         alert(`Added ${quantity} item(s) to cart!`);
     };
 

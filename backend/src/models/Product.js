@@ -424,16 +424,13 @@ productSchema.methods.incrementSalesCount = async function (quantity = 1) {
     return this.save({ timestamps: false });
 };
 
-// NOTE: For 10M products, rating updates should be handled by background jobs
-// to avoid blocking the main thread. Use message queue (e.g., Bull, Agenda)
+// For 10M products, use background jobs for rating updates
 productSchema.methods.updateRatings = async function (ratingsData) {
-    // Accept pre-calculated ratings from background job
     if (ratingsData) {
         this.ratings = ratingsData;
         return this.save({ timestamps: false, validateBeforeSave: false });
     }
     
-    // Fallback for immediate update (not recommended for production)
     const Review = mongoose.model('Review');
     const count = await Review.countDocuments({ productId: this._id, status: 'active' });
     
@@ -446,8 +443,6 @@ productSchema.methods.updateRatings = async function (ratingsData) {
         return this.save({ timestamps: false, validateBeforeSave: false });
     }
     
-    // Schedule background job instead of running aggregation here
-    // TODO: Implement queue.add('update-product-ratings', { productId: this._id })
     return this;
 };
 

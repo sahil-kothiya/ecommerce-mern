@@ -1,12 +1,12 @@
-import { Cart } from '../models/Cart.js';
-import { Product } from '../models/Product.js';
-import { User } from '../models/User.js';
-import mongoose from 'mongoose';
+import { BaseController } from '../core/BaseController.js';
+import { CartService } from '../services/CartService.js';
 
-export class CartController {
-    // GET /api/cart - Get user's cart
-    async index(req, res) {
-        try {
+export class CartController extends BaseController {
+    constructor() {
+        super(new CartService());
+    }
+
+    index = this.catchAsync(async (req, res) => {
             const userId = req.user?.id;
             const sessionId = req.sessionID || req.headers['session-id'];
 

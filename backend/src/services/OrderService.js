@@ -143,7 +143,12 @@ export class OrderService extends BaseService {
 
         // Apply discount if coupon provided
         let discount = 0;
-        // TODO: Implement coupon validation and discount calculation
+        if (couponCode) {
+            const CouponService = require('./CouponService').CouponService;
+            const couponService = new CouponService();
+            const couponData = await couponService.applyCoupon(couponCode, userId, subtotal);
+            discount = couponData.discount;
+        }
 
         // Calculate total
         const total = subtotal + tax + shippingCost - discount;

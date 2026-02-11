@@ -1,55 +1,43 @@
-import { Brand } from '../models/Brand.js';
-import { Product } from '../models/Product.js';
-import mongoose from 'mongoose';
-import { logger } from '../utils/logger.js';
+import { BaseController } from '../core/BaseController.js';
+import { BrandService } from '../services/BrandService.js';
+import { deleteUploadedFile } from '../middleware/uploadEnhanced.js';
 
-export class BrandController {
-    // GET /api/brands - List all brands
-    async index(req, res) {
-        try {
-            const page = parseInt(req.query.page) || 1;
-            const limit = parseInt(req.query.limit) || 20;
-            const skip = (page - 1) * limit;
-
-            const { search, status = 'active' } = req.query;
-
-            // Build query
-            const query = { status };
-            if (search) {
-                query.$or = [
-                    { title: { $regex: search, $options: 'i' } },
-                    { slug: { $regex: search, $options: 'i' } }
-                ];
-            }
-
-            const brands = await Brand.find(query)
-                .select('title slug logo status productCount')
-                .skip(skip)
-                .limit(limit)
-                .sort({ title: 1 });
-
-            const total = await Brand.countDocuments(query);
-
-            res.status(200).json({
-                success: true,
-                data: brands,
-                pagination: {
-                    page,
-                    limit,
-                    total,
-                    pages: Math.ceil(total / limit)
-                }
-            });
-
-        } catch (error) {
-            logger.error('Get brands error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to get brands',
-                error: error.message
-            });
-        }
+export class BrandController extends BaseController {
+    constructor() {
+        super(new BrandService());
     }
+
+    index = this.catchAsync(async (req, res) => {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
+
+        const { search, status = 'active' } = req.query;
+
+        const query = { status };
+        if (search) {
+            query.$or = [
+                { title: { $regex: search, $options: 'i' } },
+                { slug: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        const brands = await this.service.Model.find(query)
+            .select('title slug logo status productCount')
+            .skip(skip)
+            .limit(limit)
+            .sort({ title: 1 })
+            .lean();
+
+        const total = await this.service.Model.countDocuments(query);
+
+        this.sendPaginatedResponse(res, brands, {
+            page,
+            limit,
+            total,
+            pages: Math.ceil(total / limit)
+        });
+    });
 
     // GET /api/brands/:slug - Get brand by slug
     async show(req, res) {

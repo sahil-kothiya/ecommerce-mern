@@ -17,8 +17,11 @@ export class UserSeeder {
             // Create admin user first
             await this.createAdminUser();
 
+            // Create demo user
+            await this.createDemoUser();
+
             // Create regular users in batches
-            await this.createUsersBatch(totalUsers - 1); // -1 for admin
+            await this.createUsersBatch(totalUsers - 2); // -2 for admin and demo user
 
             console.log('\n✅ User Seeding completed!');
             console.log(`📊 Summary: ${this.userCount.toLocaleString()} users created\n`);
@@ -40,8 +43,8 @@ export class UserSeeder {
 
         const adminUser = new User({
             name: 'Admin User',
-            email: 'admin@enterprise-ecommerce.com',
-            password: 'admin123!',
+            email: 'admin@admin.com',
+            password: 'password123',
             role: 'admin',
             status: 'active',
             emailVerifiedAt: new Date(),
@@ -76,7 +79,50 @@ export class UserSeeder {
         await adminUser.save();
         this.userCount++;
 
-        console.log('✅ Admin user created (admin@enterprise-ecommerce.com / admin123!)');
+        console.log('✅ Admin user created (admin@admin.com / password123)');
+    }
+
+    async createDemoUser() {
+        console.log('👤 Creating demo user...');
+
+        const demoUser = new User({
+            name: 'Demo User',
+            email: 'user@admin.com',
+            password: 'password123',
+            role: 'user',
+            status: 'active',
+            emailVerifiedAt: new Date(),
+            profile: {
+                avatar: 'https://ui-avatars.com/api/?name=Demo+User&background=random',
+                bio: 'Regular customer account',
+                dateOfBirth: new Date('1990-01-01'),
+                gender: 'other'
+            },
+            addresses: [{
+                type: 'billing',
+                firstName: 'Demo',
+                lastName: 'User',
+                address1: '456 User Street',
+                city: 'User City',
+                state: 'UC',
+                zipCode: '54321',
+                country: 'US',
+                phone: '+1-555-0200',
+                isDefault: true
+            }],
+            preferences: {
+                newsletter: true,
+                smsNotifications: false,
+                emailNotifications: true,
+                language: 'en',
+                currency: 'USD'
+            }
+        });
+
+        await demoUser.save();
+        this.userCount++;
+
+        console.log('✅ Demo user created (user@admin.com / password123)');
     }
 
     async createUsersBatch(totalUsers) {

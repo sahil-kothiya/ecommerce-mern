@@ -1,9 +1,4 @@
-/**
- * @fileoverview Authentication Service
- * @description Handles user authentication, token management, and session persistence
- * @author Enterprise E-Commerce Team
- * @version 2.0.0
- */
+
 
 import apiClient from './apiClient';
 import { API_CONFIG } from '../constants';
@@ -23,15 +18,21 @@ class AuthService {
      * Authenticate user with email and password
      * @param {string} email - User's email address
      * @param {string} password - User's password
+     * @param {boolean} rememberMe - Whether to remember the user (long-lived refresh token)
      * @returns {Promise<Object>} User data and token
      * @throws {Error} If login fails
      */
-    async login(email, password) {
+    async login(email, password, rememberMe = false) {
         try {
+            console.log('AuthService.login called with:', { email, rememberMe, type: typeof rememberMe });
+            
             const response = await apiClient.post(`${API_CONFIG.ENDPOINTS.AUTH}/login`, {
                 email,
-                password
+                password,
+                rememberMe
             });
+            
+            console.log('Login response:', response.data);
 
             // Extract data from standardized API response
             const { user, token } = response.data;
@@ -70,7 +71,7 @@ class AuthService {
             return response;
         } catch (error) {
             console.error('Registration failed:', error);
-            throw new Error(error.message || 'Registration failed. Please try again.');
+            throw error;
         }
     }
 

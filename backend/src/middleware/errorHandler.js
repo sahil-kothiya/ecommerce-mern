@@ -1,11 +1,12 @@
 import { logger } from '../utils/logger.js';
 
 export class AppError extends Error {
-    constructor(message, statusCode) {
+    constructor(message, statusCode, errors = null) {
         super(message);
         this.statusCode = statusCode;
         this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
         this.isOperational = true;
+        this.errors = errors; // Detailed validation errors array
 
         Error.captureStackTrace(this, this.constructor);
     }
@@ -62,7 +63,8 @@ export const errorHandler = (
 
     res.status(error.statusCode || 500).json({
         success: false,
-        error: error.message || 'Server Error',
+        message: error.message || 'Server Error',
+        ...(error.errors && { errors: error.errors }), // Include detailed validation errors
         ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
     });
 };

@@ -1,9 +1,4 @@
-/**
- * @fileoverview Application Entry Point
- * @description Main entry file for React application with providers and global setup
- * @author Enterprise E-Commerce Team
- * @version 2.0.0
- */
+
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';

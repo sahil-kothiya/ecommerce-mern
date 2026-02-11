@@ -1,18 +1,6 @@
-/**
- * @fileoverview Base Controller class implementing common patterns for all controllers
- * @description Provides reusable methods for handling HTTP requests, responses, and errors
- * @author Enterprise E-Commerce Team
- * @version 1.0.0
- */
-
 import { logger } from '../utils/logger.js';
 import { AppError } from '../middleware/errorHandler.js';
 
-/**
- * Base Controller Class
- * @description Abstract controller providing common CRUD operations and response patterns
- * @abstract
- */
 export class BaseController {
     /**
      * Creates an instance of BaseController
@@ -178,5 +166,38 @@ export class BaseController {
      */
     isAdmin(req) {
         return req.user?.role === 'admin';
+    }
+
+    /**
+     * Set HTTP-only secure cookie for tokens
+     * @param {Object} res - Express response object
+     * @param {string} name - Cookie name
+     * @param {string} value - Cookie value
+     * @param {Object} options - Additional cookie options
+     */
+    setTokenCookie(res, name, value, options = {}) {
+        const cookieOptions = {
+            httpOnly: true, // Prevent XSS attacks
+            secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+            sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // 'lax' for cross-origin in dev
+            path: '/',
+            ...options
+        };
+
+        res.cookie(name, value, cookieOptions);
+    }
+
+    /**
+     * Clear HTTP-only cookie
+     * @param {Object} res - Express response object
+     * @param {string} name - Cookie name
+     */
+    clearTokenCookie(res, name) {
+        res.clearCookie(name, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+            path: '/'
+        });
     }
 }

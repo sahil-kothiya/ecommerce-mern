@@ -1,9 +1,3 @@
-/**
- * Professional Image Service
- * Handles all image-related operations with proper error handling and optimization
- * Following international coding standards
- */
-
 import { IMAGE_CONFIG, ERROR_MESSAGES } from '../constants/index.js';
 import { getRandomItems } from '../utils/index.js';
 

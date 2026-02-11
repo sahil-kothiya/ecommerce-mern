@@ -1,10 +1,3 @@
-/**
- * @fileoverview Authentication Service Layer
- * @description Handles all authentication business logic including registration, login, and token management
- * @author Enterprise E-Commerce Team
- * @version 1.0.0
- */
-
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
@@ -13,11 +6,6 @@ import { AppError } from '../middleware/errorHandler.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
-/**
- * Authentication Service Class
- * @extends BaseService
- * @description Manages user authentication, registration, and token operations
- */
 export class AuthService extends BaseService {
     constructor() {
         super(User);
@@ -68,14 +56,14 @@ export class AuthService extends BaseService {
             emailVerified: false
         });
 
-        // Generate JWT token
-        const token = this.generateToken(user);
+        // Generate authentication tokens
+        const tokens = await this.generateAuthTokens(user, false);
 
         logger.info(`New user registered: ${email}`);
 
         return {
             user: this.sanitizeUser(user),
-            token
+            ...tokens
         };
     }
 
@@ -83,10 +71,11 @@ export class AuthService extends BaseService {
      * Authenticate user and generate token
      * @param {string} email - User's email
      * @param {string} password - User's password
-     * @returns {Promise<Object>} User data and authentication token
+     * @param {boolean} rememberMe - Whether to issue long-lived refresh token
+     * @returns {Promise<Object>} User data, access token, and optional refresh token
      * @throws {AppError} If credentials are invalid or account is inactive
      */
-    async login(email, password) {
+    async login(email, password, rememberMe = false) {
         // Find user and include password field for comparison
         const user = await User.findOne({ email }).select('+password');
         
@@ -105,14 +94,14 @@ export class AuthService extends BaseService {
             throw new AppError('Invalid email or password', 401);
         }
 
-        // Generate authentication token
-        const token = this.generateToken(user);
+        // Generate tokens based on remember me option
+        const tokens = await this.generateAuthTokens(user, rememberMe);
 
-        logger.info(`User logged in: ${email}`);
+        logger.info(`User logged in: ${email} ${rememberMe ? '(Remember Me)' : ''}`);
 
         return {
             user: this.sanitizeUser(user),
-            token
+            ...tokens
         };
     }
 
@@ -214,21 +203,146 @@ export class AuthService extends BaseService {
     }
 
     /**
-     * Generate JWT token for user
+     * Generate authentication tokens (access + optional refresh)
      * @private
      * @param {Object} user - User document
-     * @returns {string} JWT token
+     * @param {boolean} rememberMe - Whether to generate refresh token
+     * @returns {Promise<Object>} Object with accessToken and optional refreshToken
      */
-    generateToken(user) {
+    async generateAuthTokens(user, rememberMe = false) {
+        // Generate short-lived access token
+        const accessToken = this.generateAccessToken(user);
+
+        const result = { 
+            token: accessToken,
+            accessToken,
+            expiresIn: config.jwt.expire
+        };
+
+        // Generate long-lived refresh token if remember me is enabled
+        if (rememberMe) {
+            const refreshToken = this.generateRefreshToken(user);
+            
+            // Store refresh token in database for validation
+            await User.findByIdAndUpdate(user._id, {
+                refreshToken,
+                $set: { 'lastLoginAt': new Date() }
+            });
+
+            result.refreshToken = refreshToken;
+            result.refreshExpiresIn = config.jwt.refreshExpire;
+        }
+
+        return result;
+    }
+
+    /**
+     * Generate JWT access token for user
+     * @private
+     * @param {Object} user - User document
+     * @returns {string} JWT access token
+     */
+    generateAccessToken(user) {
         return jwt.sign(
             { 
                 userId: user._id,
                 role: user.role,
-                email: user.email
+                email: user.email,
+                type: 'access'
             },
             config.jwt.secret,
             { expiresIn: config.jwt.expire }
         );
+    }
+
+    /**
+     * Generate JWT refresh token for user
+     * @private
+     * @param {Object} user - User document
+     * @returns {string} JWT refresh token
+     */
+    generateRefreshToken(user) {
+        return jwt.sign(
+            { 
+                userId: user._id,
+                type: 'refresh'
+            },
+            config.jwt.refreshSecret,
+            { expiresIn: config.jwt.refreshExpire }
+        );
+    }
+
+    /**
+     * Refresh access token using refresh token
+     * @param {string} refreshToken - Refresh token from client
+     * @returns {Promise<Object>} New access token and user data
+     * @throws {AppError} If refresh token is invalid or expired
+     */
+    async refreshAccessToken(refreshToken) {
+        if (!refreshToken) {
+            throw new AppError('Refresh token is required', 401);
+        }
+
+        try {
+            // Verify refresh token
+            const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret);
+            
+            if (decoded.type !== 'refresh') {
+                throw new AppError('Invalid token type', 401);
+            }
+
+            // Find user and verify stored refresh token
+            const user = await User.findById(decoded.userId).select('+refreshToken');
+            
+            if (!user) {
+                throw new AppError('User not found', 401);
+            }
+
+            if (user.status !== 'active') {
+                throw new AppError('Account is inactive', 401);
+            }
+
+            // Verify token matches stored token
+            if (!user.refreshToken || user.refreshToken !== refreshToken) {
+                throw new AppError('Invalid refresh token', 401);
+            }
+
+            // Generate new access token
+            const accessToken = this.generateAccessToken(user);
+
+            logger.info(`Access token refreshed for user: ${user.email}`);
+
+            return {
+                accessToken,
+                token: accessToken,
+                expiresIn: config.jwt.expire,
+                user: this.sanitizeUser(user)
+            };
+
+        } catch (error) {
+            if (error.name === 'JsonWebTokenError') {
+                throw new AppError('Invalid refresh token', 401);
+            }
+            if (error.name === 'TokenExpiredError') {
+                throw new AppError('Refresh token expired. Please login again.', 401);
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Revoke refresh token (logout with remember me)
+     * @param {string} userId - User ID
+     * @returns {Promise<Object>} Success message
+     */
+    async revokeRefreshToken(userId) {
+        await User.findByIdAndUpdate(userId, {
+            $unset: { refreshToken: 1 }
+        });
+
+        logger.info(`Refresh token revoked for user: ${userId}`);
+
+        return { message: 'Logged out successfully' };
     }
 
     /**
@@ -261,21 +375,12 @@ export class AuthService extends BaseService {
      * @returns {Object} Validation result with isValid and message
      */
     validatePassword(password) {
-        if (!password || password.length < 6) {
+        const length = password?.length || 0;
+
+        if (length < 8 || length > 128) {
             return {
                 isValid: false,
-                message: 'Password must be at least 6 characters long'
-            };
-        }
-
-        // Check for at least one letter and one number (recommended)
-        const hasLetter = /[a-zA-Z]/.test(password);
-        const hasNumber = /\d/.test(password);
-
-        if (!hasLetter || !hasNumber) {
-            return {
-                isValid: false,
-                message: 'Password must contain at least one letter and one number'
+                message: 'Password must be between 8 and 128 characters'
             };
         }
 

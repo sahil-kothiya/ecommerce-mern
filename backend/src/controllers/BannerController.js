@@ -1,27 +1,12 @@
-/**
- * @fileoverview Banner Controller
- * @description Handles HTTP requests for banner CRUD operations with image uploads
- * @module controllers/BannerController
- * @author Enterprise E-Commerce Team
- * @version 1.0.0
- */
-
-import { Banner } from '../models/Banner.js';
+import { BaseController } from '../core/BaseController.js';
+import { BannerService } from '../services/BannerService.js';
 import { deleteUploadedFile } from '../middleware/uploadEnhanced.js';
-import mongoose from 'mongoose';
 
-/**
- * Banner Controller Class
- * @description Manages banner-related HTTP endpoints
- */
-export class BannerController {
-    /**
-     * Get all banners with filtering and pagination
-     * @route GET /api/banners
-     * @access Public
-     * @param {Object} req - Express request
-     * @param {Object} res - Express response
-     */
+export class BannerController extends BaseController {
+    constructor() {
+        super(new BannerService());
+    }
+
     async index(req, res) {
         try {
             const {

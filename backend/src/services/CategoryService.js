@@ -1,9 +1,4 @@
-/**
- * @fileoverview Category Service Layer
- * @description Handles category-related business logic including CRUD, hierarchy, and navigation
- * @author Enterprise E-Commerce Team
- * @version 1.0.0
- */
+
 
 import { Category } from '../models/Category.js';
 import { BaseService } from '../core/BaseService.js';

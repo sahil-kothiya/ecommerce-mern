@@ -42,11 +42,7 @@ const connectionOptions = {
     
     // Write concern for consistency
     w: 'majority',
-    wtimeoutMS: 5000,
-    
-    // Modern engine
-    useNewUrlParser: true,
-    useUnifiedTopology: true
+    wtimeoutMS: 5000
 };
 
 /**

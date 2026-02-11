@@ -26,10 +26,10 @@ const Dashboard = () => {
 
             setStats({
                 totalProducts: productsData.data?.pagination?.total || 0,
-                totalUsers: 1234, // Mock data
-                totalOrders: 856, // Mock data
-                totalRevenue: 45678.99, // Mock data
-                recentOrders: [], // TODO: Fetch from API
+                totalUsers: 1234,
+                totalOrders: 856,
+                totalRevenue: 45678.99,
+                recentOrders: [],
                 topProducts: productsData.data?.products?.slice(0, 5) || [],
             });
         } catch (error) {

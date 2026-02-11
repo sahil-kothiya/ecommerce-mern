@@ -1,9 +1,8 @@
-/**
- * @fileoverview Authentication Controller
- * @description Handles HTTP requests for user authentication including registration, login, and profile management
- * @author Enterprise E-Commerce Team
- * @version 2.0.0
- */
+// ============================================================================
+// AUTHENTICATION CONTROLLER
+// ============================================================================
+// Handles user authentication operations: registration, login, logout, profile management
+// All business logic delegated to AuthService, this controller focuses on HTTP handling
 
 import { BaseController } from '../core/BaseController.js';
 import { AuthService } from '../services/AuthService.js';
@@ -11,43 +10,50 @@ import { logger } from '../utils/logger.js';
 
 /**
  * Authentication Controller Class
- * @extends BaseController
- * @description Manages authentication-related HTTP endpoints
+ * 
+ * Manages HTTP endpoints for user authentication and account operations
+ * Extends BaseController for consistent error handling and response formatting
  */
 export class AuthController extends BaseController {
     constructor() {
+        // Initialize with AuthService for business logic delegation
         const authService = new AuthService();
         super(authService);
     }
 
+    // ========================================================================
+    // USER REGISTRATION
+    // ========================================================================
     /**
-     * Register new user
+     * Register new user account
+     * 
+     * Validates input, creates user account, and returns JWT token
+     * Password is automatically hashed in the User model pre-save hook
+     * 
      * @route POST /api/auth/register
      * @access Public
-     * @param {Object} req - Express request object
-     * @param {Object} req.body - Request body
-     * @param {string} req.body.name - User's full name
-     * @param {string} req.body.email - User's email address
-     * @param {string} req.body.password - User's password
-     * @param {Object} res - Express response object
-     * @returns {Promise<void>}
      */
     register = this.catchAsync(async (req, res) => {
-        const { name, email, password } = req.body;
+        const { name, email, password, confirmPassword } = req.body;
 
-        // Validate required fields
+        // Log incoming data for debugging
+        console.log('=== REGISTER CONTROLLER ===');
+        console.log('Request body:', { name, email, password: '***', confirmPassword: '***' });
+
+        // Validate required fields (throws 400 error if missing)
         this.validateRequiredFields(req.body, ['name', 'email', 'password']);
 
-        // Call service layer for business logic
+        // Delegate user creation to service layer
         const { user, token } = await this.service.register({
             name,
             email,
             password
         });
 
+        // Log registration for audit trail
         this.logAction('User Registration', { email, userId: user._id });
 
-        // Send success response with 201 status code
+        // Send 201 Created response with user data and JWT token
         this.sendSuccess(
             res,
             { user, token },
@@ -56,46 +62,93 @@ export class AuthController extends BaseController {
         );
     });
 
+    // ========================================================================
+    // USER LOGIN
+    // ========================================================================
     /**
-     * Authenticate user and generate token
+     * Authenticate user with email and password
+     * 
+     * Validates credentials, generates JWT tokens (access + refresh if remember me)
+     * Sets HTTP-only cookies for secure token storage
+     * 
      * @route POST /api/auth/login
      * @access Public
-     * @param {Object} req - Express request object
-     * @param {Object} req.body - Request body
-     * @param {string} req.body.email - User's email address
-     * @param {string} req.body.password - User's password
-     * @param {Object} res - Express response object
-     * @returns {Promise<void>}
      */
     login = this.catchAsync(async (req, res) => {
-        const { email, password } = req.body;
+        const { email, password, rememberMe: rememberMeRaw } = req.body;
 
-        // Validate required fields
+        // Log incoming request for debugging (helps diagnose client/server data type issues)
+        logger.info('Login request received:', { 
+            email, 
+            rememberMeRaw, 
+            rememberMeType: typeof rememberMeRaw,
+            body: req.body 
+        });
+
+        // Validate required credentials
         this.validateRequiredFields(req.body, ['email', 'password']);
 
-        // Authenticate user via service layer
-        const { user, token } = await this.service.login(email, password);
+        // Parse rememberMe as boolean - handles multiple formats from different clients
+        // Accepts: true, "true", 1 (all evaluate to true)
+        // Accepts: false, "false", 0, undefined, null (all evaluate to false)
+        const rememberMe = Boolean(rememberMeRaw === true || rememberMeRaw === 'true' || rememberMeRaw === 1);
 
-        this.logAction('User Login', { email, userId: user._id });
+        // Authenticate user and generate tokens with service layer
+        const result = await this.service.login(email, password, rememberMe);
 
-        // Send success response
+        // Log successful login for security audit
+        this.logAction('User Login', { 
+            email, 
+            userId: result.user._id,
+            rememberMe,
+            hasRefreshToken: !!result.refreshToken
+        });
+
+        // Set access token cookie (short-lived for security)
+        this.setTokenCookie(res, 'accessToken', result.accessToken, {
+            maxAge: 15 * 60 * 1000 // 15 minutes in milliseconds
+        });
+
+        // Set refresh token cookie only if remember me is enabled (long-lived)
+        if (rememberMe && result.refreshToken) {
+            this.setTokenCookie(res, 'refreshToken', result.refreshToken, {
+                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days in milliseconds
+            });
+        }
+
+        // Send success response with user data and tokens
         this.sendSuccess(
             res,
-            { user, token },
+            {
+                user: result.user,
+                token: result.token,
+                accessToken: result.accessToken,
+                expiresIn: result.expiresIn,
+                // Include refresh token data only if present
+                ...(result.refreshToken && {
+                    refreshToken: result.refreshToken,
+                    refreshExpiresIn: result.refreshExpiresIn
+                })
+            },
             200,
-            'Login successful'
+            rememberMe ? 'Login successful - Remember me enabled' : 'Login successful'
         );
     });
 
+    // ========================================================================
+    // GET USER PROFILE
+    // ========================================================================
     /**
-     * Get authenticated user's profile
+     * Get authenticated user's profile data
+     * 
+     * Returns current user's information based on JWT token
+     * Requires authentication via protect middleware
+     * 
      * @route GET /api/auth/me
-     * @access Protected
-     * @param {Object} req - Express request object with authenticated user
-     * @param {Object} res - Express response object
-     * @returns {Promise<void>}
+     * @access Private
      */
     getProfile = this.catchAsync(async (req, res) => {
+        // Extract user ID from authenticated request (set by protect middleware)
         const userId = this.getUserId(req);
 
         // Fetch user profile from service layer
@@ -104,15 +157,7 @@ export class AuthController extends BaseController {
         this.sendSuccess(res, { user });
     });
 
-    /**
-     * Update user profile
-     * @route PUT /api/auth/profile
-     * @access Protected
-     * @param {Object} req - Express request object with authenticated user
-     * @param {Object} req.body - Profile data to update
-     * @param {Object} res - Express response object
-     * @returns {Promise<void>}
-     */
+    /** Update user profile */
     updateProfile = this.catchAsync(async (req, res) => {
         const userId = this.getUserId(req);
         const updateData = req.body;
@@ -130,17 +175,7 @@ export class AuthController extends BaseController {
         );
     });
 
-    /**
-     * Change user password
-     * @route PUT /api/auth/change-password
-     * @access Protected
-     * @param {Object} req - Express request object with authenticated user
-     * @param {Object} req.body - Password change data
-     * @param {string} req.body.currentPassword - Current password
-     * @param {string} req.body.newPassword - New password
-     * @param {Object} res - Express response object
-     * @returns {Promise<void>}
-     */
+    /** Change user password */
     changePassword = this.catchAsync(async (req, res) => {
         const userId = this.getUserId(req);
         const { currentPassword, newPassword } = req.body;
@@ -160,25 +195,50 @@ export class AuthController extends BaseController {
         this.sendSuccess(res, result, 200);
     });
 
-    /**
-     * Logout user (client-side token removal)
-     * @route POST /api/auth/logout
-     * @access Protected
-     * @param {Object} req - Express request object
-     * @param {Object} res - Express response object
-     * @returns {Promise<void>}
-     */
+    /** Logout user */
     logout = this.catchAsync(async (req, res) => {
         const userId = this.getUserId(req);
 
+        // Revoke refresh token if exists
+        await this.service.revokeRefreshToken(userId);
+
+        // Clear cookies
+        this.clearTokenCookie(res, 'accessToken');
+        this.clearTokenCookie(res, 'refreshToken');
+
         this.logAction('User Logout', { userId });
 
-        // Note: With JWT, logout is primarily handled client-side by removing the token
-        // This endpoint confirms the logout action and can be extended for token blacklisting
         this.sendSuccess(
             res,
             { message: 'Logged out successfully' },
             200
+        );
+    });
+
+    /** Refresh access token using refresh token */
+    refreshToken = this.catchAsync(async (req, res) => {
+        // Try to get refresh token from body, cookie, or authorization header
+        let refreshToken = req.body.refreshToken || req.cookies?.refreshToken;
+
+        if (!refreshToken) {
+            throw new AppError('Refresh token is required', 401);
+        }
+
+        // Get new access token using refresh token
+        const result = await this.service.refreshAccessToken(refreshToken);
+
+        // Set new access token cookie
+        this.setTokenCookie(res, 'accessToken', result.accessToken, {
+            maxAge: 15 * 60 * 1000 // 15 minutes
+        });
+
+        this.logAction('Token Refreshed', { userId: result.user._id });
+
+        this.sendSuccess(
+            res,
+            result,
+            200,
+            'Token refreshed successfully'
         );
     });
 }
