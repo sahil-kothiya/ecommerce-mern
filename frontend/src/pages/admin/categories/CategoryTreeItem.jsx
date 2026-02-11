@@ -1,0 +1,254 @@
+import React from 'react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { API_CONFIG } from '../../../constants';
+
+const CategoryTreeItem = ({
+    category,
+    depth,
+    expandedCategories,
+    onToggleExpand,
+    onEdit,
+    onDelete,
+    onAddChild,
+    onToggleStatus,
+}) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: category._id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    const hasChildren = category.children && category.children.length > 0;
+    const isExpanded = expandedCategories.has(category._id);
+
+    const getLevelColor = (level) => {
+        const colors = [
+            'bg-green-50 border-green-200',
+            'bg-blue-50 border-blue-200',
+            'bg-purple-50 border-purple-200',
+            'bg-pink-50 border-pink-200',
+            'bg-yellow-50 border-yellow-200',
+            'bg-indigo-50 border-indigo-200',
+        ];
+        return colors[level % colors.length];
+    };
+
+    const getLevelBadge = (level) => {
+        const badges = [
+            { text: 'Level 0', color: 'bg-green-500' },
+            { text: 'Level 1', color: 'bg-blue-500' },
+            { text: 'Level 2', color: 'bg-purple-500' },
+            { text: 'Level 3', color: 'bg-pink-500' },
+            { text: 'Level 4', color: 'bg-yellow-500' },
+            { text: 'Level 5', color: 'bg-indigo-500' },
+        ];
+        const badge = badges[level] || { text: `Level ${level}`, color: 'bg-gray-500' };
+        return badge;
+    };
+
+    const badge = getLevelBadge(depth);
+
+    return (
+        <div ref={setNodeRef} style={style} className="relative">
+            {/* Main Category Item */}
+            <div
+                className={`border-2 rounded-lg transition-all ${getLevelColor(depth)} ${
+                    isDragging ? 'shadow-2xl scale-105' : 'hover:shadow-md'
+                }`}
+                style={{ marginLeft: `${depth * 40}px` }}
+            >
+                <div className="p-4">
+                    <div className="flex items-center gap-3">
+                        {/* Drag Handle */}
+                        <button
+                            {...attributes}
+                            {...listeners}
+                            className="cursor-move text-gray-400 hover:text-gray-600 p-1"
+                            title="Drag to reorder"
+                        >
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                            </svg>
+                        </button>
+
+                        {/* Expand/Collapse Button */}
+                        {hasChildren ? (
+                            <button
+                                onClick={() => onToggleExpand(category._id)}
+                                className="text-gray-600 hover:text-gray-800 transition-transform"
+                            >
+                                <svg
+                                    className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                >
+                                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                        ) : (
+                            <div className="w-5"></div>
+                        )}
+
+                        {/* Category Icon */}
+                        <div className="flex-shrink-0 w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                            {category.photo ? (
+                                <img
+                                    src={`${API_CONFIG.BASE_URL}${category.photo}`}
+                                    alt={category.title}
+                                    className="w-full h-full object-cover rounded-lg"
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.parentElement.innerHTML = '<svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" /></svg>';
+                                    }}
+                                />
+                            ) : (
+                                <svg className="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                                </svg>
+                            )}
+                        </div>
+
+                        {/* Category Info */}
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-bold text-gray-900 truncate">{category.title}</h3>
+                                <span className={`px-2 py-0.5 text-xs font-bold text-white rounded ${badge.color}`}>
+                                    {badge.text}
+                                </span>
+                                {category.isFeatured && (
+                                    <span className="text-yellow-500">⭐</span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                                <span className="flex items-center gap-1">
+                                    <span className="font-medium">ID:</span> {category._id.slice(-8)}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <span className="font-medium">Slug:</span> {category.slug}
+                                </span>
+                                {hasChildren && (
+                                    <span className="flex items-center gap-1">
+                                        <span className="font-medium">Children:</span> {category.children.length}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2">
+                            {/* Status Toggle */}
+                            <button
+                                onClick={() => onToggleStatus(category._id, category.status)}
+                                className={`px-3 py-1 text-xs font-bold rounded-full ${
+                                    category.status === 'active'
+                                        ? 'bg-green-500 text-white hover:bg-green-600'
+                                        : 'bg-gray-400 text-white hover:bg-gray-500'
+                                }`}
+                                title={`Click to ${category.status === 'active' ? 'deactivate' : 'activate'}`}
+                            >
+                                {category.status === 'active' ? 'active' : 'inactive'}
+                            </button>
+
+                            {/* Add Child */}
+                            <button
+                                onClick={() => onAddChild(category._id)}
+                                className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
+                                title="Add child category"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                            </button>
+
+                            {/* Edit */}
+                            <button
+                                onClick={() => onEdit(category)}
+                                className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                                title="Edit category"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                            </button>
+
+                            {/* Copy */}
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(category._id);
+                                    alert('Category ID copied!');
+                                }}
+                                className="p-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors"
+                                title="Copy ID"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </button>
+
+                            {/* Star (Featured) */}
+                            <button
+                                className={`p-2 rounded-lg transition-colors ${
+                                    category.isFeatured
+                                        ? 'bg-yellow-400 hover:bg-yellow-500 text-white'
+                                        : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
+                                }`}
+                                title={category.isFeatured ? 'Featured' : 'Not featured'}
+                            >
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                            </button>
+
+                            {/* Delete */}
+                            <button
+                                onClick={() => onDelete(category._id)}
+                                className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                                title="Delete category"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+
+                            {/* Number Badge */}
+                            <div className="flex items-center justify-center w-8 h-8 bg-gray-800 text-white rounded-full text-xs font-bold">
+                                {category.childrenCount || 0}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Render Children */}
+            {hasChildren && isExpanded && (
+                <div className="mt-2 space-y-2">
+                    {category.children.map((child) => (
+                        <CategoryTreeItem
+                            key={child._id}
+                            category={child}
+                            depth={depth + 1}
+                            expandedCategories={expandedCategories}
+                            onToggleExpand={onToggleExpand}
+                            onEdit={onEdit}
+                            onDelete={onDelete}
+                            onAddChild={onAddChild}
+                            onToggleStatus={onToggleStatus}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default CategoryTreeItem;

@@ -1,0 +1,58 @@
+{
+    "name": "backend",
+    "version": "1.0.0",
+    "description": "Backend API for Enterprise E-commerce",
+    "type": "module",
+    "main": "src/server.js",
+    "scripts": {
+        "dev": "nodemon src/server.js",
+        "start": "node src/server.js",
+        "test": "jest --coverage",
+        "test:watch": "jest --watch",
+        "lint": "eslint . --ext .js",
+        "lint:fix": "eslint . --ext .js --fix",
+        "format": "prettier --write \"src/**/*.js\"",
+        "seed": "node runSeeder.js",
+        "seed:categories": "node runSeeder.js categories",
+        "seed:brands": "node runSeeder.js brands",
+        "seed:variants": "node runSeeder.js variants",
+        "seed:products": "node runSeeder.js products",
+        "seed:all": "node runSeeder.js all"
+    },
+    "keywords": [
+        "ecommerce",
+        "api",
+        "express",
+        "mongodb",
+        "javascript"
+    ],
+    "author": "Enterprise Team",
+    "license": "MIT",
+    "dependencies": {
+        "express": "^4.21.1",
+        "mongoose": "^8.8.0",
+        "bcryptjs": "^2.4.3",
+        "jsonwebtoken": "^9.0.2",
+        "dotenv": "^16.4.5",
+        "cors": "^2.8.5",
+        "helmet": "^8.0.0",
+        "express-rate-limit": "^7.4.1",
+        "express-validator": "^7.2.0",
+        "multer": "^1.4.5-lts.1",
+        "nodemailer": "^6.9.15",
+        "stripe": "^17.2.1",
+        "winston": "^3.15.0",
+        "compression": "^1.7.4",
+        "cookie-parser": "^1.4.7",
+        "express-mongo-sanitize": "^2.2.0",
+        "hpp": "^0.2.3",
+        "slugify": "^1.6.6",
+        "uuid": "^11.0.2"
+    },
+    "devDependencies": {
+        "eslint": "^9.14.0",
+        "prettier": "^3.3.3",
+        "nodemon": "^3.1.7",
+        "jest": "^29.7.0"
+    }
+}
