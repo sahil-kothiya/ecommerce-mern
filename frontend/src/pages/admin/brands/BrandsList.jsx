@@ -20,7 +20,9 @@ const BrandsList = () => {
             const data = await response.json();
             
             if (data.success) {
-                setBrands(Array.isArray(data.data) ? data.data : data.data?.brands || []);
+                // API returns { data: { items: [...], pagination: {...} } }
+                const items = data.data?.items || (Array.isArray(data.data) ? data.data : []);
+                setBrands(items);
             } else {
                 setBrands([]);
             }
@@ -141,7 +143,7 @@ const BrandsList = () => {
                             <div className="bg-gray-100 h-48 flex items-center justify-center">
                                 {brand.logo ? (
                                     <img
-                                        src={`${API_CONFIG.BASE_URL}/uploads/${brand.logo}`}
+                                        src={`${API_CONFIG.BASE_URL}/${brand.logo}`}
                                         alt={brand.title}
                                         className="max-h-full max-w-full object-contain p-4"
                                     />

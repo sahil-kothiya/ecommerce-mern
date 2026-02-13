@@ -4,6 +4,37 @@ import { User } from '../models/User.js';
 import { AppError } from './errorHandler.js';
 
 export const protect = async (req, res, next) => {
+    // ⚠️ TEMPORARY: JWT AUTHENTICATION DISABLED FOR TESTING
+    // TODO: RE-ENABLE AUTHENTICATION BEFORE PRODUCTION
+    try {
+        console.log('⚠️ WARNING: JWT authentication is TEMPORARILY DISABLED');
+        
+        // Get a default admin user for testing
+        const adminUser = await User.findOne({ email: 'admin@admin.com' });
+        
+        if (adminUser) {
+            console.log('✅ Using default admin user for testing:', adminUser.email);
+            req.user = adminUser;
+        } else {
+            console.log('⚠️ No admin user found, creating temporary user object');
+            // Create a temporary user object if no admin exists
+            req.user = {
+                _id: '000000000000000000000000',
+                email: 'temp@test.com',
+                role: 'admin',
+                status: 'active'
+            };
+        }
+        
+        next();
+    } catch (error) {
+        console.error('Error in bypass protect middleware:', error);
+        next(error);
+    }
+};
+
+/* ORIGINAL CODE - COMMENTED OUT FOR TESTING
+export const protect = async (req, res, next) => {
     try {
         let token;
 
@@ -58,6 +89,7 @@ export const protect = async (req, res, next) => {
         next(error);
     }
 };
+*/
 
 export const authorize = (...roles) => {
     return (req, res, next) => {

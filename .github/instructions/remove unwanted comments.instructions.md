@@ -1,31 +1,44 @@
 ---
-description: Describe when these instructions should be loaded
+description: Code style and minimal comments policy
 applyTo: "**"
 ---
 
-Provide project context and concise coding guidelines the AI should follow when generating code, answering questions, or reviewing changes.
+# Code Style & Comments Policy
 
-- Do not add unwanted comments in files.
-- Add only short, simple instructions.
-- Always generate extra `.md` or `.text` files inside: `RestDoc/11-02-2026`.
-- Use the exact date format: `dd-mm-yyyy` (example: `11-02-2026`).
-- Place this file in the repository at: `.GitHub/instructions` (for VS Code).
+## Comments
 
-MERN development rules (latest practices):
+- Add only short, essential comments explaining "why", not "what"
+- No verbose JSDoc blocks in new code
+- Keep comments concise and clear
 
-- Use modern, stable versions of React, Node, Express, and MongoDB (or specified DB).
-- Project structure: `frontend/` (React) and `backend/` (Node/Express).
-- Frontend: functional components, hooks, modular folder structure, and clear separation of UI and logic.
-- Backend: controller → service → model separation; keep route handlers thin.
-- Use async/await, central error-handling middleware, and input validation.
-- Keep functions small and single-responsibility; prefer readability over cleverness.
-- Use meaningful variable names and consistent sorting/organization of imports and exports.
-- Add only minimal, useful comments — short and clear.
-- Avoid unnecessary dependencies; prefer native APIs and lightweight libraries.
-- Write code that is easy to read and maintain; use proper formatting and linting.
+## MERN Best Practices
 
-Generation rules for AI:
+**Stack:**
 
-- Produce production-minded, maintainable code (avoid quick hacks).
-- Keep comments short and practical; do not add unwanted or verbose commentary.
-- When creating example or scaffold files, include a short README in `RestDoc/11-02-2026`.
+- React 18+ (functional components, hooks)
+- Node.js + Express (controller → service → model)
+- MongoDB (Mongoose ODM)
+
+**Code Quality:**
+
+- Small, single-responsibility functions
+- Meaningful variable names
+- Async/await pattern
+- Central error-handling middleware
+- Input validation (client + server)
+
+**Style:**
+
+- Production-minded code (not prototypes)
+- Minimal dependencies
+- Clean, maintainable code
+- Proper formatting and linting
+
+## File Generation
+
+**DO NOT** create summary/documentation files unless user explicitly requests.
+See `no-summary-files.instructions.md` for details.
+
+---
+
+**Date:** Feb 12, 2026

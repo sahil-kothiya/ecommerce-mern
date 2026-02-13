@@ -10,6 +10,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { API_CONFIG } from '../../../constants';
+import { brandService } from '../../../services/brandService';
 
 const BrandForm = () => {
     const { id } = useParams();
@@ -44,27 +45,25 @@ const BrandForm = () => {
     const loadBrand = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}/${id}`);
-            const data = await response.json();
+            const data = await brandService.getBrandById(id);
+            
+            const brand = data.data || data;
+            setFormData({
+                title: brand.title || '',
+                description: brand.description || '',
+                status: brand.status || 'active'
+            });
 
-            if (data.success) {
-                const brand = data.data;
-                setFormData({
-                    title: brand.title || '',
-                    description: brand.description || '',
-                    status: brand.status || 'active'
-                });
+            if (brand.logo) {
+                setExistingLogo(brand.logo);
+            }
 
-                if (brand.logo) {
-                    setExistingLogo(brand.logo);
-                }
-
-                if (brand.banners && Array.isArray(brand.banners)) {
-                    setExistingBanners(brand.banners);
-                }
+            if (brand.banners && Array.isArray(brand.banners)) {
+                setExistingBanners(brand.banners);
             }
         } catch (error) {
             console.error('Error loading brand:', error);
+            toast.error(error.message || 'Failed to load brand');
         } finally {
             setIsLoading(false);
         }
@@ -156,25 +155,48 @@ const BrandForm = () => {
         setExistingBanners(prev => prev.filter((_, i) => i !== index));
     };
 
+    /**
+     * Validate form inputs before submission
+     * CLIENT-SIDE VALIDATION - First line of defense
+     * Server will also validate to ensure data integrity
+     */
     const validateForm = () => {
         const newErrors = {};
 
+        // Title validation (required, 2-100 chars)
         if (!formData.title.trim()) {
             newErrors.title = 'Title is required';
+        } else if (formData.title.trim().length < 2) {
+            newErrors.title = 'Title must be at least 2 characters';
+        } else if (formData.title.trim().length > 100) {
+            newErrors.title = 'Title cannot exceed 100 characters';
+        } else if (!/^[a-zA-Z0-9\s\-&.'()]+$/.test(formData.title.trim())) {
+            newErrors.title = 'Title can only contain letters, numbers, spaces, and common punctuation';
         }
 
-        if (!isEdit && !logo && !existingLogo) {
-            newErrors.logo = 'Logo is required';
+        // Description validation (optional, max 1000 chars)
+        if (formData.description.trim().length > 1000) {
+            newErrors.description = 'Description cannot exceed 1000 characters';
         }
+
+        // Logo is now optional - no validation needed
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
+    /**
+     * Handle form submission
+     * DUAL VALIDATION PATTERN:
+     * 1. Client-side validation (fast feedback)
+     * 2. Server-side validation (security & data integrity)
+     */
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        // CLIENT-SIDE VALIDATION - First line of defense
         if (!validateForm()) {
+            toast.error('Please fix the validation errors');
             return;
         }
 
@@ -183,48 +205,60 @@ const BrandForm = () => {
         try {
             const formDataToSend = new FormData();
 
-            formDataToSend.append('title', formData.title);
-            formDataToSend.append('description', formData.description);
+            // Trim text inputs to avoid whitespace issues
+            formDataToSend.append('title', formData.title.trim());
+            formDataToSend.append('description', formData.description.trim());
             formDataToSend.append('status', formData.status);
 
+            // Logo upload (optional)
             if (logo) {
                 formDataToSend.append('logo', logo);
             }
 
+            // Banner uploads (optional, multiple)
             bannerImages.forEach((banner) => {
                 formDataToSend.append('banners', banner);
             });
 
+            // For edit mode, preserve existing images if not replaced
             if (isEdit) {
                 formDataToSend.append('keepExistingLogo', existingLogo ? 'true' : 'false');
                 formDataToSend.append('existingBanners', JSON.stringify(existingBanners));
             }
 
-            const url = isEdit
-                ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}/${id}`
-                : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}`;
-
-            const token = localStorage.getItem('auth_token');
-
-            const response = await fetch(url, {
-                method: isEdit ? 'PUT' : 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formDataToSend
-            });
-
-            const data = await response.json();
-
-            if (data.success || response.ok) {
-                toast.success(`Brand ${isEdit ? 'updated' : 'created'} successfully!`);
-                navigate('/admin/brands');
+            // Use brandService instead of direct fetch
+            let response;
+            if (isEdit) {
+                response = await brandService.updateBrand(id, formDataToSend);
             } else {
-                toast.error(data.message || 'Failed to save brand');
+                response = await brandService.createBrand(formDataToSend);
             }
+
+            toast.success(`Brand ${isEdit ? 'updated' : 'created'} successfully!`);
+            navigate('/admin/brands');
+            
         } catch (error) {
             console.error('Error saving brand:', error);
-            toast.error('Failed to save brand');
+            
+            // Handle server-side validation errors
+            if (error.errors && Array.isArray(error.errors)) {
+                // Format: [{ field: 'title', message: 'error message' }]
+                const serverErrors = {};
+                error.errors.forEach(err => {
+                    serverErrors[err.field] = err.message;
+                });
+                setErrors(serverErrors);
+                
+                // Show first error in toast
+                toast.error(error.errors[0].message || 'Validation failed');
+            } else {
+                // Display generic error message
+                const errorMessage = error.message || 
+                    error.response?.data?.message || 
+                    `Failed to ${isEdit ? 'update' : 'create'} brand`;
+                
+                toast.error(errorMessage);
+            }
         } finally {
             setIsSaving(false);
         }
@@ -285,9 +319,12 @@ const BrandForm = () => {
                             onChange={handleChange}
                             rows="4"
                             maxLength="1000"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
+                                errors.description ? 'border-red-500' : 'border-gray-300'
+                            }`}
                             placeholder="Brand description"
                         />
+                        {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
                         <p className="mt-1 text-sm text-gray-500">{formData.description.length}/1000</p>
                     </div>
 
@@ -299,17 +336,20 @@ const BrandForm = () => {
                             name="status"
                             value={formData.status}
                             onChange={handleChange}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
+                                errors.status ? 'border-red-500' : 'border-gray-300'
+                            }`}
                         >
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                         </select>
+                        {errors.status && <p className="mt-1 text-sm text-red-600">{errors.status}</p>}
                     </div>
                 </div>
 
                 {/* Logo Upload */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-4">Brand Logo *</h2>
+                    <h2 className="text-xl font-bold text-gray-900 mb-4">Brand Logo (Optional)</h2>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Logo Preview */}

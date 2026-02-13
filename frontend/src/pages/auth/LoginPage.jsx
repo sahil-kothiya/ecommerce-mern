@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
+import toast from 'react-hot-toast';
 import authService from '../../services/authService';
 import { ErrorAlert, FieldError } from '../../components/common';
 import { processApiError, getFieldClasses, getFieldError } from '../../utils/errorUtils';
@@ -66,6 +67,26 @@ const LoginPage = () => {
 
     // Watch rememberMe checkbox for visual feedback
     const rememberMeValue = watch('rememberMe');
+
+    // ========================================================================
+    // SESSION EXPIRATION HANDLER
+    // ========================================================================
+    // Check for session expiration flag on component mount
+    useEffect(() => {
+        const sessionExpired = sessionStorage.getItem('sessionExpired');
+        
+        if (sessionExpired === 'true') {
+            // Clear the flag
+            sessionStorage.removeItem('sessionExpired');
+            
+            // Show session expired alert
+            toast.error('Your session has expired. Please login again.', {
+                duration: 5000,
+                position: 'top-center',
+                id: 'session-expired-alert'
+            });
+        }
+    }, []);
 
     // ========================================================================
     // QUICK LOGIN HANDLERS (for demo/testing purposes)

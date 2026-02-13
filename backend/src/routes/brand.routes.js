@@ -1,23 +1,74 @@
-import { Router } from 'express';
-import { BrandController } from '../controllers/BrandController.js';
-import { protect, authorize } from '../middleware/auth.js';
-import { uploadBrandMultiField } from '../middleware/uploadEnhanced.js';
+import { Router } from "express";
+import { BrandController } from "../controllers/BrandController.js";
+import { protect, authorize } from "../middleware/auth.js";
+import {
+  uploadBrandMultiField,
+  handleUploadError,
+} from "../middleware/uploadEnhanced.js";
+import {
+  createBrandValidator,
+  updateBrandValidator,
+  deleteBrandValidator,
+  getBrandValidator,
+  validate,
+} from "../validators/index.js";
 
 const router = Router();
 const brandController = new BrandController();
 
-// Public routes
-router.get('/', (req, res) => brandController.index(req, res));
+// ============================================================================
+// PUBLIC ROUTES - No authentication required
+// ============================================================================
 
-router.get('/:slug', (req, res) => brandController.show(req, res));
+// GET /api/brands - List all brands with pagination and filters
+router.get("/", (req, res, next) => brandController.index(req, res, next));
 
-router.get('/:slug/products', (req, res) => brandController.getProducts(req, res));
+// GET /api/brands/:slug - Get single brand by slug or ID
+router.get("/:slug", getBrandValidator, validate, (req, res, next) =>
+  brandController.show(req, res, next),
+);
 
-// Protected routes (Admin only)
-router.post('/', protect, authorize('admin'), uploadBrandMultiField, (req, res) => brandController.store(req, res));
+// GET /api/brands/:slug/products - Get products by brand
+router.get("/:slug/products", getBrandValidator, validate, (req, res, next) =>
+  brandController.getProducts(req, res, next),
+);
 
-router.put('/:id', protect, authorize('admin'), uploadBrandMultiField, (req, res) => brandController.update(req, res));
+// ============================================================================
+// PROTECTED ROUTES - Admin only
+// ============================================================================
 
-router.delete('/:id', protect, authorize('admin'), (req, res) => brandController.destroy(req, res));
+// POST /api/brands - Create new brand
+router.post(
+  "/",
+  protect,
+  authorize("admin"),
+  uploadBrandMultiField,
+  handleUploadError,
+  createBrandValidator,
+  validate,
+  (req, res, next) => brandController.store(req, res, next),
+);
+
+// PUT /api/brands/:id - Update existing brand
+router.put(
+  "/:id",
+  protect,
+  authorize("admin"),
+  uploadBrandMultiField,
+  handleUploadError,
+  updateBrandValidator,
+  validate,
+  (req, res, next) => brandController.update(req, res, next),
+);
+
+// DELETE /api/brands/:id - Delete brand (only if no products using it)
+router.delete(
+  "/:id",
+  protect,
+  authorize("admin"),
+  deleteBrandValidator,
+  validate,
+  (req, res, next) => brandController.destroy(req, res, next),
+);
 
 export default router;

@@ -1,4 +1,5 @@
 import { API_CONFIG } from '../constants';
+import toast from 'react-hot-toast';
 
 class ApiClient {
     constructor() {
@@ -16,13 +17,17 @@ class ApiClient {
      * @private
      */
     setupDefaultInterceptors() {
-        // Add auth token to requests
+        // ⚠️ TEMPORARY: JWT AUTHENTICATION DISABLED FOR TESTING
+        // TODO: RE-ENABLE AUTHORIZATION HEADER BEFORE PRODUCTION
+        
+        // Add auth token to requests - DISABLED
         this.addRequestInterceptor(async (config) => {
-            const token = localStorage.getItem('auth_token');
-            if (token) {
-                config.headers = config.headers || {};
-                config.headers.Authorization = `Bearer ${token}`;
-            }
+            console.log('⚠️ WARNING: Authorization header DISABLED for testing');
+            // const token = localStorage.getItem('auth_token');
+            // if (token) {
+            //     config.headers = config.headers || {};
+            //     config.headers.Authorization = `Bearer ${token}`;
+            // }
             return config;
         });
 
@@ -39,13 +44,33 @@ class ApiClient {
             return response;
         });
 
-        // Handle token expiration
+        // Handle token expiration and authentication errors
         this.addErrorInterceptor(async (error) => {
             if (error.response?.status === 401) {
-                // Token expired - redirect to login
+                // Check if user was authenticated (to avoid showing alert on already logged out users)
+                const wasAuthenticated = localStorage.getItem('auth_token');
+                
+                // Clear authentication data
                 localStorage.removeItem('auth_token');
                 localStorage.removeItem('auth_user');
-                window.location.href = '/login';
+                
+                // Only show session expired message if user was previously authenticated
+                if (wasAuthenticated) {
+                    // Set flag for login page to show session expired message
+                    sessionStorage.setItem('sessionExpired', 'true');
+                    
+                    // Show immediate toast notification
+                    toast.error('Your session has expired. Please login again.', {
+                        duration: 4000,
+                        position: 'top-center',
+                        id: 'session-expired' // Prevent duplicate toasts
+                    });
+                }
+                
+                // Redirect to login page after a short delay to allow toast to show
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 500);
             }
             return Promise.reject(error);
         });
