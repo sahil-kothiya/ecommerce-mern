@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger.js';
+
 import { API_CONFIG } from '../constants';
 import toast from 'react-hot-toast';
 
@@ -17,12 +19,12 @@ class ApiClient {
      * @private
      */
     setupDefaultInterceptors() {
-        // ⚠️ TEMPORARY: JWT AUTHENTICATION DISABLED FOR TESTING
+        // âš ï¸ TEMPORARY: JWT AUTHENTICATION DISABLED FOR TESTING
         // TODO: RE-ENABLE AUTHORIZATION HEADER BEFORE PRODUCTION
         
         // Add auth token to requests - DISABLED
         this.addRequestInterceptor(async (config) => {
-            console.log('⚠️ WARNING: Authorization header DISABLED for testing');
+            logger.info('âš ï¸ WARNING: Authorization header DISABLED for testing');
             // const token = localStorage.getItem('auth_token');
             // if (token) {
             //     config.headers = config.headers || {};
@@ -40,7 +42,7 @@ class ApiClient {
         this.addResponseInterceptor(async (response) => {
             const endTime = new Date();
             const duration = endTime - response.config.metadata.startTime;
-            console.log(`[API] ${response.config.method.toUpperCase()} ${response.config.url} - ${duration}ms`);
+            logger.info(`[API] ${response.config.method.toUpperCase()} ${response.config.url} - ${duration}ms`);
             return response;
         });
 
@@ -306,12 +308,25 @@ class ApiClient {
                         resolve(xhr.responseText);
                     }
                 } else {
-                    reject(new Error(`Upload failed with status ${xhr.status}`));
+                    try {
+                        const errorData = JSON.parse(xhr.responseText);
+                        const error = new Error(
+                            errorData?.message || `Upload failed with status ${xhr.status}`
+                        );
+                        error.status = xhr.status;
+                        if (errorData?.errors) {
+                            error.errors = errorData.errors;
+                        }
+                        error.data = errorData;
+                        reject(error);
+                    } catch {
+                        reject(new Error(`Upload failed with status ${xhr.status}`));
+                    }
                 }
             });
 
             xhr.addEventListener('error', () => {
-                reject(new Error('Upload failed'));
+                reject(new Error('Network error occurred during upload'));
             });
 
             xhr.open('POST', `${this.baseURL}${url}`);

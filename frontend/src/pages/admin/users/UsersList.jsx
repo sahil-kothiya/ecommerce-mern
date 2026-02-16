@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import ConfirmDialog from '../../../components/common/ConfirmDialog';
+import notify from '../../../utils/notify';
 
 const UsersList = () => {
     const [users, setUsers] = useState([]);
@@ -12,6 +14,7 @@ const UsersList = () => {
         role: 'customer',
         status: 'active',
     });
+    const [userToDelete, setUserToDelete] = useState(null);
 
     useEffect(() => {
         loadUsers();
@@ -37,14 +40,14 @@ const UsersList = () => {
         e.preventDefault();
         try {
             // TODO: Implement actual API call
-            alert(`User ${editingUser ? 'updated' : 'created'} successfully!`);
+            notify.success(`User ${editingUser ? 'updated' : 'created'} successfully`);
             setShowModal(false);
             setEditingUser(null);
             setFormData({ name: '', email: '', password: '', role: 'customer', status: 'active' });
             loadUsers();
         } catch (error) {
             console.error('Error saving user:', error);
-            alert('Failed to save user');
+            notify.error(error, 'Failed to save user');
         }
     };
 
@@ -60,15 +63,16 @@ const UsersList = () => {
         setShowModal(true);
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this user?')) return;
+    const handleDelete = async () => {
+        if (!userToDelete?._id) return;
         try {
             // TODO: Implement actual API call
-            alert('User deleted successfully!');
-            loadUsers();
+            setUsers(prev => prev.filter(user => user._id !== userToDelete._id));
+            setUserToDelete(null);
+            notify.success('User deleted successfully');
         } catch (error) {
             console.error('Error deleting user:', error);
-            alert('Failed to delete user');
+            notify.error(error, 'Failed to delete user');
         }
     };
 
@@ -152,7 +156,7 @@ const UsersList = () => {
                                                     </svg>
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDelete(user._id)}
+                                                    onClick={() => setUserToDelete(user)}
                                                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                 >
                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -253,6 +257,17 @@ const UsersList = () => {
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                isOpen={Boolean(userToDelete)}
+                title="Delete User?"
+                message="This action permanently removes this user account."
+                highlightText={userToDelete?.name || ''}
+                confirmText="Delete User"
+                cancelText="Keep User"
+                onConfirm={handleDelete}
+                onCancel={() => setUserToDelete(null)}
+            />
         </div>
     );
 };

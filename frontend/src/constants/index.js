@@ -10,6 +10,7 @@ export const API_CONFIG = {
         PRODUCTS: '/api/products',
         CATEGORIES: '/api/categories',
         BRANDS: '/api/brands',
+        BANNERS: '/api/banners',
         CART: '/api/cart',
         ORDERS: '/api/orders',
         AUTH: '/api/auth'

@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger.js';
+
 
 
 import apiClient from './apiClient';
@@ -24,7 +26,7 @@ class AuthService {
      */
     async login(email, password, rememberMe = false) {
         try {
-            console.log('AuthService.login called with:', { email, rememberMe, type: typeof rememberMe });
+            logger.info('AuthService.login called with:', { email, rememberMe, type: typeof rememberMe });
             
             const response = await apiClient.post(`${API_CONFIG.ENDPOINTS.AUTH}/login`, {
                 email,
@@ -32,7 +34,7 @@ class AuthService {
                 rememberMe
             });
             
-            console.log('Login response:', response.data);
+            logger.info('Login response:', response.data);
 
             // Extract data from standardized API response
             const { user, token } = response.data;
@@ -199,6 +201,23 @@ class AuthService {
         if (user) {
             localStorage.setItem(this.USER_KEY, JSON.stringify(user));
         }
+    }
+
+    /**
+     * Build authorization headers for fetch calls.
+     * @param {Object} [extraHeaders={}] - Additional headers to merge.
+     * @param {boolean} [includeJson=true] - Include JSON content type by default.
+     * @returns {Object} Headers object.
+     */
+    getAuthHeaders(extraHeaders = {}, includeJson = true) {
+        const headers = includeJson ? { 'Content-Type': 'application/json' } : {};
+        const token = this.getToken();
+
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+
+        return { ...headers, ...extraHeaders };
     }
 
     /**

@@ -1,3 +1,5 @@
+import { logger } from '../../utils/logger.js';
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -41,10 +43,10 @@ const registerSchema = yup.object().shape({
         .required('Please confirm your password')
         .trim()
         .test('passwords-match', 'Passwords must match', function(value) {
-            console.log('=== YUP PASSWORD VALIDATION ===');
-            console.log('Password:', this.parent.password);
-            console.log('Confirm Password:', value);
-            console.log('Match:', this.parent.password === value);
+            logger.info('=== YUP PASSWORD VALIDATION ===');
+            logger.info('Password:', this.parent.password);
+            logger.info('Confirm Password:', value);
+            logger.info('Match:', this.parent.password === value);
             return this.parent.password === value;
         })
 });
@@ -84,8 +86,8 @@ const RegisterPage = () => {
         setIsLoading(true);
 
         // Log submission data for debugging (remove in production)
-        console.log('=== REGISTRATION FORM SUBMITTED ===');
-        console.log('Validated data:', {
+        logger.info('=== REGISTRATION FORM SUBMITTED ===');
+        logger.info('Validated data:', {
             name: data.name,
             email: data.email,
             password: data.password,
@@ -112,21 +114,21 @@ const RegisterPage = () => {
             // Process API error using utility function
             const { fieldErrors, errorMessages, generalError } = processApiError(err);
             
-            console.log('=== PROCESSED ERROR RESULT ===');
-            console.log('Field Errors:', fieldErrors);
-            console.log('Error Messages:', errorMessages);
-            console.log('General Error:', generalError);
+            logger.info('=== PROCESSED ERROR RESULT ===');
+            logger.info('Field Errors:', fieldErrors);
+            logger.info('Error Messages:', errorMessages);
+            logger.info('General Error:', generalError);
             
             // Set field-specific errors for form inputs
             setServerErrors(fieldErrors);
             
             // Set general error message for alert display
             if (Object.keys(fieldErrors).length > 0) {
-                console.log('Setting error to errorMessages array:', errorMessages);
+                logger.info('Setting error to errorMessages array:', errorMessages);
                 // Show field-specific errors in alert
                 setError(errorMessages);
             } else {
-                console.log('Setting error to generalError:', generalError);
+                logger.info('Setting error to generalError:', generalError);
                 // Show general error message
                 setError([generalError]);
             }
@@ -164,7 +166,7 @@ const RegisterPage = () => {
                                     to="/login" 
                                     className="inline-flex items-center text-sm text-green-700 hover:text-green-800 font-medium underline"
                                 >
-                                    Go to Login Page →
+                                    Go to Login Page â†’
                                 </Link>
                             </div>
                         </div>
@@ -221,7 +223,7 @@ const RegisterPage = () => {
                             type="password"
                             {...register('password')} // Register with React Hook Form
                             className={getFieldClasses(errors, serverErrors, 'password')}
-                            placeholder="••••••••"
+                            placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                             autoComplete="new-password"
                         />
                         {/* Show validation error if exists (client-side or server-side) */}
@@ -243,7 +245,7 @@ const RegisterPage = () => {
                             type="password"
                             {...register('confirmPassword')} // Register with React Hook Form
                             className={getFieldClasses(errors, serverErrors, 'confirmPassword')}
-                            placeholder="••••••••"
+                            placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                             autoComplete="new-password"
                         />
                         {/* Show validation error if exists (client-side or server-side) */}

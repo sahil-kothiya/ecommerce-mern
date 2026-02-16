@@ -1,10 +1,56 @@
 import { BaseController } from '../core/BaseController.js';
 import { BannerService } from '../services/BannerService.js';
 import { deleteUploadedFile } from '../middleware/uploadEnhanced.js';
+import mongoose from 'mongoose';
+import { Banner } from '../models/Banner.js';
+import { Discount } from '../models/Supporting.models.js';
 
 export class BannerController extends BaseController {
     constructor() {
         super(new BannerService());
+    }
+
+    async ensureUniqueSlug(baseSlug, excludeId = null) {
+        const cleaned = (baseSlug || '')
+            .toString()
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '') || 'banner';
+
+        let slug = cleaned;
+        let counter = 1;
+
+        while (true) {
+            const existing = await Banner.findOne({
+                slug,
+                ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+            }).lean();
+
+            if (!existing) return slug;
+            counter += 1;
+            slug = `${cleaned}-${counter}`;
+        }
+    }
+
+    parseJsonField(fieldValue, fallback, fieldName) {
+        if (fieldValue === undefined || fieldValue === null || fieldValue === '') return fallback;
+        if (typeof fieldValue === 'object') return fieldValue;
+        try {
+            return JSON.parse(fieldValue);
+        } catch {
+            throw new Error(`Invalid JSON format for "${fieldName}"`);
+        }
+    }
+
+    normalizeSingleValue(value, fallback = null) {
+        if (Array.isArray(value)) {
+            return value.length > 0 ? value[value.length - 1] : fallback;
+        }
+        if (value === undefined || value === null) return fallback;
+        return value;
     }
 
     async index(req, res) {
@@ -13,7 +59,6 @@ export class BannerController extends BaseController {
                 page = 1,
                 limit = 20,
                 status,
-                position,
                 sortBy = 'sortOrder',
                 sortOrder = 'asc'
             } = req.query;
@@ -23,7 +68,6 @@ export class BannerController extends BaseController {
 
             // Apply filters
             if (status) query.status = status;
-            if (position) query.position = position;
 
             // Build sort object
             const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
@@ -34,6 +78,7 @@ export class BannerController extends BaseController {
                     .sort(sort)
                     .skip(skip)
                     .limit(parseInt(limit))
+                    .populate('discountIds')
                     .lean(),
                 Banner.countDocuments(query)
             ]);
@@ -65,29 +110,32 @@ export class BannerController extends BaseController {
     }
 
     /**
-     * Get active banners for specific position
-     * @route GET /api/banners/active/:position
-     * @access Public
-     * @param {Object} req - Express request
-     * @param {Object} res - Express response
+     * Get active discount options for banner linking
+     * @route GET /api/banners/discount-options
+     * @access Admin
      */
-    async getActiveByPosition(req, res) {
+    async getDiscountOptions(req, res) {
         try {
-            const { position } = req.params;
-            const limit = req.query.limit ? parseInt(req.query.limit) : null;
-
-            const banners = await Banner.getActiveByPosition(position, limit);
+            const now = new Date();
+            const discounts = await Discount.find({
+                isActive: true,
+                startsAt: { $lte: now },
+                endsAt: { $gte: now },
+            })
+                .select('_id title type value startsAt endsAt')
+                .sort({ startsAt: -1 })
+                .lean();
 
             res.json({
                 success: true,
-                data: banners
+                data: discounts,
             });
         } catch (error) {
-            console.error('Get active banners error:', error);
+            console.error('Get discount options error:', error);
             res.status(500).json({
                 success: false,
-                message: 'Failed to fetch active banners',
-                error: error.message
+                message: 'Failed to fetch discount options',
+                error: error.message,
             });
         }
     }
@@ -110,7 +158,7 @@ export class BannerController extends BaseController {
                 });
             }
 
-            const banner = await Banner.findById(id);
+            const banner = await Banner.findById(id).populate('discountIds');
 
             if (!banner) {
                 return res.status(404).json({
@@ -144,16 +192,22 @@ export class BannerController extends BaseController {
         try {
             const {
                 title,
+                slug,
                 description,
                 link,
+                linkType,
+                link_type,
                 linkTarget,
-                position,
                 sortOrder,
                 status,
                 startDate,
                 endDate,
-                metadata
+                metadata,
+                discounts,
+                discountIds
             } = req.body;
+
+            const normalizedLinkType = this.normalizeSingleValue(linkType || link_type, null);
 
             // Validate required fields
             if (!title) {
@@ -163,26 +217,35 @@ export class BannerController extends BaseController {
                 });
             }
 
-            if (!req.file) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Banner image is required'
-                });
+            const incomingImagePath = req.file
+                ? `banners/${req.file.filename}`
+                : (req.body.image || req.body.photo || null);
+
+            let parsedDiscountIds = [];
+            const discountsPayload = discountIds ?? discounts;
+            if (discountsPayload) {
+                const normalized = Array.isArray(discountsPayload)
+                    ? discountsPayload
+                    : this.parseJsonField(discountsPayload, [], 'discounts');
+
+                parsedDiscountIds = normalized.filter((v) => mongoose.Types.ObjectId.isValid(v));
             }
 
             // Create banner data
             const bannerData = {
                 title,
+                slug: await this.ensureUniqueSlug(slug || title),
                 description,
-                image: `banners/${req.file.filename}`,
+                image: incomingImagePath,
                 link: link || '',
+                linkType: normalizedLinkType,
                 linkTarget: linkTarget || '_self',
-                position: position || 'home-main',
                 sortOrder: sortOrder ? parseInt(sortOrder) : 0,
                 status: status || 'inactive',
                 startDate: startDate || null,
                 endDate: endDate || null,
-                metadata: metadata ? JSON.parse(metadata) : {}
+                metadata: this.parseJsonField(metadata, {}, 'metadata'),
+                discountIds: parsedDiscountIds
             };
 
             const banner = await Banner.create(bannerData);
@@ -196,6 +259,31 @@ export class BannerController extends BaseController {
             // Clean up uploaded file if banner creation fails
             if (req.file) {
                 await deleteUploadedFile(`banners/${req.file.filename}`);
+            }
+
+            if (error.message && error.message.startsWith('Invalid JSON format')) {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message
+                });
+            }
+
+            if (error.name === 'ValidationError') {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                    errors: Object.values(error.errors || {}).map((e) => ({
+                        field: e.path,
+                        message: e.message,
+                    })),
+                });
+            }
+
+            if (error.code === 11000) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Banner slug already exists',
+                });
             }
 
             console.error('Banner create error:', error);
@@ -243,27 +331,46 @@ export class BannerController extends BaseController {
             // Update fields
             const {
                 title,
+                slug,
                 description,
                 link,
+                linkType,
+                link_type,
                 linkTarget,
-                position,
                 sortOrder,
                 status,
                 startDate,
                 endDate,
-                metadata
+                metadata,
+                discounts,
+                discountIds
             } = req.body;
 
+            const normalizedLinkType = this.normalizeSingleValue(linkType || link_type, null);
+
             if (title !== undefined) banner.title = title;
+            if (slug !== undefined || title !== undefined) {
+                banner.slug = await this.ensureUniqueSlug(slug || title || banner.title, id);
+            }
             if (description !== undefined) banner.description = description;
             if (link !== undefined) banner.link = link;
+            if (linkType !== undefined || link_type !== undefined) banner.linkType = normalizedLinkType;
             if (linkTarget !== undefined) banner.linkTarget = linkTarget;
-            if (position !== undefined) banner.position = position;
             if (sortOrder !== undefined) banner.sortOrder = parseInt(sortOrder);
             if (status !== undefined) banner.status = status;
             if (startDate !== undefined) banner.startDate = startDate || null;
             if (endDate !== undefined) banner.endDate = endDate || null;
-            if (metadata !== undefined) banner.metadata = JSON.parse(metadata);
+            if (metadata !== undefined) banner.metadata = this.parseJsonField(metadata, {}, 'metadata');
+            if (discountIds !== undefined || discounts !== undefined) {
+                const discountsPayload = discountIds ?? discounts;
+                const normalized = Array.isArray(discountsPayload)
+                    ? discountsPayload
+                    : this.parseJsonField(discountsPayload, [], 'discounts');
+                banner.discountIds = normalized.filter((v) => mongoose.Types.ObjectId.isValid(v));
+            }
+            if (req.body.image !== undefined || req.body.photo !== undefined) {
+                banner.image = req.body.image || req.body.photo || null;
+            }
 
             // Update image if new one uploaded
             if (req.file) {
@@ -285,6 +392,31 @@ export class BannerController extends BaseController {
         } catch (error) {
             if (req.file) {
                 await deleteUploadedFile(`banners/${req.file.filename}`);
+            }
+
+            if (error.message && error.message.startsWith('Invalid JSON format')) {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message
+                });
+            }
+
+            if (error.name === 'ValidationError') {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                    errors: Object.values(error.errors || {}).map((e) => ({
+                        field: e.path,
+                        message: e.message,
+                    })),
+                });
+            }
+
+            if (error.code === 11000) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Banner slug already exists',
+                });
             }
 
             console.error('Banner update error:', error);

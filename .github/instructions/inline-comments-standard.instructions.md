@@ -316,6 +316,8 @@ userSchema.pre("save", async function (next) {
 8. **Avoid redundancy** - don't repeat what code obviously does
 9. **Use JSDoc for functions** - helps IDE autocomplete and type checking
 10. **Keep comments up to date** - outdated comments are worse than no comments
+11. **No direct console logging** - use the project `src/utils/logger.js` (for example, `logger.info`) for all server-side logging
+12. **Clean Code** - Remove commented-out code immediately; do not commit it to the repository
 
 ## Examples of Good vs Bad Comments
 

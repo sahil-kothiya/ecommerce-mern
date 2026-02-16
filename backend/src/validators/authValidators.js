@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger.js';
+
 import { body, param } from 'express-validator';
 
 // ============================================================================
@@ -28,10 +30,10 @@ export const registerValidator = [
     body('confirmPassword')
         .trim() // Trim whitespace for consistency
         .custom((value, { req }) => {
-            console.log('=== PASSWORD COMPARISON ===');
-            console.log('Password:', req.body.password);
-            console.log('Confirm Password:', value);
-            console.log('Match:', value === req.body.password);
+            logger.info('=== PASSWORD COMPARISON ===');
+            logger.info('Password:', req.body.password);
+            logger.info('Confirm Password:', value);
+            logger.info('Match:', value === req.body.password);
             return value === req.body.password;
         })
         .withMessage('Passwords do not match')

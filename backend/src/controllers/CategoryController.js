@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger.js';
+
 import { Category } from '../models/Category.js';
 import { Product } from '../models/Product.js';
 import { Brand } from '../models/Brand.js';
@@ -11,8 +13,8 @@ export class CategoryController {
     async index(req, res) {
         try {
             const {
-                parent = null,
-                includeChildren = true,
+                parent,
+                includeChildren = 'false',
                 status,
                 sort = 'sortOrder'
             } = req.query;
@@ -24,24 +26,28 @@ export class CategoryController {
                 query.status = status;
             }
 
-            if (parent === null || parent === 'null') {
+            if (parent === 'null') {
                 query.parentId = null;
             } else if (parent) {
                 query.parentId = new mongoose.Types.ObjectId(parent);
             }
 
-            const categories = await Category.find(query)
-                .sort(sort)
-                .lean();
-
-            // Build tree structure if requested
+            // Build full tree from all matching categories when requested
             if (includeChildren === 'true' && !parent) {
+                const categories = await Category.find(status ? { status } : {})
+                    .sort(sort)
+                    .lean();
+
                 const categoryTree = this.buildCategoryTree(categories);
                 return res.json({
                     success: true,
                     data: categoryTree
                 });
             }
+
+            const categories = await Category.find(query)
+                .sort(sort)
+                .lean();
 
             res.json({
                 success: true,
@@ -61,8 +67,25 @@ export class CategoryController {
     async tree(req, res) {
         try {
             const { maxDepth = 3 } = req.query;
+            const parsedMaxDepth = Number.parseInt(maxDepth, 10);
 
-            const tree = await Category.getCategoryTree(parseInt(maxDepth));
+            const categories = await Category.find({ status: 'active' })
+                .sort('sortOrder')
+                .lean();
+
+            const fullTree = this.buildCategoryTree(categories);
+            const limitDepth = (nodes, depth = 0) => {
+                if (!Array.isArray(nodes) || depth >= parsedMaxDepth) {
+                    return [];
+                }
+
+                return nodes.map((node) => ({
+                    ...node,
+                    children: limitDepth(node.children || [], depth + 1),
+                }));
+            };
+
+            const tree = Number.isFinite(parsedMaxDepth) ? limitDepth(fullTree) : fullTree;
 
             res.json({
                 success: true,
@@ -131,16 +154,30 @@ export class CategoryController {
         try {
             const { id } = req.params;
 
-            const category = await Category.findById(id);
+            let currentCategory = await Category.findById(id).lean();
 
-            if (!category) {
+            if (!currentCategory) {
                 return res.status(404).json({
                     success: false,
                     message: 'Category not found'
                 });
             }
 
-            const breadcrumb = await category.getBreadcrumb();
+            const breadcrumb = [];
+
+            while (currentCategory) {
+                breadcrumb.unshift({
+                    id: currentCategory._id,
+                    title: currentCategory.title,
+                    slug: currentCategory.slug
+                });
+
+                if (!currentCategory.parentId) {
+                    break;
+                }
+
+                currentCategory = await Category.findById(currentCategory.parentId).lean();
+            }
 
             res.json({
                 success: true,
@@ -175,10 +212,10 @@ export class CategoryController {
             // Include children if requested
             if (includeChildren === 'true') {
                 const children = await Category.find({
-                    parent: category._id,
+                    parentId: category._id,
                     status: 'active'
                 })
-                    .sort('position')
+                    .sort('sortOrder')
                     .lean();
 
                 result.children = children;
@@ -220,10 +257,10 @@ export class CategoryController {
             // Include children if requested
             if (includeChildren === 'true') {
                 const children = await Category.find({
-                    parent: category._id,
+                    parentId: category._id,
                     status: 'active'
                 })
-                    .sort('position')
+                    .sort('sortOrder')
                     .lean();
 
                 result.children = children;
@@ -245,10 +282,10 @@ export class CategoryController {
     // POST /api/categories - Create new category
     async store(req, res) {
         try {
-            console.log('📥 Category store request received');
-            console.log('📝 Body:', req.body);
-            console.log('📎 File:', req.file ? req.file.filename : 'No file');
-            console.log('👤 User:', req.user ? req.user.email : 'No user');
+            logger.info('ðŸ“¥ Category store request received');
+            logger.info('ðŸ“ Body:', req.body);
+            logger.info('ðŸ“Ž File:', req.file ? req.file.filename : 'No file');
+            logger.info('ðŸ‘¤ User:', req.user ? req.user.email : 'No user');
 
             const {
                 title,
@@ -264,7 +301,7 @@ export class CategoryController {
             } = req.body;
 
             if (!title) {
-                console.log('❌ Title is missing');
+                logger.info('âŒ Title is missing');
                 return res.status(400).json({
                     success: false,
                     message: 'Title is required'
@@ -291,7 +328,7 @@ export class CategoryController {
             if (req.file) {
                 // Save relative path for database
                 photoPath = `/uploads/categories/${req.file.filename}`;
-                console.log('✅ Image uploaded:', photoPath);
+                logger.info('âœ… Image uploaded:', photoPath);
             }
 
             const category = new Category({
@@ -309,7 +346,7 @@ export class CategoryController {
             });
 
             await category.save();
-            console.log('✅ Category created successfully:', category._id);
+            logger.info('âœ… Category created successfully:', category._id);
 
             res.status(201).json({
                 success: true,
@@ -317,7 +354,7 @@ export class CategoryController {
                 data: category
             });
         } catch (error) {
-            console.error('❌ Category store error:', error);
+            console.error('âŒ Category store error:', error);
 
             if (error.name === 'ValidationError') {
                 const errors = Object.keys(error.errors).reduce((acc, key) => {
@@ -450,7 +487,7 @@ export class CategoryController {
             }
 
             // Check if category has children
-            const hasChildren = await Category.countDocuments({ parent: id });
+            const hasChildren = await Category.countDocuments({ parentId: id });
             if (hasChildren > 0) {
                 return res.status(400).json({
                     success: false,
@@ -545,7 +582,8 @@ export class CategoryController {
                 });
             }
 
-            await category.updatePosition(newPosition);
+            category.sortOrder = newPosition;
+            await category.save();
 
             res.json({
                 success: true,
@@ -673,9 +711,9 @@ export class CategoryController {
 
         for (const category of categories) {
             const catParentId = category.parentId || null;
-            const parentMatch = parentId === null ?
-                catParentId === null :
-                catParentId?.toString() === parentId.toString();
+            const parentMatch = parentId === null
+                ? catParentId === null
+                : String(catParentId) === String(parentId);
 
             if (parentMatch) {
                 const children = this.buildCategoryTree(categories, category._id);

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { API_CONFIG } from '../../../constants';
+import ConfirmDialog from '../../../components/common/ConfirmDialog';
+import notify from '../../../utils/notify';
 
 const ProductsList = () => {
     const [products, setProducts] = useState([]);
@@ -8,6 +10,8 @@ const ProductsList = () => {
     const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({ category: '', status: 'active' });
+    const [productToDelete, setProductToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         loadProducts();
@@ -39,21 +43,27 @@ const ProductsList = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this product?')) return;
-
+    const handleDelete = async () => {
+        if (!productToDelete?._id) return;
         try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/${id}`, {
+            setIsDeleting(true);
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/${productToDelete._id}`, {
                 method: 'DELETE',
             });
 
             if (response.ok) {
+                setProductToDelete(null);
                 loadProducts();
-                alert('Product deleted successfully!');
+                notify.success('Product deleted successfully');
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                notify.error(errorData, 'Failed to delete product');
             }
         } catch (error) {
             console.error('Error deleting product:', error);
-            alert('Failed to delete product');
+            notify.error(error, 'Failed to delete product');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -194,7 +204,7 @@ const ProductsList = () => {
                                                         </svg>
                                                     </Link>
                                                     <button
-                                                        onClick={() => handleDelete(product._id)}
+                                                        onClick={() => setProductToDelete(product)}
                                                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                         title="Delete"
                                                     >
@@ -238,6 +248,18 @@ const ProductsList = () => {
                     </>
                 )}
             </div>
+
+            <ConfirmDialog
+                isOpen={Boolean(productToDelete)}
+                title="Delete Product?"
+                message="This action permanently removes this product."
+                highlightText={productToDelete?.title || ''}
+                confirmText={isDeleting ? 'Deleting...' : 'Delete Forever'}
+                cancelText="Keep Product"
+                isProcessing={isDeleting}
+                onConfirm={handleDelete}
+                onCancel={() => setProductToDelete(null)}
+            />
         </div>
     );
 };

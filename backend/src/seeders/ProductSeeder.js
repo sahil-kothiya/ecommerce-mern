@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger.js';
+
 import mongoose from 'mongoose';
 import { Product } from '../models/Product.js';
 import { Category } from '../models/Category.js';
@@ -5,9 +7,9 @@ import { Brand } from '../models/Brand.js';
 import { VariantType, VariantOption } from '../models/Supporting.models.js';
 
 /**
- * ═══════════════════════════════════════════════════════════════════════════
+ * â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
  * PRODUCT SEEDER CONFIGURATION
- * ═══════════════════════════════════════════════════════════════════════════
+ * â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
  * 
  * HOW TO RUN THIS SEEDER:
  * ----------------------
@@ -51,12 +53,12 @@ import { VariantType, VariantOption } from '../models/Supporting.models.js';
  * ---------------------
  * Set truncateRelatedTables = true to auto-clear related data
  * 
- * ═══════════════════════════════════════════════════════════════════════════
+ * â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
  */
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // CONFIGURATION SECTION - ADJUST THESE VALUES
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const CONFIG = {
     // Total number of products to create (1 Lakh = 100,000)
@@ -80,7 +82,7 @@ const CONFIG = {
     FEATURED_PRODUCT_PERCENTAGE: 0.10, // 10% featured products
 };
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export class ProductSeeder {
     constructor() {
@@ -96,15 +98,15 @@ export class ProductSeeder {
      * @param {number} totalProducts - Total number of products to create (default: 100,000)
      */
     async run(totalProducts = CONFIG.DEFAULT_PRODUCT_COUNT) {
-        console.log('\n═══════════════════════════════════════════════════════════════');
-        console.log('🛍️  PRODUCT SEEDER - LARGE SCALE DATA GENERATION');
-        console.log('═══════════════════════════════════════════════════════════════\n');
-        console.log(`📊 Configuration:`);
-        console.log(`   - Total Products: ${totalProducts.toLocaleString()}`);
-        console.log(`   - Variant Products: ${Math.floor(totalProducts * CONFIG.VARIANT_PRODUCT_PERCENTAGE).toLocaleString()} (${(CONFIG.VARIANT_PRODUCT_PERCENTAGE * 100)}%)`);
-        console.log(`   - Non-Variant Products: ${Math.floor(totalProducts * (1 - CONFIG.VARIANT_PRODUCT_PERCENTAGE)).toLocaleString()} (${((1 - CONFIG.VARIANT_PRODUCT_PERCENTAGE) * 100)}%)`);
-        console.log(`   - Batch Size: ${CONFIG.BATCH_SIZE.toLocaleString()}`);
-        console.log(`   - Truncate Related Tables: ${CONFIG.TRUNCATE_RELATED_TABLES ? 'YES' : 'NO'}\n`);
+        logger.info('\nâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•');
+        logger.info('ðŸ›ï¸  PRODUCT SEEDER - LARGE SCALE DATA GENERATION');
+        logger.info('â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n');
+        logger.info(`ðŸ“Š Configuration:`);
+        logger.info(`   - Total Products: ${totalProducts.toLocaleString()}`);
+        logger.info(`   - Variant Products: ${Math.floor(totalProducts * CONFIG.VARIANT_PRODUCT_PERCENTAGE).toLocaleString()} (${(CONFIG.VARIANT_PRODUCT_PERCENTAGE * 100)}%)`);
+        logger.info(`   - Non-Variant Products: ${Math.floor(totalProducts * (1 - CONFIG.VARIANT_PRODUCT_PERCENTAGE)).toLocaleString()} (${((1 - CONFIG.VARIANT_PRODUCT_PERCENTAGE) * 100)}%)`);
+        logger.info(`   - Batch Size: ${CONFIG.BATCH_SIZE.toLocaleString()}`);
+        logger.info(`   - Truncate Related Tables: ${CONFIG.TRUNCATE_RELATED_TABLES ? 'YES' : 'NO'}\n`);
 
         try {
             // Step 1: Optionally truncate related tables
@@ -122,18 +124,18 @@ export class ProductSeeder {
             await this.createProductsBatch(totalProducts);
 
             // Step 5: Display summary
-            console.log('\n═══════════════════════════════════════════════════════════════');
-            console.log('✅ PRODUCT SEEDING COMPLETED SUCCESSFULLY!');
-            console.log('═══════════════════════════════════════════════════════════════\n');
-            console.log(`📊 Final Summary:`);
-            console.log(`   ✓ Total Products Created: ${this.productCount.toLocaleString()}`);
-            console.log(`   ✓ Products with Variants: ${(this.productCount - this.nonVariantCount).toLocaleString()}`);
-            console.log(`   ✓ Simple Products (No Variants): ${this.nonVariantCount.toLocaleString()}`);
-            console.log(`   ✓ Total Variants Generated: ${this.variantCount.toLocaleString()}`);
-            console.log(`   ✓ Average Variants per Product: ${(this.variantCount / (this.productCount - this.nonVariantCount)).toFixed(2)}\n`);
+            logger.info('\nâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•');
+            logger.info('âœ… PRODUCT SEEDING COMPLETED SUCCESSFULLY!');
+            logger.info('â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n');
+            logger.info(`ðŸ“Š Final Summary:`);
+            logger.info(`   âœ“ Total Products Created: ${this.productCount.toLocaleString()}`);
+            logger.info(`   âœ“ Products with Variants: ${(this.productCount - this.nonVariantCount).toLocaleString()}`);
+            logger.info(`   âœ“ Simple Products (No Variants): ${this.nonVariantCount.toLocaleString()}`);
+            logger.info(`   âœ“ Total Variants Generated: ${this.variantCount.toLocaleString()}`);
+            logger.info(`   âœ“ Average Variants per Product: ${(this.variantCount / (this.productCount - this.nonVariantCount)).toFixed(2)}\n`);
 
         } catch (error) {
-            console.error('\n❌ Product seeding failed:', error);
+            console.error('\nâŒ Product seeding failed:', error);
             throw error;
         }
     }
@@ -143,7 +145,7 @@ export class ProductSeeder {
      * Enable by setting CONFIG.TRUNCATE_RELATED_TABLES = true
      */
     async truncateRelatedTables() {
-        console.log('🗑️  Truncating related tables...');
+        logger.info('ðŸ—‘ï¸  Truncating related tables...');
 
         try {
             // You can add other collections to truncate here
@@ -152,9 +154,9 @@ export class ProductSeeder {
             // await VariantType.deleteMany({});
             // await VariantOption.deleteMany({});
 
-            console.log('✅ Related tables truncated (disabled by default)\n');
+            logger.info('âœ… Related tables truncated (disabled by default)\n');
         } catch (error) {
-            console.error('⚠️  Warning: Could not truncate some tables:', error.message);
+            console.error('âš ï¸  Warning: Could not truncate some tables:', error.message);
         }
     }
 
@@ -163,7 +165,7 @@ export class ProductSeeder {
      * REQUIRED: Categories, Brands, and Variant Types must exist
      */
     async loadReferenceData() {
-        console.log('📚 Loading reference data from database...');
+        logger.info('ðŸ“š Loading reference data from database...');
 
         this.categories = await Category.find({ status: 'active' }).lean();
         this.brands = await Brand.find({ status: 'active' }).lean();
@@ -171,29 +173,29 @@ export class ProductSeeder {
 
         // Validation
         if (this.categories.length === 0) {
-            throw new Error('❌ No categories found! Please run CategorySeeder first.');
+            throw new Error('âŒ No categories found! Please run CategorySeeder first.');
         }
         if (this.brands.length === 0) {
-            throw new Error('❌ No brands found! Please run BrandSeeder first.');
+            throw new Error('âŒ No brands found! Please run BrandSeeder first.');
         }
         if (this.variantTypes.length === 0) {
-            throw new Error('❌ No variant types found! Please run VariantSeeder first.');
+            throw new Error('âŒ No variant types found! Please run VariantSeeder first.');
         }
 
-        console.log(`✅ Reference data loaded:`);
-        console.log(`   - Categories: ${this.categories.length}`);
-        console.log(`   - Brands: ${this.brands.length}`);
-        console.log(`   - Variant Types: ${this.variantTypes.length}\n`);
+        logger.info(`âœ… Reference data loaded:`);
+        logger.info(`   - Categories: ${this.categories.length}`);
+        logger.info(`   - Brands: ${this.brands.length}`);
+        logger.info(`   - Variant Types: ${this.variantTypes.length}\n`);
     }
 
     /**
      * Clear all existing products (TRUNCATE)
      */
     async clearExistingProducts() {
-        console.log('🧹 Truncating products table...');
+        logger.info('ðŸ§¹ Truncating products table...');
         const deletedCount = await Product.countDocuments();
         await Product.deleteMany({});
-        console.log(`✅ Cleared ${deletedCount.toLocaleString()} existing products\n`);
+        logger.info(`âœ… Cleared ${deletedCount.toLocaleString()} existing products\n`);
     }
 
     /**
@@ -204,7 +206,7 @@ export class ProductSeeder {
         const batches = Math.ceil(totalProducts / this.batchSize);
         const nonVariantTarget = Math.floor(totalProducts * (1 - CONFIG.VARIANT_PRODUCT_PERCENTAGE));
 
-        console.log('🏭 Starting batch production...\n');
+        logger.info('ðŸ­ Starting batch production...\n');
 
         for (let batch = 0; batch < batches; batch++) {
             const startIndex = batch * this.batchSize;
@@ -212,7 +214,7 @@ export class ProductSeeder {
             const batchSize = endIndex - startIndex;
 
             const startTime = Date.now();
-            console.log(`📦 Batch ${batch + 1}/${batches} - Generating ${batchSize.toLocaleString()} products...`);
+            logger.info(`ðŸ“¦ Batch ${batch + 1}/${batches} - Generating ${batchSize.toLocaleString()} products...`);
 
             const products = [];
 
@@ -233,10 +235,10 @@ export class ProductSeeder {
             const progress = ((this.productCount / totalProducts) * 100).toFixed(1);
             const avgVariants = this.variantCount > 0 ? (this.variantCount / (this.productCount - this.nonVariantCount)).toFixed(1) : 0;
 
-            console.log(`   ✓ Batch ${batch + 1} completed in ${duration}s`);
-            console.log(`   ✓ Progress: ${this.productCount.toLocaleString()}/${totalProducts.toLocaleString()} (${progress}%)`);
-            console.log(`   ✓ Variants: ${this.variantCount.toLocaleString()} (avg: ${avgVariants} per product)`);
-            console.log(`   ✓ Non-Variant: ${this.nonVariantCount.toLocaleString()}\n`);
+            logger.info(`   âœ“ Batch ${batch + 1} completed in ${duration}s`);
+            logger.info(`   âœ“ Progress: ${this.productCount.toLocaleString()}/${totalProducts.toLocaleString()} (${progress}%)`);
+            logger.info(`   âœ“ Variants: ${this.variantCount.toLocaleString()} (avg: ${avgVariants} per product)`);
+            logger.info(`   âœ“ Non-Variant: ${this.nonVariantCount.toLocaleString()}\n`);
         }
     }
 
@@ -456,7 +458,7 @@ export class ProductSeeder {
                 });
             }
 
-            const priceVariation = (Math.random() - 0.5) * 0.2; // ±10%
+            const priceVariation = (Math.random() - 0.5) * 0.2; // Â±10%
             const variantPrice = Math.round(basePrice * (1 + priceVariation));
 
             const variantTitle = `${color?.displayValue || 'Standard'} ${size?.displayValue || ''}`.trim();

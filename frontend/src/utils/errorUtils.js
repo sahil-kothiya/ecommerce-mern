@@ -1,3 +1,5 @@
+import { logger } from './logger.js';
+
 // ============================================================================
 // ERROR PROCESSING UTILITIES
 // ============================================================================
@@ -16,9 +18,9 @@ export const processApiError = (error) => {
         generalError: 'An error occurred. Please try again.'
     };
 
-    console.log('=== PROCESSING API ERROR ===');
-    console.log('Full error:', error);
-    console.log('Response data:', error.response?.data);
+    logger.info('=== PROCESSING API ERROR ===');
+    logger.info('Full error:', error);
+    logger.info('Response data:', error.response?.data);
 
     // Check if we have response data
     if (error.response?.data) {
@@ -26,10 +28,10 @@ export const processApiError = (error) => {
 
         // Process errors array (field-specific validation errors)
         if (responseData.errors && Array.isArray(responseData.errors)) {
-            console.log('Found errors array:', responseData.errors);
+            logger.info('Found errors array:', responseData.errors);
             
             responseData.errors.forEach((errorItem, index) => {
-                console.log(`Processing error ${index}:`, errorItem);
+                logger.info(`Processing error ${index}:`, errorItem);
                 
                 // Handle our custom format: { field, message }
                 if (errorItem.field && errorItem.message) {
@@ -63,7 +65,7 @@ export const processApiError = (error) => {
         result.generalError = error.message;
     }
 
-    console.log('Processed result:', result);
+    logger.info('Processed result:', result);
     return result;
 };
 

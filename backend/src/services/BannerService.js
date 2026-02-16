@@ -43,7 +43,7 @@ export class BannerService extends BaseService {
 
         return await this.findAll({
             filter,
-            sort: { displayOrder: 1, createdAt: -1 }
+            sort: { sortOrder: 1, createdAt: -1 }
         });
     }
 
@@ -53,7 +53,7 @@ export class BannerService extends BaseService {
 
     async incrementClicks(id) {
         const banner = await this.findByIdOrFail(id);
-        banner.clicks += 1;
+        banner.clickCount += 1;
         await banner.save();
         return banner;
     }

@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger.js';
+
 import mongoose from 'mongoose';
 import { Category } from '../models/Category.js';
 import { Brand } from '../models/Brand.js';
@@ -13,7 +15,7 @@ export class CategoryBrandVariantBaseSeeder {
     }
 
     async run() {
-        console.log('🌱 Starting Category, Brand & Variant Base Seeding...\n');
+        logger.info('ðŸŒ± Starting Category, Brand & Variant Base Seeding...\n');
 
         try {
             // Clear existing data
@@ -31,21 +33,21 @@ export class CategoryBrandVariantBaseSeeder {
             // Associate brands with categories
             await this.associateBrandsWithCategories();
 
-            console.log('\n✅ Category, Brand & Variant Base Seeding completed!');
-            console.log(`📊 Summary:`);
-            console.log(`   - Categories: ${this.categoryCount}`);
-            console.log(`   - Brands: ${this.brandCount}`);
-            console.log(`   - Variant Types: ${this.variantTypeCount}`);
-            console.log(`   - Variant Options: ${this.variantOptionCount}\n`);
+            logger.info('\nâœ… Category, Brand & Variant Base Seeding completed!');
+            logger.info(`ðŸ“Š Summary:`);
+            logger.info(`   - Categories: ${this.categoryCount}`);
+            logger.info(`   - Brands: ${this.brandCount}`);
+            logger.info(`   - Variant Types: ${this.variantTypeCount}`);
+            logger.info(`   - Variant Options: ${this.variantOptionCount}\n`);
 
         } catch (error) {
-            console.error('❌ Seeding failed:', error);
+            console.error('âŒ Seeding failed:', error);
             throw error;
         }
     }
 
     async clearExistingData() {
-        console.log('🧹 Clearing existing data...');
+        logger.info('ðŸ§¹ Clearing existing data...');
 
         await Promise.all([
             Category.deleteMany({}),
@@ -54,11 +56,11 @@ export class CategoryBrandVariantBaseSeeder {
             VariantOption.deleteMany({})
         ]);
 
-        console.log('✅ Existing data cleared');
+        logger.info('âœ… Existing data cleared');
     }
 
     async createVariantTypes() {
-        console.log('🎨 Creating variant types and options...');
+        logger.info('ðŸŽ¨ Creating variant types and options...');
 
         const variantTypesData = [
             {
@@ -141,11 +143,11 @@ export class CategoryBrandVariantBaseSeeder {
             }
         }
 
-        console.log(`✅ Created ${this.variantTypeCount} variant types with ${this.variantOptionCount} options`);
+        logger.info(`âœ… Created ${this.variantTypeCount} variant types with ${this.variantOptionCount} options`);
     }
 
     async createBrands() {
-        console.log('🏷️  Creating brands...');
+        logger.info('ðŸ·ï¸  Creating brands...');
 
         const brandsData = [
             // Fashion Brands
@@ -189,11 +191,11 @@ export class CategoryBrandVariantBaseSeeder {
             this.brandCount++;
         }
 
-        console.log(`✅ Created ${this.brandCount} brands`);
+        logger.info(`âœ… Created ${this.brandCount} brands`);
     }
 
     async createCategories() {
-        console.log('📂 Creating category tree structure...');
+        logger.info('ðŸ“‚ Creating category tree structure...');
 
         // Root categories
         const rootCategories = [
@@ -400,7 +402,7 @@ export class CategoryBrandVariantBaseSeeder {
             await this.createCategoryTree(rootCategoryData, null, 0);
         }
 
-        console.log(`✅ Created ${this.categoryCount} categories`);
+        logger.info(`âœ… Created ${this.categoryCount} categories`);
     }
 
     async createCategoryTree(categoryData, parent = null, level = 0) {
@@ -431,7 +433,7 @@ export class CategoryBrandVariantBaseSeeder {
     }
 
     async associateBrandsWithCategories() {
-        console.log('🔗 Associating brands with categories...');
+        logger.info('ðŸ”— Associating brands with categories...');
 
         // Get all brands and categories
         const brands = await Brand.find({ status: 'active' });
@@ -461,7 +463,7 @@ export class CategoryBrandVariantBaseSeeder {
             await category.save();
         }
 
-        console.log('✅ Brand-category associations completed');
+        logger.info('âœ… Brand-category associations completed');
     }
 }
 

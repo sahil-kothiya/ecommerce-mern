@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger.js';
+
 import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
 
@@ -8,7 +10,7 @@ export class UserSeeder {
     }
 
     async run(totalUsers = 1000) {
-        console.log(`👥 Starting User Seeding (${totalUsers.toLocaleString()} users)...\n`);
+        logger.info(`ðŸ‘¥ Starting User Seeding (${totalUsers.toLocaleString()} users)...\n`);
 
         try {
             // Clear existing users
@@ -23,23 +25,23 @@ export class UserSeeder {
             // Create regular users in batches
             await this.createUsersBatch(totalUsers - 2); // -2 for admin and demo user
 
-            console.log('\n✅ User Seeding completed!');
-            console.log(`📊 Summary: ${this.userCount.toLocaleString()} users created\n`);
+            logger.info('\nâœ… User Seeding completed!');
+            logger.info(`ðŸ“Š Summary: ${this.userCount.toLocaleString()} users created\n`);
 
         } catch (error) {
-            console.error('❌ User seeding failed:', error);
+            console.error('âŒ User seeding failed:', error);
             throw error;
         }
     }
 
     async clearExistingUsers() {
-        console.log('🧹 Clearing existing users...');
+        logger.info('ðŸ§¹ Clearing existing users...');
         await User.deleteMany({});
-        console.log('✅ Existing users cleared');
+        logger.info('âœ… Existing users cleared');
     }
 
     async createAdminUser() {
-        console.log('👑 Creating admin user...');
+        logger.info('ðŸ‘‘ Creating admin user...');
 
         const adminUser = new User({
             name: 'Admin User',
@@ -79,11 +81,11 @@ export class UserSeeder {
         await adminUser.save();
         this.userCount++;
 
-        console.log('✅ Admin user created (admin@admin.com / password123)');
+        logger.info('âœ… Admin user created (admin@admin.com / password123)');
     }
 
     async createDemoUser() {
-        console.log('👤 Creating demo user...');
+        logger.info('ðŸ‘¤ Creating demo user...');
 
         const demoUser = new User({
             name: 'Demo User',
@@ -122,7 +124,7 @@ export class UserSeeder {
         await demoUser.save();
         this.userCount++;
 
-        console.log('✅ Demo user created (user@admin.com / password123)');
+        logger.info('âœ… Demo user created (user@admin.com / password123)');
     }
 
     async createUsersBatch(totalUsers) {
@@ -133,7 +135,7 @@ export class UserSeeder {
             const endIndex = Math.min(startIndex + this.batchSize, totalUsers);
             const batchSize = endIndex - startIndex;
 
-            console.log(`👥 Creating batch ${batch + 1}/${batches} (${batchSize} users)...`);
+            logger.info(`ðŸ‘¥ Creating batch ${batch + 1}/${batches} (${batchSize} users)...`);
 
             const users = [];
 
@@ -146,7 +148,7 @@ export class UserSeeder {
             await User.insertMany(users);
             this.userCount += batchSize;
 
-            console.log(`✅ Batch ${batch + 1} completed (${this.userCount.toLocaleString()}/${(totalUsers + 1).toLocaleString()} total)`);
+            logger.info(`âœ… Batch ${batch + 1} completed (${this.userCount.toLocaleString()}/${(totalUsers + 1).toLocaleString()} total)`);
         }
     }
 

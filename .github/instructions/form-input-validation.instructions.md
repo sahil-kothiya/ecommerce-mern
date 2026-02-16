@@ -73,7 +73,7 @@ logger.info("Request received:", {
 });
 
 // Frontend Service
-console.log("API call:", {
+logger.info("API call:", {
   email,
   rememberMe,
   rememberMeType: typeof rememberMe,
@@ -99,7 +99,7 @@ const handleSubmit = async (e) => {
   e.preventDefault();
 
   // Log for debugging
-  console.log("Form submission:", {
+  logger.info("Form submission:", {
     formData,
     types: Object.entries(formData).reduce(
       (acc, [key, val]) => ({
@@ -133,5 +133,5 @@ const handleSubmit = async (e) => {
 >
 > - Use browser DevTools for frontend debugging
 > - Use Postman/Thunder Client for backend API testing
-> - Add console.log/logger.info liberally during development
+> - Add logger.info liberally during development
 > - Remove or reduce logging in production

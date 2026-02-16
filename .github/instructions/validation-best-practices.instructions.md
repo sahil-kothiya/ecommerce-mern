@@ -62,7 +62,7 @@ const MyForm = () => {
 
   const onSubmit = (data) => {
     // Data is validated here
-    console.log(data);
+    logger.info(data);
   };
 
   return (

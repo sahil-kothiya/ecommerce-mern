@@ -9,11 +9,21 @@ const categoryController = new CategoryController();
 // Public routes
 router.get('/', (req, res) => categoryController.index(req, res));
 
-router.get('/tree', (req, res) => categoryController.getTree(req, res));
+router.get('/tree', (req, res) => categoryController.tree(req, res));
 
-router.get('/:slug', (req, res) => categoryController.show(req, res));
+router.get('/flat', (req, res) => categoryController.flat(req, res));
 
-router.get('/:slug/products', (req, res) => categoryController.getProducts(req, res));
+router.get('/navigation', (req, res) => categoryController.navigation(req, res));
+
+router.get('/slug/:slug', (req, res) => categoryController.showBySlug(req, res));
+
+router.get('/:id', (req, res) => categoryController.show(req, res));
+
+router.get('/:id/breadcrumb', (req, res) => categoryController.breadcrumb(req, res));
+
+router.get('/:id/products', (req, res) => categoryController.products(req, res));
+
+router.get('/:id/brands', (req, res) => categoryController.brands(req, res));
 
 // Protected routes (Admin only)
 router.post('/', protect, authorize('admin'), uploadCategoryImage, handleUploadError, (req, res) => categoryController.store(req, res));

@@ -162,7 +162,7 @@ const Dashboard = () => {
                         <span className="text-sm font-medium text-gray-900">Add Product</span>
                     </Link>
                     <Link
-                        to="/admin/categories/create"
+                        to="/admin/categories"
                         className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all group"
                     >
                         <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3 group-hover:bg-green-200 transition-colors">

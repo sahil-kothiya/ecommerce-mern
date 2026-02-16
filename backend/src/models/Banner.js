@@ -11,6 +11,16 @@ import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
+const toSlug = (value = '') =>
+    value
+        .toString()
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+
 /**
  * Banner Schema Definition
  * @description Defines the structure for promotional banners
@@ -19,7 +29,6 @@ const { Schema } = mongoose;
  * @property {string} image - Image path/URL (required)
  * @property {string} link - URL to navigate when banner is clicked
  * @property {string} linkTarget - Link target (_blank or _self)
- * @property {string} position - Banner display position (home-main, home-side, category, product)
  * @property {number} sortOrder - Display order (lower numbers appear first)
  * @property {string} status - Banner status (active, inactive, scheduled)
  * @property {Date} startDate - Banner start date for scheduled banners
@@ -36,38 +45,39 @@ const bannerSchema = new Schema(
             trim: true,
             maxlength: [200, 'Title cannot exceed 200 characters'],
         },
+        slug: {
+            type: String,
+            trim: true,
+            lowercase: true,
+            unique: true,
+            sparse: true,
+            index: true,
+        },
         description: {
             type: String,
             trim: true,
-            maxlength: [500, 'Description cannot exceed 500 characters'],
+            maxlength: [5000, 'Description cannot exceed 5000 characters'],
         },
         image: {
             type: String,
-            required: [true, 'Banner image is required'],
             trim: true,
+            default: null,
         },
         link: {
             type: String,
             trim: true,
-            validate: {
-                validator: function (v) {
-                    // Allow empty strings or valid URLs
-                    if (!v) return true;
-                    return /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/.test(v) || /^\//.test(v);
-                },
-                message: 'Please provide a valid URL or internal path',
-            },
+            maxlength: [1000, 'Link cannot exceed 1000 characters'],
+        },
+        linkType: {
+            type: String,
+            trim: true,
+            default: null,
+            maxlength: [50, 'Link type cannot exceed 50 characters'],
         },
         linkTarget: {
             type: String,
             enum: ['_blank', '_self'],
             default: '_self',
-        },
-        position: {
-            type: String,
-            enum: ['home-main', 'home-side', 'category', 'product', 'checkout', 'custom'],
-            default: 'home-main',
-            required: true,
         },
         sortOrder: {
             type: Number,
@@ -101,6 +111,10 @@ const bannerSchema = new Schema(
             type: Schema.Types.Mixed,
             default: {},
         },
+        discountIds: [{
+            type: Schema.Types.ObjectId,
+            ref: 'Discount',
+        }],
     },
     {
         timestamps: true,
@@ -114,10 +128,9 @@ const bannerSchema = new Schema(
 // ===========================
 
 /**
- * Compound index for fetching active banners by position
- * Most common query pattern: active banners for a specific position
+ * Compound index for fetching active banners by status and order
  */
-bannerSchema.index({ status: 1, position: 1, sortOrder: 1 });
+bannerSchema.index({ status: 1, sortOrder: 1 });
 
 /**
  * Index for scheduled banner queries
@@ -129,6 +142,7 @@ bannerSchema.index({ status: 1, startDate: 1, endDate: 1 });
  * Index for analytics queries
  */
 bannerSchema.index({ createdAt: -1, clickCount: -1, viewCount: -1 });
+bannerSchema.index({ title: 1 });
 
 // ===========================
 // Virtual Properties
@@ -162,6 +176,34 @@ bannerSchema.virtual('ctr').get(function () {
     return ((this.clickCount / this.viewCount) * 100).toFixed(2);
 });
 
+/**
+ * Laravel compatibility virtuals
+ * photo <-> image, link_type <-> linkType, discounts <-> discountIds
+ */
+bannerSchema.virtual('photo')
+    .get(function () {
+        return this.image;
+    })
+    .set(function (value) {
+        this.image = value;
+    });
+
+bannerSchema.virtual('link_type')
+    .get(function () {
+        return this.linkType;
+    })
+    .set(function (value) {
+        this.linkType = value;
+    });
+
+bannerSchema.virtual('discounts')
+    .get(function () {
+        return this.discountIds;
+    })
+    .set(function (value) {
+        this.discountIds = value;
+    });
+
 // ===========================
 // Pre-save Hooks
 // ===========================
@@ -170,6 +212,16 @@ bannerSchema.virtual('ctr').get(function () {
  * Validate date ranges before saving
  */
 bannerSchema.pre('save', function (next) {
+    // Keep slug generated and stable when title changes unless slug is manually provided.
+    if (!this.slug && this.title) {
+        this.slug = toSlug(this.title);
+    }
+
+    // Legacy compatibility: if only link_type is set through raw update payload.
+    if (!this.linkType && this.link_type) {
+        this.linkType = this.link_type;
+    }
+
     // Validate scheduled banner dates
     if (this.status === 'scheduled') {
         if (!this.startDate && !this.endDate) {
@@ -181,6 +233,13 @@ bannerSchema.pre('save', function (next) {
         }
     }
     
+    next();
+});
+
+bannerSchema.pre('validate', function (next) {
+    if (!this.slug && this.title) {
+        this.slug = toSlug(this.title);
+    }
     next();
 });
 
@@ -233,12 +292,11 @@ bannerSchema.methods.deactivate = async function () {
 // ===========================
 
 /**
- * Get active banners for a specific position
- * @param {string} position - Banner position
+ * Get active banners
  * @param {number} [limit] - Optional limit
  * @returns {Promise<Array<Banner>>} Array of active banners
  */
-bannerSchema.statics.getActiveByPosition = async function (position, limit = null) {
+bannerSchema.statics.getActiveBanners = async function (limit = null) {
     const now = new Date();
     
     const query = {
@@ -252,8 +310,7 @@ bannerSchema.statics.getActiveByPosition = async function (position, limit = nul
                     { startDate: { $lte: now }, endDate: { $gte: now } },
                 ],
             },
-        ],
-        position,
+        ]
     };
     
     let queryBuilder = this.find(query).sort({ sortOrder: 1, createdAt: -1 });

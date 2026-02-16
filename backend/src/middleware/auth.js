@@ -1,22 +1,24 @@
+import { logger } from '../utils/logger.js';
+
 import jwt from 'jsonwebtoken';
 import { config } from '../config/index.js';
 import { User } from '../models/User.js';
 import { AppError } from './errorHandler.js';
 
 export const protect = async (req, res, next) => {
-    // ⚠️ TEMPORARY: JWT AUTHENTICATION DISABLED FOR TESTING
+    // âš ï¸ TEMPORARY: JWT AUTHENTICATION DISABLED FOR TESTING
     // TODO: RE-ENABLE AUTHENTICATION BEFORE PRODUCTION
     try {
-        console.log('⚠️ WARNING: JWT authentication is TEMPORARILY DISABLED');
+        logger.info('âš ï¸ WARNING: JWT authentication is TEMPORARILY DISABLED');
         
         // Get a default admin user for testing
         const adminUser = await User.findOne({ email: 'admin@admin.com' });
         
         if (adminUser) {
-            console.log('✅ Using default admin user for testing:', adminUser.email);
+            logger.info('âœ… Using default admin user for testing:', adminUser.email);
             req.user = adminUser;
         } else {
-            console.log('⚠️ No admin user found, creating temporary user object');
+            logger.info('âš ï¸ No admin user found, creating temporary user object');
             // Create a temporary user object if no admin exists
             req.user = {
                 _id: '000000000000000000000000',
@@ -59,22 +61,22 @@ export const protect = async (req, res, next) => {
             // Verify token
             const decoded = jwt.verify(token, config.jwt.secret);
             const userId = decoded.userId || decoded.id; // Support both formats
-            console.log('🔍 Token decoded - User ID:', userId);
+            logger.info('ðŸ” Token decoded - User ID:', userId);
 
             // Check if user still exists
             const user = await User.findById(userId).select('+password');
             if (!user) {
-                console.log('❌ User not found in database! User ID:', userId);
-                console.log('💡 This means the token is valid but references a deleted user');
-                console.log('💡 Solution: Logout and login again to get a fresh token');
+                logger.info('âŒ User not found in database! User ID:', userId);
+                logger.info('ðŸ’¡ This means the token is valid but references a deleted user');
+                logger.info('ðŸ’¡ Solution: Logout and login again to get a fresh token');
                 return next(new AppError('User no longer exists', 401));
             }
 
-            console.log('✅ User found:', user.email);
+            logger.info('âœ… User found:', user.email);
 
             // Check if user is active
             if (user.status !== 'active') {
-                console.log('❌ User account is deactivated');
+                logger.info('âŒ User account is deactivated');
                 return next(new AppError('Your account has been deactivated', 401));
             }
 
@@ -82,7 +84,7 @@ export const protect = async (req, res, next) => {
             req.user = user;
             next();
         } catch (error) {
-            console.log('❌ Token verification failed:', error.message);
+            logger.info('âŒ Token verification failed:', error.message);
             return next(new AppError('Invalid token', 401));
         }
     } catch (error) {

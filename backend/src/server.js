@@ -22,6 +22,7 @@ import cartRoutes from './routes/cart.routes.js';
 import wishlistRoutes from './routes/wishlist.routes.js';
 import couponRoutes from './routes/coupon.routes.js';
 import reviewRoutes from './routes/review.routes.js';
+import bannerRoutes from './routes/banner.routes.js';
 
 const app = express();
 
@@ -109,6 +110,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/banners', bannerRoutes);
 
 // Static files (uploads) - Serve before API routes to avoid middleware interference
 app.use('/uploads', (req, res, next) => {

@@ -17,7 +17,7 @@ const MONGODB_URI = config.mongodbUri;
  * Check and build indexes
  */
 async function buildIndexes() {
-    console.log('\n📊 Building database indexes...\n');
+    logger.info('\nðŸ“Š Building database indexes...\n');
 
     try {
         // Get all models
@@ -27,31 +27,31 @@ async function buildIndexes() {
         ];
 
         for (const { name, model } of models) {
-            console.log(`\n🔍 Checking ${name} indexes...`);
+            logger.info(`\nðŸ” Checking ${name} indexes...`);
 
             // Get existing indexes
             const existingIndexes = await model.collection.indexes();
-            console.log(`   Found ${existingIndexes.length} existing indexes`);
+            logger.info(`   Found ${existingIndexes.length} existing indexes`);
 
             // Build indexes
-            console.log(`   Building indexes for ${name}...`);
+            logger.info(`   Building indexes for ${name}...`);
             await model.createIndexes();
 
             // Get updated indexes
             const updatedIndexes = await model.collection.indexes();
-            console.log(`   ✅ ${name} now has ${updatedIndexes.length} indexes`);
+            logger.info(`   âœ… ${name} now has ${updatedIndexes.length} indexes`);
 
             // Show index names
             updatedIndexes.forEach(idx => {
                 const keys = Object.keys(idx.key).join(', ');
-                console.log(`      - ${idx.name}: ${keys}`);
+                logger.info(`      - ${idx.name}: ${keys}`);
             });
         }
 
-        console.log('\n✅ All indexes built successfully!\n');
+        logger.info('\nâœ… All indexes built successfully!\n');
 
     } catch (error) {
-        console.error('\n❌ Error building indexes:', error.message);
+        console.error('\nâŒ Error building indexes:', error.message);
         throw error;
     }
 }
@@ -60,41 +60,41 @@ async function buildIndexes() {
  * Analyze database performance
  */
 async function analyzePerformance() {
-    console.log('\n📈 Analyzing database performance...\n');
+    logger.info('\nðŸ“ˆ Analyzing database performance...\n');
 
     try {
         // Get collection stats
         const productStats = await Product.collection.stats();
         const categoryStats = await Category.collection.stats();
 
-        console.log('Product Collection Stats:');
-        console.log(`   Documents: ${productStats.count.toLocaleString()}`);
-        console.log(`   Size: ${(productStats.size / 1024 / 1024).toFixed(2)} MB`);
-        console.log(`   Storage: ${(productStats.storageSize / 1024 / 1024).toFixed(2)} MB`);
-        console.log(`   Avg Document Size: ${(productStats.avgObjSize / 1024).toFixed(2)} KB`);
-        console.log(`   Indexes: ${productStats.nindexes}`);
-        console.log(`   Index Size: ${(productStats.totalIndexSize / 1024 / 1024).toFixed(2)} MB`);
+        logger.info('Product Collection Stats:');
+        logger.info(`   Documents: ${productStats.count.toLocaleString()}`);
+        logger.info(`   Size: ${(productStats.size / 1024 / 1024).toFixed(2)} MB`);
+        logger.info(`   Storage: ${(productStats.storageSize / 1024 / 1024).toFixed(2)} MB`);
+        logger.info(`   Avg Document Size: ${(productStats.avgObjSize / 1024).toFixed(2)} KB`);
+        logger.info(`   Indexes: ${productStats.nindexes}`);
+        logger.info(`   Index Size: ${(productStats.totalIndexSize / 1024 / 1024).toFixed(2)} MB`);
 
-        console.log('\nCategory Collection Stats:');
-        console.log(`   Documents: ${categoryStats.count.toLocaleString()}`);
-        console.log(`   Size: ${(categoryStats.size / 1024 / 1024).toFixed(2)} MB`);
+        logger.info('\nCategory Collection Stats:');
+        logger.info(`   Documents: ${categoryStats.count.toLocaleString()}`);
+        logger.info(`   Size: ${(categoryStats.size / 1024 / 1024).toFixed(2)} MB`);
 
         // Index usage statistics
-        console.log('\n📊 Index Usage Statistics:');
+        logger.info('\nðŸ“Š Index Usage Statistics:');
         const indexStats = await Product.collection.aggregate([
             { $indexStats: {} }
         ]).toArray();
 
         indexStats.forEach(stat => {
-            console.log(`\n   Index: ${stat.name}`);
-            console.log(`   Operations: ${stat.accesses.ops}`);
-            console.log(`   Since: ${new Date(stat.accesses.since).toLocaleString()}`);
+            logger.info(`\n   Index: ${stat.name}`);
+            logger.info(`   Operations: ${stat.accesses.ops}`);
+            logger.info(`   Since: ${new Date(stat.accesses.since).toLocaleString()}`);
         });
 
-        console.log('\n✅ Performance analysis complete!\n');
+        logger.info('\nâœ… Performance analysis complete!\n');
 
     } catch (error) {
-        console.error('\n❌ Error analyzing performance:', error.message);
+        console.error('\nâŒ Error analyzing performance:', error.message);
     }
 }
 
@@ -102,18 +102,18 @@ async function analyzePerformance() {
  * Check for slow queries
  */
 async function checkSlowQueries() {
-    console.log('\n🐌 Checking for slow queries...\n');
+    logger.info('\nðŸŒ Checking for slow queries...\n');
 
     try {
         // Enable profiling
         await mongoose.connection.db.setProfilingLevel(1, { slowms: 100 });
 
-        console.log('✅ Profiling enabled for queries slower than 100ms');
-        console.log('   Run your application and check system.profile collection');
-        console.log('   Command: db.system.profile.find().sort({ ts: -1 }).limit(10)\n');
+        logger.info('âœ… Profiling enabled for queries slower than 100ms');
+        logger.info('   Run your application and check system.profile collection');
+        logger.info('   Command: db.system.profile.find().sort({ ts: -1 }).limit(10)\n');
 
     } catch (error) {
-        console.error('❌ Error setting up profiling:', error.message);
+        console.error('âŒ Error setting up profiling:', error.message);
     }
 }
 
@@ -121,49 +121,49 @@ async function checkSlowQueries() {
  * Recommendations
  */
 function showRecommendations(productCount) {
-    console.log('\n💡 Production Recommendations:\n');
+    logger.info('\nðŸ’¡ Production Recommendations:\n');
 
     if (productCount > 1000000) {
-        console.log('   ⚠️  Large dataset detected (1M+ products)');
-        console.log('   → Enable Redis caching immediately');
-        console.log('   → Use cursor-based pagination');
-        console.log('   → Consider database sharding');
-        console.log('');
+        logger.info('   âš ï¸  Large dataset detected (1M+ products)');
+        logger.info('   â†’ Enable Redis caching immediately');
+        logger.info('   â†’ Use cursor-based pagination');
+        logger.info('   â†’ Consider database sharding');
+        logger.info('');
     }
 
-    console.log('   ✅ Connection Pool: Set maxPoolSize to 100');
-    console.log('   ✅ Compression: Enable zlib compression');
-    console.log('   ✅ Read Preference: Use secondaryPreferred');
-    console.log('   ✅ Auto Index: Set to false in production');
-    console.log('   ✅ Query Optimization: Use lean() and projection');
-    console.log('   ✅ Monitoring: Setup MongoDB Atlas or Ops Manager');
-    console.log('');
+    logger.info('   âœ… Connection Pool: Set maxPoolSize to 100');
+    logger.info('   âœ… Compression: Enable zlib compression');
+    logger.info('   âœ… Read Preference: Use secondaryPreferred');
+    logger.info('   âœ… Auto Index: Set to false in production');
+    logger.info('   âœ… Query Optimization: Use lean() and projection');
+    logger.info('   âœ… Monitoring: Setup MongoDB Atlas or Ops Manager');
+    logger.info('');
 }
 
 /**
  * Main execution
  */
 async function main() {
-    console.log('═'.repeat(60));
-    console.log('   🚀 Production Optimization Script for 10M+ Products');
-    console.log('═'.repeat(60));
+    logger.info('â•'.repeat(60));
+    logger.info('   ðŸš€ Production Optimization Script for 10M+ Products');
+    logger.info('â•'.repeat(60));
 
     try {
         // Connect to database
-        console.log('\n🔌 Connecting to MongoDB...');
+        logger.info('\nðŸ”Œ Connecting to MongoDB...');
         await mongoose.connect(MONGODB_URI, {
             maxPoolSize: 10,
             serverSelectionTimeoutMS: 5000
         });
-        console.log('✅ Connected to MongoDB\n');
+        logger.info('âœ… Connected to MongoDB\n');
 
         // Get current counts
         const productCount = await Product.countDocuments();
         const categoryCount = await Category.countDocuments();
 
-        console.log(`📦 Current Data:`);
-        console.log(`   Products: ${productCount.toLocaleString()}`);
-        console.log(`   Categories: ${categoryCount.toLocaleString()}`);
+        logger.info(`ðŸ“¦ Current Data:`);
+        logger.info(`   Products: ${productCount.toLocaleString()}`);
+        logger.info(`   Categories: ${categoryCount.toLocaleString()}`);
 
         // Build indexes
         await buildIndexes();
@@ -177,23 +177,23 @@ async function main() {
         // Show recommendations
         showRecommendations(productCount);
 
-        console.log('═'.repeat(60));
-        console.log('   ✅ Optimization Complete!');
-        console.log('═'.repeat(60));
-        console.log('\nNext steps:');
-        console.log('  1. Review PRODUCTION_GUIDE.md');
-        console.log('  2. Setup Redis caching');
-        console.log('  3. Configure monitoring');
-        console.log('  4. Enable compression');
-        console.log('  5. Test with load testing tools\n');
+        logger.info('â•'.repeat(60));
+        logger.info('   âœ… Optimization Complete!');
+        logger.info('â•'.repeat(60));
+        logger.info('\nNext steps:');
+        logger.info('  1. Review PRODUCTION_GUIDE.md');
+        logger.info('  2. Setup Redis caching');
+        logger.info('  3. Configure monitoring');
+        logger.info('  4. Enable compression');
+        logger.info('  5. Test with load testing tools\n');
 
     } catch (error) {
-        console.error('\n❌ Fatal error:', error.message);
+        console.error('\nâŒ Fatal error:', error.message);
         console.error(error.stack);
         process.exit(1);
     } finally {
         await mongoose.connection.close();
-        console.log('\n🔌 Disconnected from MongoDB\n');
+        logger.info('\nðŸ”Œ Disconnected from MongoDB\n');
     }
 }
 

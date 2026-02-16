@@ -68,7 +68,7 @@ New-Enterprice-Ecommerce/
 │   ├── package.json          # Frontend dependencies
 │   └── public/               # Static assets
 ├── .github/
-│   ├── copilot-instructions.md  # This file
+│   ├── gemini-instructions.md  # This file
 │   └── instructions/         # Additional coding guidelines
 ├── RestDoc/                  # Project documentation
 └── README.md                 # Main project documentation

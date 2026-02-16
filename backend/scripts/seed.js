@@ -3,6 +3,7 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { databaseSeeder } from '../src/seeders/DatabaseSeeder.js';
+import { logger } from '../src/utils/logger.js';
 
 // Load environment variables
 dotenv.config();
@@ -45,8 +46,8 @@ for (let i = 0; i < args.length; i++) {
 }
 
 function showHelp() {
-    console.log(`
-🌱 Enterprise E-commerce Database Seeder
+    logger.info(`
+ðŸŒ± Enterprise E-commerce Database Seeder
 
 Usage: npm run seed [options]
 
@@ -81,7 +82,7 @@ Database Connection:
 async function connectToDatabase() {
     const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/enterprise-ecommerce';
 
-    console.log(`🔌 Connecting to MongoDB: ${mongoUri.replace(/\/\/.*@/, '//***@')}`);
+    logger.info(`ðŸ”Œ Connecting to MongoDB: ${mongoUri.replace(/\/\/.*@/, '//***@')}`);
 
     try {
         await mongoose.connect(mongoUri, {
@@ -92,19 +93,19 @@ async function connectToDatabase() {
             socketTimeoutMS: 45000,
         });
 
-        console.log('✅ Connected to MongoDB successfully');
-        console.log(`📊 Database: ${mongoose.connection.name}`);
-        console.log(`🏠 Host: ${mongoose.connection.host}:${mongoose.connection.port}\n`);
+        logger.info('âœ… Connected to MongoDB successfully');
+        logger.info(`ðŸ“Š Database: ${mongoose.connection.name}`);
+        logger.info(`ðŸ  Host: ${mongoose.connection.host}:${mongoose.connection.port}\n`);
 
     } catch (error) {
-        console.error('❌ Failed to connect to MongoDB:', error.message);
+        console.error('âŒ Failed to connect to MongoDB:', error.message);
         process.exit(1);
     }
 }
 
 async function main() {
-    console.log('🚀 Enterprise E-commerce Database Seeder');
-    console.log('═'.repeat(50));
+    logger.info('ðŸš€ Enterprise E-commerce Database Seeder');
+    logger.info('â•'.repeat(50));
 
     try {
         // Connect to database
@@ -113,22 +114,22 @@ async function main() {
         // Run seeding
         await databaseSeeder.run(options);
 
-        console.log('\n🎉 Seeding completed successfully!');
+        logger.info('\nðŸŽ‰ Seeding completed successfully!');
 
     } catch (error) {
-        console.error('\n❌ Seeding failed:', error);
+        console.error('\nâŒ Seeding failed:', error);
         console.error('Stack trace:', error.stack);
         process.exit(1);
     } finally {
         // Close database connection
         await mongoose.connection.close();
-        console.log('🔌 Database connection closed');
+        logger.info('ðŸ”Œ Database connection closed');
     }
 }
 
 // Handle process termination gracefully
 process.on('SIGINT', async () => {
-    console.log('\n\n⚠️  Received SIGINT. Gracefully shutting down...');
+    logger.info('\n\nâš ï¸  Received SIGINT. Gracefully shutting down...');
 
     if (mongoose.connection.readyState !== 0) {
         await mongoose.connection.close();
@@ -138,7 +139,7 @@ process.on('SIGINT', async () => {
 });
 
 process.on('SIGTERM', async () => {
-    console.log('\n\n⚠️  Received SIGTERM. Gracefully shutting down...');
+    logger.info('\n\nâš ï¸  Received SIGTERM. Gracefully shutting down...');
 
     if (mongoose.connection.readyState !== 0) {
         await mongoose.connection.close();

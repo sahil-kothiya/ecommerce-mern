@@ -1,3 +1,5 @@
+import { logger } from '../../../utils/logger.js';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_CONFIG } from '../../../constants';
@@ -411,7 +413,7 @@ const ProductFormEnhanced = () => {
         if (type === 'error') {
             alert(`Error: ${message}`);
         } else {
-            console.log(`${type}: ${message}`);
+            logger.info(`${type}: ${message}`);
         }
     };
 
@@ -877,7 +879,7 @@ const ProductFormEnhanced = () => {
                                 className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                             />
                             <label htmlFor="isFeatured" className="text-sm font-medium text-gray-700 cursor-pointer">
-                                ⭐ Mark as Featured Product (Display on homepage)
+                                â­ Mark as Featured Product (Display on homepage)
                             </label>
                         </div>
                     </div>

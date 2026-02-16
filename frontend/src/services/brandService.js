@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger.js';
+
 /**
  * Brand Service
  * Centralized API calls for brand management
@@ -70,7 +72,7 @@ class BrandService {
         API_CONFIG.ENDPOINTS.BRANDS,
         formData,
         (progress) => {
-          console.log(`Upload progress: ${progress.toFixed(2)}%`);
+          logger.info(`Upload progress: ${progress.toFixed(2)}%`);
         },
       );
     } catch (error) {

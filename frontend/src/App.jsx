@@ -16,6 +16,7 @@ import CategoriesList from './pages/admin/categories/CategoriesList.jsx';
 import CategoryTreeManager from './pages/admin/categories/CategoryTreeManager.jsx';
 import UsersList from './pages/admin/users/UsersList.jsx';
 import BannersList from './pages/admin/banners/BannersList.jsx';
+import BannerForm from './pages/admin/banners/BannerForm.jsx';
 import BrandsList from './pages/admin/brands/BrandsList.jsx';
 import BrandForm from './pages/admin/brands/BrandForm.jsx';
 
@@ -56,6 +57,8 @@ function App() {
                 <Route path="categories/list" element={<CategoriesList />} />
                 <Route path="users" element={<UsersList />} />
                 <Route path="banners" element={<BannersList />} />
+                <Route path="banners/create" element={<BannerForm />} />
+                <Route path="banners/:id/edit" element={<BannerForm />} />
                 <Route path="brands" element={<BrandsList />} />
                 <Route path="brands/create" element={<BrandForm />} />
                 <Route path="brands/:id/edit" element={<BrandForm />} />

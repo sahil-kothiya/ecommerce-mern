@@ -1,3 +1,5 @@
+import { logger } from '../../utils/logger.js';
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -130,8 +132,8 @@ const LoginPage = () => {
         setIsLoading(true);
 
         // Log submission data for debugging (remove in production)
-        console.log('=== LOGIN FORM SUBMITTED ===');
-        console.log('Validated data:', {
+        logger.info('=== LOGIN FORM SUBMITTED ===');
+        logger.info('Validated data:', {
             email: data.email,
             rememberMe: data.rememberMe,
             rememberMeType: typeof data.rememberMe
@@ -216,7 +218,7 @@ const LoginPage = () => {
                             type="password"
                             {...register('password')} // Register with React Hook Form
                             className={getFieldClasses(errors, serverErrors, 'password')}
-                            placeholder="••••••••"
+                            placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                             autoComplete="current-password"
                         />
                         {/* Show validation error if exists (client-side or server-side) */}
@@ -236,7 +238,7 @@ const LoginPage = () => {
                                 Remember me 
                                 {/* Visual indicator when checkbox is checked */}
                                 {rememberMeValue && (
-                                    <span className="text-green-600 font-semibold"> ✓ Enabled</span>
+                                    <span className="text-green-600 font-semibold"> âœ“ Enabled</span>
                                 )}
                             </span>
                         </label>

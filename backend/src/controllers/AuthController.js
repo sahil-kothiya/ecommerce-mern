@@ -37,8 +37,8 @@ export class AuthController extends BaseController {
         const { name, email, password, confirmPassword } = req.body;
 
         // Log incoming data for debugging
-        console.log('=== REGISTER CONTROLLER ===');
-        console.log('Request body:', { name, email, password: '***', confirmPassword: '***' });
+        logger.info('=== REGISTER CONTROLLER ===');
+        logger.info('Request body:', { name, email, password: '***', confirmPassword: '***' });
 
         // Validate required fields (throws 400 error if missing)
         this.validateRequiredFields(req.body, ['name', 'email', 'password']);

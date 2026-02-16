@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger.js';
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getRandomProductImage } from '../services/imageService';
@@ -53,7 +55,7 @@ const ProductDetailPage = () => {
     };
 
     const handleAddToCart = () => {
-        console.log('Adding to cart:', { product, quantity, selectedVariant });
+        logger.info('Adding to cart:', { product, quantity, selectedVariant });
         alert(`Added ${quantity} item(s) to cart!`);
     };
 
@@ -77,7 +79,7 @@ const ProductDetailPage = () => {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="text-6xl mb-4">😕</div>
+                    <div className="text-6xl mb-4">ðŸ˜•</div>
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">Product Not Found</h2>
                     <p className="text-gray-600 mb-6">The product you're looking for doesn't exist.</p>
                     <button
@@ -109,10 +111,10 @@ const ProductDetailPage = () => {
                         </button>
                         <div className="flex items-center space-x-4">
                             <button className="p-2 text-gray-600 hover:text-blue-600 transition-colors" title="Cart">
-                                <span className="text-lg">🛒</span>
+                                <span className="text-lg">ðŸ›’</span>
                             </button>
                             <button className="p-2 text-gray-600 hover:text-blue-600 transition-colors" title="Account">
-                                <span className="text-lg">👤</span>
+                                <span className="text-lg">ðŸ‘¤</span>
                             </button>
                         </div>
                     </div>
@@ -148,9 +150,9 @@ const ProductDetailPage = () => {
                                 />
                                 {product.condition && (
                                     <span className="absolute top-4 left-4 px-4 py-2 text-sm font-semibold rounded-full bg-blue-600 text-white shadow-lg">
-                                        {product.condition === PRODUCT_CONDITIONS.HOT && '🔥 Hot'}
-                                        {product.condition === PRODUCT_CONDITIONS.NEW && '✨ New'}
-                                        {product.condition === PRODUCT_CONDITIONS.DEFAULT && '⭐ Trending'}
+                                        {product.condition === PRODUCT_CONDITIONS.HOT && 'ðŸ”¥ Hot'}
+                                        {product.condition === PRODUCT_CONDITIONS.NEW && 'âœ¨ New'}
+                                        {product.condition === PRODUCT_CONDITIONS.DEFAULT && 'â­ Trending'}
                                     </span>
                                 )}
                                 {hasDiscount && (
@@ -196,8 +198,8 @@ const ProductDetailPage = () => {
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-1">
                                     <div className="flex text-yellow-400 text-lg">
-                                        {'★'.repeat(Math.floor(product.ratings?.average || 4))}
-                                        {'☆'.repeat(5 - Math.floor(product.ratings?.average || 4))}
+                                        {'â˜…'.repeat(Math.floor(product.ratings?.average || 4))}
+                                        {'â˜†'.repeat(5 - Math.floor(product.ratings?.average || 4))}
                                     </div>
                                     <span className="text-sm font-medium text-gray-900 ml-1">
                                         {(product.ratings?.average || 4).toFixed(1)}
@@ -227,9 +229,9 @@ const ProductDetailPage = () => {
                                 </div>
                             )}
                             <div className="mt-4 flex items-center gap-2 text-sm">
-                                <span className="text-green-600 font-medium">✓ In Stock</span>
+                                <span className="text-green-600 font-medium">âœ“ In Stock</span>
                                 <span className="text-gray-400">|</span>
-                                <span className="text-gray-600">🚚 Free Shipping</span>
+                                <span className="text-gray-600">ðŸšš Free Shipping</span>
                             </div>
                         </div>
 
@@ -277,7 +279,7 @@ const ProductDetailPage = () => {
                                 Add to Cart
                             </button>
                             <button className="w-full bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-300 py-4 px-6 rounded-xl font-bold text-lg transition-all duration-200 flex items-center justify-center gap-2">
-                                <span className="text-2xl">🤍</span>
+                                <span className="text-2xl">ðŸ¤</span>
                                 Add to Wishlist
                             </button>
                         </div>
@@ -285,19 +287,19 @@ const ProductDetailPage = () => {
                         {/* Features */}
                         <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
                             <div className="flex items-center gap-2 text-sm">
-                                <span className="text-blue-600">🛡️</span>
+                                <span className="text-blue-600">ðŸ›¡ï¸</span>
                                 <span className="text-gray-700">Secure Payment</span>
                             </div>
                             <div className="flex items-center gap-2 text-sm">
-                                <span className="text-blue-600">↩️</span>
+                                <span className="text-blue-600">â†©ï¸</span>
                                 <span className="text-gray-700">30-Day Returns</span>
                             </div>
                             <div className="flex items-center gap-2 text-sm">
-                                <span className="text-blue-600">✓</span>
+                                <span className="text-blue-600">âœ“</span>
                                 <span className="text-gray-700">Genuine Product</span>
                             </div>
                             <div className="flex items-center gap-2 text-sm">
-                                <span className="text-blue-600">📦</span>
+                                <span className="text-blue-600">ðŸ“¦</span>
                                 <span className="text-gray-700">Fast Delivery</span>
                             </div>
                         </div>

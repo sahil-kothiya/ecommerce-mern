@@ -9,7 +9,7 @@
 import express from 'express';
 import { BannerController } from '../controllers/BannerController.js';
 import { uploadBannerImage, handleUploadError } from '../middleware/uploadEnhanced.js';
-import { auth, isAdmin } from '../middleware/auth.js';
+import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 const bannerController = new BannerController();
@@ -21,20 +21,17 @@ const bannerController = new BannerController();
  * @query   {number} page - Page number (default: 1)
  * @query   {number} limit - Items per page (default: 20)
  * @query   {string} status - Filter by status (active|inactive|scheduled)
- * @query   {string} position - Filter by position
  * @query   {string} sortBy - Sort field (default: sortOrder)
  * @query   {string} sortOrder - Sort order (asc|desc)
  */
 router.get('/', bannerController.index.bind(bannerController));
 
 /**
- * @route   GET /api/banners/active/:position
- * @desc    Get active banners for specific position
- * @access  Public
- * @param   {string} position - Banner position (home-main, home-side, category, product, checkout, custom)
- * @query   {number} limit - Maximum number of banners to return
+ * @route   GET /api/banners/discount-options
+ * @desc    Get active discount options for banner link type "discount"
+ * @access  Admin
  */
-router.get('/active/:position', bannerController.getActiveByPosition.bind(bannerController));
+router.get('/discount-options', protect, authorize('admin'), bannerController.getDiscountOptions.bind(bannerController));
 
 /**
  * @route   GET /api/banners/analytics
@@ -43,7 +40,7 @@ router.get('/active/:position', bannerController.getActiveByPosition.bind(banner
  * @query   {string} startDate - Start date for analytics
  * @query   {string} endDate - End date for analytics
  */
-router.get('/analytics', auth, isAdmin, bannerController.getAnalytics.bind(bannerController));
+router.get('/analytics', protect, authorize('admin'), bannerController.getAnalytics.bind(bannerController));
 
 /**
  * @route   GET /api/banners/:id
@@ -62,7 +59,6 @@ router.get('/:id', bannerController.show.bind(bannerController));
  * @body    {file} image - Banner image file (required)
  * @body    {string} link - Click URL
  * @body    {string} linkTarget - _blank or _self
- * @body    {string} position - Display position (required)
  * @body    {number} sortOrder - Display order
  * @body    {string} status - Banner status (active|inactive|scheduled)
  * @body    {date} startDate - Start date for scheduled banners
@@ -71,8 +67,8 @@ router.get('/:id', bannerController.show.bind(bannerController));
  */
 router.post(
     '/',
-    auth,
-    isAdmin,
+    protect,
+    authorize('admin'),
     uploadBannerImage,
     handleUploadError,
     bannerController.create.bind(bannerController)
@@ -87,8 +83,8 @@ router.post(
  */
 router.put(
     '/:id',
-    auth,
-    isAdmin,
+    protect,
+    authorize('admin'),
     uploadBannerImage,
     handleUploadError,
     bannerController.update.bind(bannerController)
@@ -100,7 +96,7 @@ router.put(
  * @access  Admin
  * @param   {string} id - Banner ID
  */
-router.delete('/:id', auth, isAdmin, bannerController.destroy.bind(bannerController));
+router.delete('/:id', protect, authorize('admin'), bannerController.destroy.bind(bannerController));
 
 /**
  * @route   POST /api/banners/:id/view
