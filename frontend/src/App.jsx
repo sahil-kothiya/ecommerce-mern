@@ -14,6 +14,7 @@ import ProductsList from './pages/admin/products/ProductsList.jsx';
 import ProductForm from './pages/admin/products/ProductForm.jsx';
 import CategoriesList from './pages/admin/categories/CategoriesList.jsx';
 import CategoryTreeManager from './pages/admin/categories/CategoryTreeManager.jsx';
+import CategoryEditorPage from './pages/admin/categories/CategoryEditorPage.jsx';
 import UsersList from './pages/admin/users/UsersList.jsx';
 import BannersList from './pages/admin/banners/BannersList.jsx';
 import BannerForm from './pages/admin/banners/BannerForm.jsx';
@@ -53,7 +54,10 @@ function App() {
                 <Route path="products" element={<ProductsList />} />
                 <Route path="products/create" element={<ProductForm />} />
                 <Route path="products/:id/edit" element={<ProductForm />} />
-                <Route path="categories" element={<CategoryTreeManager />} />
+                <Route path="categories" element={<CategoriesList />} />
+                <Route path="categories/tree" element={<CategoryTreeManager />} />
+                <Route path="categories/create" element={<CategoryEditorPage />} />
+                <Route path="categories/:id/edit" element={<CategoryEditorPage />} />
                 <Route path="categories/list" element={<CategoriesList />} />
                 <Route path="users" element={<UsersList />} />
                 <Route path="banners" element={<BannersList />} />

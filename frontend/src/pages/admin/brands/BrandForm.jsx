@@ -300,7 +300,7 @@ const BrandForm = () => {
     const totalBannerCount = existingBanners.length + bannerPreviews.length;
 
     return (
-        <div className="w-full px-4 py-8 space-y-8 relative">
+        <div className="w-full px-4 space-y-8 relative">
             <div className="pointer-events-none absolute top-16 right-8 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
             <div className="pointer-events-none absolute bottom-20 left-8 h-44 w-44 rounded-full bg-sky-300/20 blur-3xl" />
 

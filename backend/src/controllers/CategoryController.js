@@ -3,12 +3,100 @@ import { logger } from '../utils/logger.js';
 import { Category } from '../models/Category.js';
 import { Product } from '../models/Product.js';
 import { Brand } from '../models/Brand.js';
+import { Filter } from '../models/Filter.js';
 import mongoose from 'mongoose';
 import path from 'path';
 import fs from 'fs';
 import { config } from '../config/index.js';
 
 export class CategoryController {
+    parseBoolean(value, fallback = false) {
+        if (typeof value === 'boolean') return value;
+        if (typeof value === 'string') {
+            const normalized = value.trim().toLowerCase();
+            if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+            if (['false', '0', 'no', 'off', ''].includes(normalized)) return false;
+        }
+        if (typeof value === 'number') return value === 1;
+        return fallback;
+    }
+
+    normalizeIdArray(...values) {
+        const flattened = values.flatMap((value) => {
+            if (value === undefined || value === null) return [];
+            if (Array.isArray(value)) return value;
+            if (typeof value === 'string') {
+                const trimmed = value.trim();
+                if (!trimmed) return [];
+
+                if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                    try {
+                        const parsed = JSON.parse(trimmed);
+                        return Array.isArray(parsed) ? parsed : [];
+                    } catch {
+                        return [];
+                    }
+                }
+
+                return trimmed.split(',').map((item) => item.trim());
+            }
+            return [value];
+        });
+
+        const normalized = [...new Set(flattened.map((item) => String(item).trim()).filter(Boolean))];
+        return normalized.filter((item) => mongoose.Types.ObjectId.isValid(item));
+    }
+
+    normalizeStatus(status, fallback = 'active') {
+        return status === 'inactive' ? 'inactive' : fallback;
+    }
+
+    async generateUniqueCategoryCode(title, excludeId = null) {
+        const raw = String(title || '')
+            .replace(/[^a-zA-Z0-9]/g, '')
+            .toUpperCase();
+        const base = (raw.slice(0, 3) || 'XXX').padEnd(3, 'X');
+
+        const existing = await Category.find(
+            excludeId
+                ? { _id: { $ne: excludeId }, code: { $exists: true, $ne: null } }
+                : { code: { $exists: true, $ne: null } }
+        )
+            .select('code')
+            .lean();
+
+        const usedCodes = new Set(existing.map((item) => item.code).filter(Boolean));
+        if (!usedCodes.has(base)) {
+            return base;
+        }
+
+        const prefix = base.slice(0, 2);
+        for (let i = 0; i <= 9; i += 1) {
+            const candidate = `${prefix}${i}`;
+            if (!usedCodes.has(candidate)) {
+                return candidate;
+            }
+        }
+
+        return `${prefix}${Math.floor(Math.random() * 10)}`;
+    }
+
+    async computeHierarchyFields(parentId) {
+        if (!parentId) {
+            return { level: 0, path: null };
+        }
+
+        const parent = await Category.findById(parentId).select('_id level path').lean();
+        if (!parent) {
+            return null;
+        }
+
+        return {
+            level: (parent.level || 0) + 1,
+            path: parent.path ? `${parent.path}/${parent._id}` : String(parent._id),
+        };
+    }
+
     // GET /api/categories - List all categories
     async index(req, res) {
         try {
@@ -104,8 +192,8 @@ export class CategoryController {
     async flat(req, res) {
         try {
             const categories = await Category.find({ status: 'active' })
-                .select('title slug parent pathNames level')
-                .sort('pathNames')
+                .select('title slug parentId path level')
+                .sort('path')
                 .lean();
 
             res.json({
@@ -117,6 +205,53 @@ export class CategoryController {
             res.status(500).json({
                 success: false,
                 message: 'Failed to fetch flat categories'
+            });
+        }
+    }
+
+    // GET /api/categories/filters - Get active filters
+    async filters(req, res) {
+        try {
+            let filters = await Filter.find({ status: 'active' })
+                .select('name title description status')
+                .sort({ title: 1 })
+                .lean();
+
+            // Bootstrap default filters for fresh databases
+            if (filters.length === 0) {
+                const defaultFilters = [
+                    { name: 'brand', title: 'Brands', description: 'Filter products by brand', status: 'active' },
+                    { name: 'rating', title: 'Customer Ratings', description: 'Filter products by customer ratings', status: 'active' },
+                    { name: 'discount', title: 'Discounts', description: 'Filter products by discount percentage', status: 'active' },
+                    { name: 'price', title: 'Price Range', description: 'Filter products by price range', status: 'active' },
+                    { name: 'recently-viewed', title: 'Recently Viewed', description: 'Show recently viewed products', status: 'active' },
+                ];
+
+                await Promise.all(
+                    defaultFilters.map((item) =>
+                        Filter.updateOne(
+                            { name: item.name },
+                            { $setOnInsert: item },
+                            { upsert: true }
+                        )
+                    )
+                );
+
+                filters = await Filter.find({ status: 'active' })
+                    .select('name title description status')
+                    .sort({ title: 1 })
+                    .lean();
+            }
+
+            res.json({
+                success: true,
+                data: filters,
+            });
+        } catch (error) {
+            console.error('Category filters error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to fetch filters',
             });
         }
     }
@@ -282,79 +417,104 @@ export class CategoryController {
     // POST /api/categories - Create new category
     async store(req, res) {
         try {
-            logger.info('ðŸ“¥ Category store request received');
-            logger.info('ðŸ“ Body:', req.body);
-            logger.info('ðŸ“Ž File:', req.file ? req.file.filename : 'No file');
-            logger.info('ðŸ‘¤ User:', req.user ? req.user.email : 'No user');
-
             const {
                 title,
-                summary,
+                summary = null,
                 photo,
-                parentId = null,
-                status = 'active',
-                isNavigationVisible = true,
+                parentId,
+                parent_id,
+                status,
+                isFeatured,
+                is_featured,
+                isNavigationVisible,
                 seoTitle,
+                seo_title,
                 seoDescription,
-                brands = [],
-                filters = []
+                seo_description,
+                sortOrder,
+                sort_order,
             } = req.body;
 
-            if (!title) {
-                logger.info('âŒ Title is missing');
+            if (!title || !String(title).trim()) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Title is required'
+                    message: 'Title is required',
                 });
             }
 
-            // Get parent category if specified
-            let parent = null;
-            if (parentId) {
-                parent = await Category.findById(parentId);
-                if (!parent) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Parent category not found'
-                    });
-                }
+            const resolvedParentIdRaw = parentId ?? parent_id ?? null;
+            const resolvedParentId = resolvedParentIdRaw && String(resolvedParentIdRaw).trim()
+                ? String(resolvedParentIdRaw).trim()
+                : null;
+
+            if (resolvedParentId && !mongoose.Types.ObjectId.isValid(resolvedParentId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Parent category is invalid',
+                });
             }
 
-            // Get next position in parent
-            const position = await Category.getNextPosition(parentId);
+            const hierarchy = await this.computeHierarchyFields(resolvedParentId);
+            if (resolvedParentId && !hierarchy) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Parent category not found',
+                });
+            }
 
-            // Handle uploaded image
+            let nextSortOrder = Number.parseInt(sortOrder ?? sort_order, 10);
+            if (Number.isNaN(nextSortOrder) || nextSortOrder < 0) {
+                nextSortOrder = await Category.getNextPosition(resolvedParentId);
+            }
+
             let photoPath = photo || null;
             if (req.file) {
-                // Save relative path for database
                 photoPath = `/uploads/categories/${req.file.filename}`;
-                logger.info('âœ… Image uploaded:', photoPath);
             }
+
+            const brandIds = this.normalizeIdArray(
+                req.body.brandIds,
+                req.body.brands,
+                req.body['brands[]']
+            );
+            const filterIds = this.normalizeIdArray(
+                req.body.filterIds,
+                req.body.filter_ids,
+                req.body.filters,
+                req.body['filter_ids[]']
+            );
+            const code = await this.generateUniqueCategoryCode(title);
 
             const category = new Category({
                 title,
                 summary,
                 photo: photoPath,
-                parentId: parentId || null,
-                status,
-                isNavigationVisible,
-                seoTitle: seoTitle || title,
-                seoDescription,
-                sortOrder: position,
-                brands,
-                filters
+                parentId: resolvedParentId,
+                level: hierarchy?.level ?? 0,
+                path: hierarchy?.path ?? null,
+                sortOrder: nextSortOrder,
+                status: this.normalizeStatus(status),
+                isFeatured: this.parseBoolean(isFeatured ?? is_featured, false),
+                isNavigationVisible: this.parseBoolean(isNavigationVisible, true),
+                seoTitle: seoTitle ?? seo_title ?? null,
+                seoDescription: seoDescription ?? seo_description ?? null,
+                brandIds,
+                filterIds,
+                code,
+                codeLocked: false,
+                codeGeneratedAt: new Date(),
+                addedBy: req.user?._id || null,
             });
 
             await category.save();
-            logger.info('âœ… Category created successfully:', category._id);
 
             res.status(201).json({
                 success: true,
                 message: 'Category created successfully',
-                data: category
+                data: category,
             });
         } catch (error) {
-            console.error('âŒ Category store error:', error);
+            console.error('Category store error:', error);
 
             if (error.name === 'ValidationError') {
                 const errors = Object.keys(error.errors).reduce((acc, key) => {
@@ -365,67 +525,72 @@ export class CategoryController {
                 return res.status(400).json({
                     success: false,
                     message: 'Validation failed',
-                    errors
+                    errors,
                 });
             }
 
             if (error.code === 11000) {
                 return res.status(409).json({
                     success: false,
-                    message: 'Category with this slug already exists'
+                    message: 'Category with this slug or code already exists',
                 });
             }
 
             res.status(500).json({
                 success: false,
                 message: 'Failed to create category',
-                error: error.message
+                error: error.message,
             });
         }
     }
-
     // PUT /api/categories/:id - Update category
     async update(req, res) {
         try {
             const { id } = req.params;
-            const updateData = req.body;
-
             const category = await Category.findById(id);
+            const previousTitle = category?.title;
 
             if (!category) {
                 return res.status(404).json({
                     success: false,
-                    message: 'Category not found'
+                    message: 'Category not found',
                 });
             }
 
-            // Check if parent is being changed
-            if (updateData.parentId !== undefined) {
-                if (updateData.parentId === id) {
+            const nextParentRaw = req.body.parentId ?? req.body.parent_id;
+            const hasParentField = req.body.parentId !== undefined || req.body.parent_id !== undefined;
+            let resolvedParentId = category.parentId ? String(category.parentId) : null;
+
+            if (hasParentField) {
+                resolvedParentId = nextParentRaw && String(nextParentRaw).trim() ? String(nextParentRaw).trim() : null;
+
+                if (resolvedParentId === id) {
                     return res.status(400).json({
                         success: false,
-                        message: 'Category cannot be its own parent'
+                        message: 'Category cannot be its own parent',
                     });
                 }
 
-                // Check if new parent exists
-                if (updateData.parentId && updateData.parentId !== '') {
-                    const newParent = await Category.findById(updateData.parentId);
-                    if (!newParent) {
-                        return res.status(400).json({
-                            success: false,
-                            message: 'Parent category not found'
-                        });
-                    }
-                } else {
-                    // Set to null if empty string or null
-                    updateData.parentId = null;
+                if (resolvedParentId && !mongoose.Types.ObjectId.isValid(resolvedParentId)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Parent category is invalid',
+                    });
                 }
             }
 
-            // Handle uploaded image
+            let hierarchy = { level: category.level || 0, path: category.path || null };
+            if (hasParentField) {
+                hierarchy = await this.computeHierarchyFields(resolvedParentId);
+                if (resolvedParentId && !hierarchy) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Parent category not found',
+                    });
+                }
+            }
+
             if (req.file) {
-                // Delete old image if exists
                 if (category.photo) {
                     const oldImagePath = path.join(process.cwd(), category.photo.replace(/^\//, ''));
                     if (fs.existsSync(oldImagePath)) {
@@ -436,18 +601,78 @@ export class CategoryController {
                         }
                     }
                 }
-                // Save new image path
-                updateData.photo = `/uploads/categories/${req.file.filename}`;
+                category.photo = `/uploads/categories/${req.file.filename}`;
+            } else if (req.body.photo !== undefined) {
+                category.photo = req.body.photo || null;
             }
 
-            // Update category
-            Object.assign(category, updateData);
+            if (req.body.title !== undefined) {
+                category.title = req.body.title;
+            }
+            if (req.body.summary !== undefined) {
+                category.summary = req.body.summary;
+            }
+            if (req.body.status !== undefined) {
+                category.status = this.normalizeStatus(req.body.status, category.status);
+            }
+            if (req.body.isNavigationVisible !== undefined) {
+                category.isNavigationVisible = this.parseBoolean(req.body.isNavigationVisible, category.isNavigationVisible);
+            }
+            if (req.body.seoTitle !== undefined || req.body.seo_title !== undefined) {
+                category.seoTitle = req.body.seoTitle ?? req.body.seo_title ?? null;
+            }
+            if (req.body.seoDescription !== undefined || req.body.seo_description !== undefined) {
+                category.seoDescription = req.body.seoDescription ?? req.body.seo_description ?? null;
+            }
+            if (req.body.sortOrder !== undefined || req.body.sort_order !== undefined) {
+                const parsedSort = Number.parseInt(req.body.sortOrder ?? req.body.sort_order, 10);
+                if (!Number.isNaN(parsedSort) && parsedSort >= 0) {
+                    category.sortOrder = parsedSort;
+                }
+            }
+
+            if (hasParentField) {
+                category.parentId = resolvedParentId;
+                category.level = hierarchy?.level ?? 0;
+                category.path = hierarchy?.path ?? null;
+            }
+
+            if (req.body.isFeatured !== undefined || req.body.is_featured !== undefined) {
+                category.isFeatured = this.parseBoolean(req.body.isFeatured ?? req.body.is_featured, category.isFeatured);
+            }
+
+            const codeLockInPayload = req.body.codeLocked ?? req.body.code_locked;
+            if (codeLockInPayload !== undefined) {
+                category.codeLocked = this.parseBoolean(codeLockInPayload, category.codeLocked);
+            }
+
+            const nextBrandIds = this.normalizeIdArray(req.body.brandIds, req.body.brands, req.body['brands[]']);
+            if (nextBrandIds.length > 0 || req.body.brandIds !== undefined || req.body.brands !== undefined || req.body['brands[]'] !== undefined) {
+                category.brandIds = nextBrandIds;
+            }
+
+            const nextFilterIds = this.normalizeIdArray(
+                req.body.filterIds,
+                req.body.filter_ids,
+                req.body.filters,
+                req.body['filter_ids[]']
+            );
+            if (nextFilterIds.length > 0 || req.body.filterIds !== undefined || req.body.filter_ids !== undefined || req.body.filters !== undefined || req.body['filter_ids[]'] !== undefined) {
+                category.filterIds = nextFilterIds;
+            }
+
+            const titleChanged = req.body.title !== undefined && String(req.body.title) !== String(previousTitle);
+            if (titleChanged && !category.codeLocked) {
+                category.code = await this.generateUniqueCategoryCode(req.body.title, category._id);
+                category.codeGeneratedAt = new Date();
+            }
+
             await category.save();
 
             res.json({
                 success: true,
                 message: 'Category updated successfully',
-                data: category
+                data: category,
             });
         } catch (error) {
             console.error('Category update error:', error);
@@ -461,17 +686,16 @@ export class CategoryController {
                 return res.status(400).json({
                     success: false,
                     message: 'Validation failed',
-                    errors
+                    errors,
                 });
             }
 
             res.status(500).json({
                 success: false,
-                message: 'Failed to update category'
+                message: 'Failed to update category',
             });
         }
     }
-
     // DELETE /api/categories/:id - Delete category
     async destroy(req, res) {
         try {
@@ -672,16 +896,19 @@ export class CategoryController {
                 });
             }
 
-            // Get brands from category configuration
             let brands = [];
+            const configuredBrandIds = Array.isArray(category.brandIds)
+                ? category.brandIds
+                : Array.isArray(category.brands)
+                    ? category.brands.map((item) => item?.id).filter(Boolean)
+                    : [];
 
-            if (category.brands && category.brands.length > 0) {
+            if (configuredBrandIds.length > 0) {
                 brands = await Brand.find({
-                    _id: { $in: category.brands.map(b => b.id) },
+                    _id: { $in: configuredBrandIds },
                     status: 'active'
                 }).lean();
             } else {
-                // Get brands from products in this category
                 const productBrands = await Product.aggregate([
                     { $match: { 'category.id': category._id, status: 'active' } },
                     { $group: { _id: '$brand.id', brand: { $first: '$brand' } } },
@@ -704,7 +931,6 @@ export class CategoryController {
             });
         }
     }
-
     // Helper method to build category tree
     buildCategoryTree(categories, parentId = null) {
         const tree = [];

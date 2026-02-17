@@ -3,6 +3,7 @@ import { logger } from '../utils/logger.js';
 import mongoose from 'mongoose';
 import { Category } from '../models/Category.js';
 import { Brand } from '../models/Brand.js';
+import { Filter } from '../models/Filter.js';
 import { Product } from '../models/Product.js';
 import { VariantType, VariantOption } from '../models/Supporting.models.js';
 
@@ -10,6 +11,7 @@ export class CategoryBrandVariantBaseSeeder {
     constructor() {
         this.categoryCount = 0;
         this.brandCount = 0;
+        this.filterCount = 0;
         this.variantTypeCount = 0;
         this.variantOptionCount = 0;
     }
@@ -27,16 +29,21 @@ export class CategoryBrandVariantBaseSeeder {
             // Create brands
             await this.createBrands();
 
+            // Create filters
+            await this.createFilters();
+
             // Create categories with tree structure
             await this.createCategories();
 
             // Associate brands with categories
             await this.associateBrandsWithCategories();
+            await this.associateFiltersWithCategories();
 
             logger.info('\nâœ… Category, Brand & Variant Base Seeding completed!');
             logger.info(`ðŸ“Š Summary:`);
             logger.info(`   - Categories: ${this.categoryCount}`);
             logger.info(`   - Brands: ${this.brandCount}`);
+            logger.info(`   - Filters: ${this.filterCount}`);
             logger.info(`   - Variant Types: ${this.variantTypeCount}`);
             logger.info(`   - Variant Options: ${this.variantOptionCount}\n`);
 
@@ -52,6 +59,7 @@ export class CategoryBrandVariantBaseSeeder {
         await Promise.all([
             Category.deleteMany({}),
             Brand.deleteMany({}),
+            Filter.deleteMany({}),
             VariantType.deleteMany({}),
             VariantOption.deleteMany({})
         ]);
@@ -192,6 +200,27 @@ export class CategoryBrandVariantBaseSeeder {
         }
 
         logger.info(`âœ… Created ${this.brandCount} brands`);
+    }
+
+
+    async createFilters() {
+        logger.info('Creating filters...');
+
+        const filtersData = [
+            { name: 'price', title: 'Price Range', description: 'Filter products by price range', status: 'active' },
+            { name: 'brand', title: 'Brands', description: 'Filter products by brand', status: 'active' },
+            { name: 'rating', title: 'Customer Ratings', description: 'Filter products by customer ratings', status: 'active' },
+            { name: 'discount', title: 'Discounts', description: 'Filter products by discount percentage', status: 'active' },
+            { name: 'recently-viewed', title: 'Recently Viewed', description: 'Recently Viewed', status: 'active' },
+        ];
+
+        for (const filterData of filtersData) {
+            const filter = new Filter(filterData);
+            await filter.save();
+            this.filterCount += 1;
+        }
+
+        logger.info(`Created ${this.filterCount} filters`);
     }
 
     async createCategories() {
@@ -433,13 +462,11 @@ export class CategoryBrandVariantBaseSeeder {
     }
 
     async associateBrandsWithCategories() {
-        logger.info('ðŸ”— Associating brands with categories...');
+        logger.info('Associating brands with categories...');
 
-        // Get all brands and categories
         const brands = await Brand.find({ status: 'active' });
         const categories = await Category.find({ status: 'active' });
 
-        // Brand-category associations
         const associations = {
             'Electronics': ['Apple', 'Samsung', 'Sony', 'LG', 'HP', 'Dell', 'Microsoft'],
             'Fashion & Apparel': ['Nike', 'Adidas', 'Zara', 'H&M', 'Gucci', 'Prada', 'Louis Vuitton', 'Under Armour'],
@@ -449,22 +476,34 @@ export class CategoryBrandVariantBaseSeeder {
         };
 
         for (const [categoryTitle, brandNames] of Object.entries(associations)) {
-            const category = categories.find(c => c.title === categoryTitle);
+            const category = categories.find((c) => c.title === categoryTitle);
             if (!category) continue;
 
-            const categoryBrands = brands.filter(b => brandNames.includes(b.title));
-
-            category.brands = categoryBrands.map(brand => ({
-                id: brand._id,
-                title: brand.title,
-                slug: brand.slug
-            }));
-
+            const categoryBrands = brands.filter((b) => brandNames.includes(b.title));
+            category.brandIds = categoryBrands.map((brand) => brand._id);
             await category.save();
         }
 
-        logger.info('âœ… Brand-category associations completed');
+        logger.info('Brand-category associations completed');
+    }
+
+    async associateFiltersWithCategories() {
+        logger.info('Associating filters with categories...');
+
+        const filters = await Filter.find({ status: 'active' }).sort({ title: 1 });
+        const categories = await Category.find({ status: 'active' });
+
+        for (const category of categories) {
+            if (category.level === 0) {
+                category.filterIds = filters.map((filter) => filter._id);
+            } else {
+                const childFilters = filters.filter((_, index) => index < 4).map((filter) => filter._id);
+                category.filterIds = childFilters;
+            }
+            await category.save();
+        }
+
+        logger.info('Category-filter associations completed');
     }
 }
-
 export const categoryBrandVariantBaseSeeder = new CategoryBrandVariantBaseSeeder();

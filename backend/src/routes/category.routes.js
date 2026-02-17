@@ -12,6 +12,7 @@ router.get('/', (req, res) => categoryController.index(req, res));
 router.get('/tree', (req, res) => categoryController.tree(req, res));
 
 router.get('/flat', (req, res) => categoryController.flat(req, res));
+router.get('/filters', (req, res) => categoryController.filters(req, res));
 
 router.get('/navigation', (req, res) => categoryController.navigation(req, res));
 

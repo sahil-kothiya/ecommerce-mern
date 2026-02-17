@@ -1,6 +1,7 @@
 import { logger } from '../../../utils/logger.js';
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { API_CONFIG } from '../../../constants';
 import authService from '../../../services/authService';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
@@ -16,21 +17,10 @@ import {
 import CategoryTreeItem from './CategoryTreeItem';
 
 const CategoryTreeManager = () => {
+    const navigate = useNavigate();
     const [categories, setCategories] = useState([]);
-    const [flatCategories, setFlatCategories] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [expandedCategories, setExpandedCategories] = useState(new Set());
-    const [editingCategory, setEditingCategory] = useState(null);
-    const [showModal, setShowModal] = useState(false);
-    const [formData, setFormData] = useState({
-        title: '',
-        summary: '',
-        parentId: '',
-        status: 'active',
-        isFeatured: false,
-    });
-    const [selectedFile, setSelectedFile] = useState(null);
-    const [imagePreview, setImagePreview] = useState('');
     const [activeId, setActiveId] = useState(null);
     const [hasChanges, setHasChanges] = useState(false);
     const [categoryToDelete, setCategoryToDelete] = useState(null);
@@ -89,7 +79,6 @@ const CategoryTreeManager = () => {
             const categoriesList = Array.isArray(data?.data) ? data.data : [];
             logger.info('Parsed categories list:', categoriesList.length, 'categories');
             
-            setFlatCategories(categoriesList);
             const tree = buildCategoryTree(categoriesList);
             logger.info('Built tree:', tree);
             setCategories(tree);
@@ -376,31 +365,12 @@ const CategoryTreeManager = () => {
     };
 
     const handleAddCategory = (parentId = null) => {
-        setEditingCategory(null);
-        setFormData({
-            title: '',
-            summary: '',
-            parentId: parentId || '',
-            status: 'active',
-            isFeatured: false,
-        });
-        setImagePreview('');
-        setSelectedFile(null);
-        setShowModal(true);
+        const parentQuery = parentId ? `?parentId=${parentId}` : '';
+        navigate(`/admin/categories/create${parentQuery}`);
     };
 
     const handleEditCategory = (category) => {
-        setEditingCategory(category);
-        setFormData({
-            title: category.title || '',
-            summary: category.summary || '',
-            parentId: category.parentId || '',
-            status: category.status || 'active',
-            isFeatured: category.isFeatured || false,
-        });
-        setImagePreview(category.photo ? `${API_CONFIG.BASE_URL}${category.photo}` : '');
-        setSelectedFile(null);
-        setShowModal(true);
+        navigate(`/admin/categories/${category._id}/edit`);
     };
 
     const handleDeleteCategory = (categoryId) => {
@@ -447,78 +417,6 @@ const CategoryTreeManager = () => {
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            const url = editingCategory
-                ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${editingCategory._id}`
-                : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`;
-
-            const submitData = new FormData();
-            submitData.append('title', formData.title);
-            submitData.append('summary', formData.summary);
-            submitData.append('status', formData.status);
-            submitData.append('isFeatured', formData.isFeatured);
-            
-            if (formData.parentId) {
-                submitData.append('parentId', formData.parentId);
-            }
-
-            if (selectedFile) {
-                submitData.append('photo', selectedFile);
-            }
-
-            const headers = authService.getAuthHeaders();
-            delete headers['Content-Type'];
-
-            const response = await fetch(url, {
-                method: editingCategory ? 'PUT' : 'POST',
-                headers: headers,
-                body: submitData,
-            });
-
-            const responseData = await response.json();
-
-            if (response.ok) {
-                showToast(`Category ${editingCategory ? 'updated' : 'created'} successfully`, 'success');
-                setShowModal(false);
-                loadCategories();
-            } else {
-                if (response.status === 401) {
-                    await authService.logout();
-                    window.location.href = '/login';
-                    return;
-                }
-                showToast(responseData.message || 'Failed to save category', 'error');
-            }
-        } catch (error) {
-            console.error('Error saving category:', error);
-            showToast('Failed to save category', 'error');
-        }
-    };
-
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-            if (!validTypes.includes(file.type)) {
-                showToast('Please select a valid image file', 'warning');
-                return;
-            }
-
-            if (file.size > 5 * 1024 * 1024) {
-                showToast('File size must be less than 5MB', 'warning');
-                return;
-            }
-
-            setSelectedFile(file);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
 
     const toggleStatus = async (categoryId, currentStatus) => {
         try {
@@ -536,6 +434,37 @@ const CategoryTreeManager = () => {
         } catch (error) {
             console.error('Error toggling status:', error);
             showToast('Failed to update status', 'error');
+        }
+    };
+
+    const toggleFeatured = async (categoryId, currentIsFeatured) => {
+        try {
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryId}`, {
+                method: 'PUT',
+                headers: authService.getAuthHeaders(),
+                body: JSON.stringify({ isFeatured: !currentIsFeatured }),
+            });
+
+            if (response.status === 401) {
+                await authService.logout();
+                window.location.href = '/login';
+                return;
+            }
+
+            if (response.ok) {
+                showToast(
+                    !currentIsFeatured ? 'Category marked as featured' : 'Category removed from featured',
+                    'success'
+                );
+                loadCategories();
+                return;
+            }
+
+            const errorData = await response.json();
+            showToast(errorData.message || 'Failed to update featured flag', 'error');
+        } catch (error) {
+            console.error('Error toggling featured:', error);
+            showToast('Failed to update featured flag', 'error');
         }
     };
 
@@ -570,16 +499,25 @@ const CategoryTreeManager = () => {
                     </div>
                     <div className="flex flex-wrap gap-3">
                         <button
-                            onClick={() => window.location.href = '/admin/categories/list'}
+                            onClick={() => navigate('/admin/categories')}
                             className="rounded-xl border border-white/30 bg-white/10 px-5 py-3 font-semibold backdrop-blur-sm transition-all hover:bg-white/20"
                         >
-                            Card View
+                            Table View
                         </button>
                         <button
                             onClick={loadCategories}
                             className="rounded-xl border border-white/30 bg-white/10 px-5 py-3 font-semibold backdrop-blur-sm transition-all hover:bg-white/20"
                         >
                             Refresh
+                        </button>
+                        <button
+                            onClick={() => handleAddCategory(null)}
+                            className="flex items-center gap-2 rounded-xl bg-indigo-300 px-5 py-3 font-bold text-slate-900 transition-colors hover:bg-indigo-200"
+                        >
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                            </svg>
+                            Add Category
                         </button>
                         {hasChanges && (
                             <button
@@ -620,15 +558,6 @@ const CategoryTreeManager = () => {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-2">
                         <button
-                            onClick={() => handleAddCategory(null)}
-                            className="flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400"
-                        >
-                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                            </svg>
-                            Add Root
-                        </button>
-                        <button
                             onClick={expandAll}
                             className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100"
                         >
@@ -642,7 +571,7 @@ const CategoryTreeManager = () => {
                         </button>
                     </div>
                     <p className="text-sm text-slate-500">
-                        Drag rows to reorder. Use the indigo +/- button to open a child drop lane.
+                        Drag rows to reorder. Use row + for child categories and the indigo +/- button for child drop lane.
                     </p>
                 </div>
             </div>
@@ -698,6 +627,7 @@ const CategoryTreeManager = () => {
                                         onAddChild={handleAddCategory}
                                         onToggleChildDrop={toggleChildDropTarget}
                                         onToggleStatus={toggleStatus}
+                                        onToggleFeatured={toggleFeatured}
                                     />
                                 ))}
                             </div>
@@ -714,117 +644,6 @@ const CategoryTreeManager = () => {
                     )}
                 </div>
             </div>
-
-            {/* Modal */}
-            {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-                    <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-                        <h2 className="mb-4 text-2xl font-black text-slate-900">
-                            {editingCategory ? 'Edit' : 'Create'} Category
-                        </h2>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="mb-2 block text-sm font-semibold text-slate-700">Title *</label>
-                                <input
-                                    type="text"
-                                    value={formData.title}
-                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                    required
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-sm font-semibold text-slate-700">Parent Category</label>
-                                <select
-                                    value={formData.parentId}
-                                    onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
-                                >
-                                    <option value="">-- Root Category --</option>
-                                    {flatCategories
-                                        .filter(cat => !editingCategory || cat._id !== editingCategory._id)
-                                        .map(cat => (
-                                            <option key={cat._id} value={cat._id}>
-                                                {'-'.repeat(cat.level || 0)} {cat.title}
-                                            </option>
-                                        ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-sm font-semibold text-slate-700">Summary</label>
-                                <textarea
-                                    value={formData.summary}
-                                    onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-                                    rows="3"
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="mb-2 block text-sm font-semibold text-slate-700">Category Image</label>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleFileChange}
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-2 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
-                                />
-                                {imagePreview && (
-                                    <div className="mt-3">
-                                        <img
-                                            src={imagePreview}
-                                            alt="Preview"
-                                            className="h-40 w-full rounded-xl border border-slate-200 object-cover"
-                                        />
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="mb-2 block text-sm font-semibold text-slate-700">Status</label>
-                                    <select
-                                        value={formData.status}
-                                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
-                                    >
-                                        <option value="active">Active</option>
-                                        <option value="inactive">Inactive</option>
-                                    </select>
-                                </div>
-                                <div className="flex items-center">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.isFeatured}
-                                            onChange={(e) => setFormData({ ...formData, isFeatured: e.target.checked })}
-                                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                        />
-                                        <span className="text-sm font-semibold text-slate-700">Featured Category</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 pt-4">
-                                <button
-                                    type="submit"
-                                    className="flex-1 rounded-xl bg-indigo-500 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-indigo-400"
-                                >
-                                    {editingCategory ? 'Update' : 'Create'}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowModal(false)}
-                                    className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800 transition-colors hover:bg-slate-100"
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
 
             <ConfirmDialog
                 isOpen={Boolean(categoryToDelete)}

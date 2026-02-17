@@ -252,7 +252,7 @@ const BannerForm = () => {
     const hasBannerImage = Boolean(imagePreview || existingImage);
 
     return (
-        <div className="relative w-full space-y-8 px-4 py-8">
+        <div className="relative w-full space-y-8 px-4">
             <div className="pointer-events-none absolute right-8 top-16 h-40 w-40 rounded-full bg-indigo-300/20 blur-3xl" />
             <div className="pointer-events-none absolute bottom-20 left-8 h-44 w-44 rounded-full bg-sky-300/20 blur-3xl" />
 

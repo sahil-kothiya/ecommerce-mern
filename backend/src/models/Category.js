@@ -11,6 +11,21 @@ const categorySchema = new Schema(
             trim: true,
             maxlength: [100, 'Title cannot exceed 100 characters'],
         },
+        code: {
+            type: String,
+            trim: true,
+            uppercase: true,
+            minlength: [3, 'Code must be 3 characters'],
+            maxlength: [3, 'Code must be 3 characters'],
+        },
+        codeLocked: {
+            type: Boolean,
+            default: false,
+        },
+        codeGeneratedAt: {
+            type: Date,
+            default: null,
+        },
         slug: {
             type: String,
             lowercase: true,
@@ -74,6 +89,21 @@ const categorySchema = new Schema(
             type: String,
             maxlength: [160, 'SEO description cannot exceed 160 characters'],
         },
+        brandIds: {
+            type: [Schema.Types.ObjectId],
+            ref: 'Brand',
+            default: [],
+        },
+        filterIds: {
+            type: [Schema.Types.ObjectId],
+            ref: 'Filter',
+            default: [],
+        },
+        addedBy: {
+            type: Schema.Types.ObjectId,
+            ref: 'User',
+            default: null,
+        },
     },
     {
         timestamps: true,
@@ -84,9 +114,12 @@ const categorySchema = new Schema(
 
 // Optimized indexes for 10M+ products (compound indexes for covered queries)
 categorySchema.index({ slug: 1 }, { unique: true });
+categorySchema.index({ code: 1 }, { unique: true, sparse: true });
 categorySchema.index({ status: 1, isFeatured: -1, sortOrder: 1 });
 categorySchema.index({ parentId: 1, status: 1, sortOrder: 1 });
 categorySchema.index({ level: 1, status: 1 });
+categorySchema.index({ brandIds: 1 });
+categorySchema.index({ filterIds: 1 });
 
 // Partial index for navigation
 categorySchema.index(
@@ -127,13 +160,69 @@ categorySchema.pre('save', async function (next) {
     next();
 });
 
-// Update parent's hasChildren when a child is added
+// Recalculate parent metadata safely after create/move/delete operations.
+categorySchema.statics.syncChildrenMeta = async function (parentIds = []) {
+    const normalizedParentIds = [
+        ...new Set(
+            parentIds
+                .filter(Boolean)
+                .map((id) => id.toString())
+        ),
+    ];
+
+    if (normalizedParentIds.length === 0) {
+        return;
+    }
+
+    await Promise.all(
+        normalizedParentIds.map(async (parentId) => {
+            const count = await this.countDocuments({ parentId });
+            await this.updateOne(
+                { _id: parentId },
+                {
+                    $set: {
+                        childrenCount: count,
+                        hasChildren: count > 0,
+                    },
+                }
+            );
+        })
+    );
+};
+
+categorySchema.pre('save', async function (next) {
+    this.$locals = this.$locals || {};
+    this.$locals.wasNew = this.isNew;
+    this.$locals.parentChanged = this.isModified('parentId');
+
+    if (!this.isNew && this.$locals.parentChanged) {
+        const previous = await this.constructor.findById(this._id).select('parentId').lean();
+        this.$locals.previousParentId = previous?.parentId || null;
+    }
+
+    next();
+});
+
 categorySchema.post('save', async function () {
+    const changedParent = Boolean(this.$locals?.parentChanged);
+    const affectedParents = [];
+
+    if (this.parentId && (this.$locals?.wasNew || changedParent)) {
+        affectedParents.push(this.parentId);
+    }
+
+    if (changedParent && this.$locals?.previousParentId) {
+        affectedParents.push(this.$locals.previousParentId);
+    }
+
+    if (affectedParents.length > 0) {
+        await this.constructor.syncChildrenMeta(affectedParents);
+    }
+});
+
+categorySchema.post('deleteOne', { document: true, query: false }, async function () {
     if (this.parentId) {
-        await mongoose.models.Category.findByIdAndUpdate(this.parentId, {
-            hasChildren: true,
-            $inc: { childrenCount: 1 },
-        });
+        await this.constructor.syncChildrenMeta([this.parentId]);
     }
 });
 

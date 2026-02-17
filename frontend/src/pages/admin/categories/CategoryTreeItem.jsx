@@ -41,6 +41,7 @@ const CategoryTreeItem = ({
     onAddChild,
     onToggleChildDrop,
     onToggleStatus,
+    onToggleFeatured,
 }) => {
     const {
         attributes,
@@ -57,7 +58,8 @@ const CategoryTreeItem = ({
         opacity: isDragging ? 0.5 : 1,
     };
 
-    const hasChildren = category.children && category.children.length > 0;
+    const directChildrenCount = Array.isArray(category.children) ? category.children.length : 0;
+    const hasChildren = directChildrenCount > 0;
     const isExpanded = expandedCategories.has(category._id);
 
     const getLevelColor = (level) => {
@@ -167,11 +169,9 @@ const CategoryTreeItem = ({
                                 <span className="flex items-center gap-1">
                                     <span className="font-medium">Slug:</span> {category.slug}
                                 </span>
-                                {hasChildren && (
-                                    <span className="flex items-center gap-1">
-                                        <span className="font-medium">Children:</span> {category.children.length}
-                                    </span>
-                                )}
+                                <span className="flex items-center gap-1">
+                                    <span className="font-medium">Children:</span> {directChildrenCount}
+                                </span>
                             </div>
                         </div>
 
@@ -243,12 +243,13 @@ const CategoryTreeItem = ({
 
                             {/* Star (Featured) */}
                             <button
+                                onClick={() => onToggleFeatured(category._id, category.isFeatured)}
                                 className={`p-2 rounded-lg transition-colors ${
                                     category.isFeatured
                                         ? 'bg-amber-400 text-white hover:bg-amber-500'
                                         : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
                                 }`}
-                                title={category.isFeatured ? 'Featured' : 'Not featured'}
+                                title={category.isFeatured ? 'Click to remove featured' : 'Click to mark as featured'}
                             >
                                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -268,7 +269,7 @@ const CategoryTreeItem = ({
 
                             {/* Number Badge */}
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-white">
-                                {category.childrenCount || 0}
+                                {directChildrenCount}
                             </div>
                         </div>
                     </div>
@@ -296,6 +297,7 @@ const CategoryTreeItem = ({
                             onAddChild={onAddChild}
                             onToggleChildDrop={onToggleChildDrop}
                             onToggleStatus={onToggleStatus}
+                            onToggleFeatured={onToggleFeatured}
                         />
                     ))}
                 </div>

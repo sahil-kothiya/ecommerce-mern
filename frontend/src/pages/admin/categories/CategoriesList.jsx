@@ -1,17 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { API_CONFIG } from '../../../constants';
 import authService from '../../../services/authService';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import notify from '../../../utils/notify';
 
 const CategoriesList = () => {
+    const navigate = useNavigate();
     const [categories, setCategories] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
-    const [editingCategory, setEditingCategory] = useState(null);
-    const [formData, setFormData] = useState({ title: '', summary: '', photo: '', status: 'active' });
-    const [imagePreview, setImagePreview] = useState('');
-    const [selectedFile, setSelectedFile] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [typeFilter, setTypeFilter] = useState('all');
+    const [sortField, setSortField] = useState('title');
+    const [sortDirection, setSortDirection] = useState('asc');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const [categoryToDelete, setCategoryToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -22,116 +26,30 @@ const CategoriesList = () => {
     const loadCategories = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`);
+            const response = await fetch(
+                `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`,
+                { headers: authService.getAuthHeaders() }
+            );
             const data = await response.json();
-            
+
             if (response.status === 401) {
                 await authService.logout();
                 window.location.href = '/login';
                 return;
             }
-            
-            setCategories(Array.isArray(data?.data) ? data.data : data?.data?.categories || []);
+
+            const list = Array.isArray(data?.data)
+                ? data.data
+                : Array.isArray(data?.data?.items)
+                    ? data.data.items
+                    : [];
+
+            setCategories(list);
         } catch (error) {
-            console.error('Error loading categories:', error);
+            notify.error('Failed to load categories');
+            setCategories([]);
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            const url = editingCategory
-                ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${editingCategory._id}`
-                : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`;
-
-            // Create FormData for file upload
-            const submitData = new FormData();
-            submitData.append('title', formData.title);
-            submitData.append('summary', formData.summary);
-            submitData.append('status', formData.status);
-            
-            // Add file if selected, otherwise keep existing photo URL if editing
-            if (selectedFile) {
-                submitData.append('photo', selectedFile);
-            } else if (!editingCategory && formData.photo) {
-                submitData.append('photo', formData.photo);
-            }
-
-            // Get auth headers without Content-Type (browser sets it automatically for FormData)
-            const headers = authService.getAuthHeaders();
-            delete headers['Content-Type'];
-
-            const response = await fetch(url, {
-                method: editingCategory ? 'PUT' : 'POST',
-                headers: headers,
-                body: submitData,
-            });
-
-            const responseData = await response.json();
-
-            if (response.ok) {
-                notify.success(`Category ${editingCategory ? 'updated' : 'created'} successfully`);
-                setShowModal(false);
-                setEditingCategory(null);
-                setFormData({ title: '', summary: '', photo: '', status: 'active' });
-                setImagePreview('');
-                setSelectedFile(null);
-                loadCategories();
-            } else {
-                // Handle authentication errors
-                if (response.status === 401) {
-                    notify.info('Your session has expired. Please login again.');
-                    await authService.logout();
-                    window.location.href = '/login';
-                    return;
-                }
-                notify.error(responseData, 'Failed to save category');
-            }
-        } catch (error) {
-            console.error('Error saving category:', error);
-            notify.error(error, 'Failed to save category');
-        }
-    };
-
-    const handleEdit = (category) => {
-        setEditingCategory(category);
-        setFormData({
-            title: category.title,
-            summary: category.summary || '',
-            photo: category.photo || '',
-            status: category.status || 'active',
-        });
-        setImagePreview(category.photo ? `${API_CONFIG.BASE_URL}${category.photo}` : '');
-        setSelectedFile(null);
-        setShowModal(true);
-    };
-
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            // Validate file type
-            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-            if (!validTypes.includes(file.type)) {
-                notify.info('Please select a valid image file (JPG, PNG, GIF, or WEBP)');
-                return;
-            }
-            
-            // Validate file size (5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                notify.info('File size must be less than 5MB');
-                return;
-            }
-
-            setSelectedFile(file);
-            
-            // Create preview URL
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result);
-            };
-            reader.readAsDataURL(file);
         }
     };
 
@@ -139,38 +57,161 @@ const CategoriesList = () => {
         if (!categoryToDelete?._id) return;
         try {
             setIsDeleting(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryToDelete._id}`, {
-                method: 'DELETE',
-                headers: authService.getAuthHeaders(),
-            });
+            const response = await fetch(
+                `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryToDelete._id}`,
+                {
+                    method: 'DELETE',
+                    headers: authService.getAuthHeaders(),
+                }
+            );
 
             if (response.status === 401) {
-                notify.info('Your session has expired. Please login again.');
                 await authService.logout();
                 window.location.href = '/login';
                 return;
             }
 
-            if (response.ok) {
-                setCategoryToDelete(null);
-                notify.success('Category deleted successfully');
-                loadCategories();
-            } else {
-                const errorData = await response.json();
-                notify.error(errorData, 'Failed to delete category');
+            const data = await response.json();
+            if (!response.ok) {
+                notify.error(data?.message || 'Failed to delete category');
+                return;
             }
+
+            notify.success('Category deleted successfully');
+            setCategoryToDelete(null);
+            loadCategories();
         } catch (error) {
-            console.error('Error deleting category:', error);
-            notify.error(error, 'Failed to delete category');
+            notify.error('Failed to delete category');
         } finally {
             setIsDeleting(false);
         }
     };
 
-    const totalCategories = categories.length;
-    const activeCategories = categories.filter((cat) => cat.status === 'active').length;
-    const inactiveCategories = totalCategories - activeCategories;
-    const withImage = categories.filter((cat) => Boolean(cat.photo)).length;
+    const getImageUrl = (path) => {
+        if (!path) return '';
+        if (/^https?:\/\//i.test(path)) return path;
+        const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+        return `${API_CONFIG.BASE_URL}${normalizedPath}`;
+    };
+
+    const parentTitleMap = useMemo(
+        () => new Map(categories.map((cat) => [String(cat._id), cat.title])),
+        [categories]
+    );
+
+    const filteredAndSortedCategories = useMemo(() => {
+        const q = searchTerm.trim().toLowerCase();
+
+        const filtered = categories.filter((category) => {
+            const title = category.title || '';
+            const slug = category.slug || '';
+            const parentTitle = category.parentId ? parentTitleMap.get(String(category.parentId)) || '' : '';
+            const isRoot = !category.parentId;
+
+            const matchesSearch = !q
+                || title.toLowerCase().includes(q)
+                || slug.toLowerCase().includes(q)
+                || parentTitle.toLowerCase().includes(q);
+
+            const matchesStatus = statusFilter === 'all' || (category.status || 'inactive') === statusFilter;
+            const matchesType = typeFilter === 'all'
+                || (typeFilter === 'root' && isRoot)
+                || (typeFilter === 'child' && !isRoot);
+
+            return matchesSearch && matchesStatus && matchesType;
+        });
+
+        const sorted = [...filtered].sort((a, b) => {
+            const aParent = a.parentId ? parentTitleMap.get(String(a.parentId)) || '' : '';
+            const bParent = b.parentId ? parentTitleMap.get(String(b.parentId)) || '' : '';
+            const aIsParent = a.parentId ? 0 : 1;
+            const bIsParent = b.parentId ? 0 : 1;
+
+            let aValue = '';
+            let bValue = '';
+
+            if (sortField === 'title') {
+                aValue = a.title || '';
+                bValue = b.title || '';
+            } else if (sortField === 'slug') {
+                aValue = a.slug || '';
+                bValue = b.slug || '';
+            } else if (sortField === 'parent') {
+                aValue = aParent;
+                bValue = bParent;
+            } else if (sortField === 'status') {
+                aValue = a.status || 'inactive';
+                bValue = b.status || 'inactive';
+            } else if (sortField === 'isParent') {
+                aValue = aIsParent;
+                bValue = bIsParent;
+            } else if (sortField === 'sortOrder') {
+                aValue = Number(a.sortOrder || 0);
+                bValue = Number(b.sortOrder || 0);
+            }
+
+            if (typeof aValue === 'number' && typeof bValue === 'number') {
+                return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+            }
+
+            const compareResult = String(aValue).localeCompare(String(bValue));
+            return sortDirection === 'asc' ? compareResult : -compareResult;
+        });
+
+        return sorted;
+    }, [categories, parentTitleMap, searchTerm, statusFilter, typeFilter, sortField, sortDirection]);
+
+    const totalItems = filteredAndSortedCategories.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    const safeCurrentPage = Math.min(currentPage, totalPages);
+    const pageStartIndex = (safeCurrentPage - 1) * pageSize;
+    const paginatedCategories = filteredAndSortedCategories.slice(pageStartIndex, pageStartIndex + pageSize);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, statusFilter, typeFilter, pageSize]);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, totalPages]);
+
+    const stats = useMemo(() => {
+        const total = categories.length;
+        const active = categories.filter((item) => item.status === 'active').length;
+        const inactive = total - active;
+        const roots = categories.filter((item) => !item.parentId).length;
+        return { total, active, inactive, roots };
+    }, [categories]);
+
+    const handleSort = (field) => {
+        if (sortField === field) {
+            setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+            return;
+        }
+        setSortField(field);
+        setSortDirection('asc');
+    };
+
+    const renderSortIcon = (field) => {
+        if (sortField !== field) {
+            return <span className="ml-1 text-slate-300">↕</span>;
+        }
+        return <span className="ml-1 text-indigo-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>;
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex h-[420px] items-center justify-center">
+                <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+                    <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-b-4 border-slate-700" />
+                    <p className="text-lg font-semibold text-slate-800">Loading categories...</p>
+                    <p className="mt-1 text-sm text-slate-500">Preparing table view</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8">
@@ -181,9 +222,15 @@ const CategoriesList = () => {
                     <div>
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-200/80">Admin Console</p>
                         <h1 className="mt-2 text-3xl font-black leading-tight sm:text-4xl">Category Library</h1>
-                        <p className="mt-2 max-w-xl text-slate-200/90">Quickly review, edit, and maintain flat category records.</p>
+                        <p className="mt-2 max-w-xl text-slate-200/90">Manage all categories in a structured table view. Use Tree View for nesting and drag-drop reordering.</p>
                     </div>
                     <div className="flex flex-wrap gap-3">
+                        <button
+                            onClick={() => navigate('/admin/categories/tree')}
+                            className="rounded-xl border border-white/30 bg-white/10 px-5 py-3 font-semibold backdrop-blur-sm transition-all hover:bg-white/20"
+                        >
+                            Tree View
+                        </button>
                         <button
                             onClick={loadCategories}
                             className="rounded-xl border border-white/30 bg-white/10 px-5 py-3 font-semibold backdrop-blur-sm transition-all hover:bg-white/20"
@@ -191,13 +238,7 @@ const CategoriesList = () => {
                             Refresh
                         </button>
                         <button
-                            onClick={() => {
-                                setEditingCategory(null);
-                                setFormData({ title: '', summary: '', photo: '', status: 'active' });
-                                setImagePreview('');
-                                setSelectedFile(null);
-                                setShowModal(true);
-                            }}
+                            onClick={() => navigate('/admin/categories/create')}
                             className="flex items-center gap-2 rounded-xl bg-indigo-300 px-5 py-3 font-bold text-slate-900 transition-colors hover:bg-indigo-200"
                         >
                             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -212,178 +253,217 @@ const CategoriesList = () => {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <p className="text-xs uppercase tracking-widest text-slate-500">Total</p>
-                    <p className="mt-2 text-3xl font-black text-slate-900">{totalCategories}</p>
+                    <p className="mt-2 text-3xl font-black text-slate-900">{stats.total}</p>
                 </div>
                 <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm">
                     <p className="text-xs uppercase tracking-widest text-emerald-700">Active</p>
-                    <p className="mt-2 text-3xl font-black text-emerald-800">{activeCategories}</p>
+                    <p className="mt-2 text-3xl font-black text-emerald-800">{stats.active}</p>
                 </div>
                 <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm">
                     <p className="text-xs uppercase tracking-widest text-amber-700">Inactive</p>
-                    <p className="mt-2 text-3xl font-black text-amber-800">{inactiveCategories}</p>
+                    <p className="mt-2 text-3xl font-black text-amber-800">{stats.inactive}</p>
                 </div>
                 <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-5 shadow-sm">
-                    <p className="text-xs uppercase tracking-widest text-blue-700">With Image</p>
-                    <p className="mt-2 text-3xl font-black text-blue-800">{withImage}</p>
+                    <p className="text-xs uppercase tracking-widest text-blue-700">Root Categories</p>
+                    <p className="mt-2 text-3xl font-black text-blue-800">{stats.roots}</p>
                 </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
+                    <div className="relative lg:col-span-2">
+                        <svg className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(event) => setSearchTerm(event.target.value)}
+                            placeholder="Search title, slug, parent category..."
+                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 text-slate-800 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
+                        />
+                    </div>
+                    <select
+                        value={statusFilter}
+                        onChange={(event) => setStatusFilter(event.target.value)}
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
+                    >
+                        <option value="all">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                    <select
+                        value={typeFilter}
+                        onChange={(event) => setTypeFilter(event.target.value)}
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
+                    >
+                        <option value="all">All Types</option>
+                        <option value="root">Root Only</option>
+                        <option value="child">Child Only</option>
+                    </select>
+                </div>
+                <p className="mt-3 text-sm text-slate-500">
+                    Showing <span className="font-semibold text-slate-800">{totalItems}</span> filtered categories
+                </p>
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-64">
-                        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-indigo-600"></div>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
-                        {categories.map((category) => (
-                            <div key={category._id} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-                                {category.photo && (
-                                    <div className="h-40 overflow-hidden bg-gradient-to-br from-slate-100 via-slate-50 to-indigo-100">
-                                        <img 
-                                            src={`${API_CONFIG.BASE_URL}${category.photo}`} 
-                                            alt={category.title}
-                                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                            onError={(e) => { e.target.style.display = 'none'; }}
-                                        />
-                                    </div>
-                                )}
-                                <div className="p-6">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="flex-1">
-                                            <h3 className="mb-1 text-lg font-black text-slate-900">{category.title}</h3>
-                                            <p className="text-sm text-slate-500">{category.summary || 'No description'}</p>
-                                        </div>
-                                        <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
-                                            category.status === 'active'
-                                                ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
-                                                : 'border-amber-200 bg-amber-100 text-amber-700'
-                                        }`}>
-                                            {category.status}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => handleEdit(category)}
-                                            className="flex-1 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-700"
-                                        >
-                                            Edit
-                                        </button>
-                                        <button
-                                            onClick={() => setCategoryToDelete(category)}
-                                            className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                <div className="overflow-x-auto">
+                    <table className="min-w-full border-collapse">
+                        <thead>
+                            <tr className="border-b border-slate-200 bg-slate-50 text-left">
+                                <th className="px-4 py-3 text-sm font-bold text-slate-700">S.N.</th>
+                                <th className="px-4 py-3 text-sm font-bold text-slate-700">
+                                    <button type="button" onClick={() => handleSort('title')} className="inline-flex items-center">
+                                        Title {renderSortIcon('title')}
+                                    </button>
+                                </th>
+                                <th className="px-4 py-3 text-sm font-bold text-slate-700">
+                                    <button type="button" onClick={() => handleSort('slug')} className="inline-flex items-center">
+                                        Slug {renderSortIcon('slug')}
+                                    </button>
+                                </th>
+                                <th className="px-4 py-3 text-sm font-bold text-slate-700">
+                                    <button type="button" onClick={() => handleSort('isParent')} className="inline-flex items-center">
+                                        Is Parent {renderSortIcon('isParent')}
+                                    </button>
+                                </th>
+                                <th className="px-4 py-3 text-sm font-bold text-slate-700">
+                                    <button type="button" onClick={() => handleSort('parent')} className="inline-flex items-center">
+                                        Parent Category {renderSortIcon('parent')}
+                                    </button>
+                                </th>
+                                <th className="px-4 py-3 text-sm font-bold text-slate-700">Photo</th>
+                                <th className="px-4 py-3 text-sm font-bold text-slate-700">
+                                    <button type="button" onClick={() => handleSort('status')} className="inline-flex items-center">
+                                        Status {renderSortIcon('status')}
+                                    </button>
+                                </th>
+                                <th className="px-4 py-3 text-sm font-bold text-slate-700">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {paginatedCategories.length === 0 ? (
+                                <tr>
+                                    <td colSpan={8} className="px-4 py-10 text-center text-slate-500">
+                                        No categories found.
+                                    </td>
+                                </tr>
+                            ) : (
+                                paginatedCategories.map((category, index) => {
+                                    const hasParent = Boolean(category.parentId);
+                                    const parentTitle = hasParent ? parentTitleMap.get(String(category.parentId)) || '-' : '-';
+                                    return (
+                                        <tr key={category._id} className="border-b border-slate-100 align-middle hover:bg-slate-50/70">
+                                            <td className="px-4 py-3 text-sm text-slate-700">{pageStartIndex + index + 1}</td>
+                                            <td className="px-4 py-3 text-sm font-semibold text-slate-900">{category.title}</td>
+                                            <td className="px-4 py-3 text-sm text-slate-600">{category.slug || '-'}</td>
+                                            <td className="px-4 py-3 text-sm text-slate-700">{hasParent ? 'No' : 'Yes'}</td>
+                                            <td className="px-4 py-3 text-sm text-slate-700">{parentTitle}</td>
+                                            <td className="px-4 py-3">
+                                                {category.photo ? (
+                                                    <img
+                                                        src={getImageUrl(category.photo)}
+                                                        alt={category.title}
+                                                        className="h-12 w-16 rounded-md border border-slate-200 object-cover"
+                                                        onError={(event) => {
+                                                            event.currentTarget.style.display = 'none';
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <div className="flex h-12 w-16 items-center justify-center rounded-md border border-slate-200 bg-slate-100 text-xs text-slate-500">
+                                                        No Image
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                                                    category.status === 'active'
+                                                        ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
+                                                        : 'border-amber-200 bg-amber-100 text-amber-700'
+                                                }`}>
+                                                    {category.status || 'inactive'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => navigate(`/admin/categories/${category._id}/edit`)}
+                                                        className="rounded-lg bg-slate-900 p-2 text-white transition-colors hover:bg-slate-700"
+                                                        title="Edit category"
+                                                    >
+                                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setCategoryToDelete(category)}
+                                                        className="rounded-lg bg-rose-500 p-2 text-white transition-colors hover:bg-rose-400"
+                                                        title="Delete category"
+                                                    >
+                                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            {/* Modal */}
-            {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-                        <h2 className="mb-4 text-2xl font-black text-slate-900">
-                            {editingCategory ? 'Edit' : 'Create'} Category
-                        </h2>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="mb-2 block text-sm font-semibold text-slate-700">Title *</label>
-                                <input
-                                    type="text"
-                                    value={formData.title}
-                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                    required
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-2 block text-sm font-semibold text-slate-700">Description</label>
-                                <textarea
-                                    value={formData.summary}
-                                    onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-                                    rows="3"
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-2 block text-sm font-semibold text-slate-700">Category Image</label>
-                                <div className="space-y-3">
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleFileChange}
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-2 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
-                                    />
-                                    {imagePreview && (
-                                        <div className="relative">
-                                            <img 
-                                                src={imagePreview} 
-                                                alt="Preview" 
-                                                className="h-40 w-full rounded-xl border border-slate-200 object-cover"
-                                                onError={(e) => {
-                                                    e.target.src = 'https://via.placeholder.com/400x200?text=Image+Error';
-                                                }}
-                                            />
-                                            {selectedFile && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setSelectedFile(null);
-                                                        setImagePreview(editingCategory?.photo ? `${API_CONFIG.BASE_URL}${editingCategory.photo}` : '');
-                                                    }}
-                                                    className="absolute right-2 top-2 rounded-full bg-rose-500 p-2 text-white transition-colors hover:bg-rose-400"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                    </svg>
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-                                    <p className="text-xs text-gray-500">
-                                        {selectedFile ? `Selected: ${selectedFile.name}` : 'Upload an image (JPG, PNG, GIF, WEBP - Max 5MB)'}
-                                    </p>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="mb-2 block text-sm font-semibold text-slate-700">Status</label>
-                                <select
-                                    value={formData.status}
-                                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
-                                >
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
-                            </div>
-                            <div className="flex gap-3 pt-4">
-                                <button
-                                    type="submit"
-                                    className="flex-1 rounded-xl bg-indigo-500 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-indigo-400"
-                                >
-                                    {editingCategory ? 'Update' : 'Create'}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowModal(false)}
-                                    className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-800 transition-colors hover:bg-slate-100"
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        </form>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <span>Show</span>
+                        <select
+                            value={pageSize}
+                            onChange={(event) => setPageSize(Number(event.target.value))}
+                            className="rounded-lg border border-slate-300 px-2 py-1 text-sm"
+                        >
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                        </select>
+                        <span>entries</span>
+                    </div>
+
+                    <p className="text-sm text-slate-600">
+                        Showing {totalItems === 0 ? 0 : pageStartIndex + 1} to {Math.min(pageStartIndex + pageSize, totalItems)} of {totalItems} entries
+                    </p>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            disabled={safeCurrentPage <= 1}
+                            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Prev
+                        </button>
+                        <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-700">
+                            {safeCurrentPage} / {totalPages}
+                        </span>
+                        <button
+                            type="button"
+                            disabled={safeCurrentPage >= totalPages}
+                            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Next
+                        </button>
                     </div>
                 </div>
-            )}
+            </div>
 
             <ConfirmDialog
                 isOpen={Boolean(categoryToDelete)}
                 title="Delete Category?"
-                message="This action permanently removes this category."
+                message="This action cannot be undone."
                 highlightText={categoryToDelete?.title || ''}
                 confirmText={isDeleting ? 'Deleting...' : 'Delete Forever'}
                 cancelText="Keep Category"
