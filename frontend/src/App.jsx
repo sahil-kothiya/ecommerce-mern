@@ -16,10 +16,15 @@ import CategoriesList from './pages/admin/categories/CategoriesList.jsx';
 import CategoryTreeManager from './pages/admin/categories/CategoryTreeManager.jsx';
 import CategoryEditorPage from './pages/admin/categories/CategoryEditorPage.jsx';
 import UsersList from './pages/admin/users/UsersList.jsx';
+import UserForm from './pages/admin/users/UserForm.jsx';
 import BannersList from './pages/admin/banners/BannersList.jsx';
 import BannerForm from './pages/admin/banners/BannerForm.jsx';
 import BrandsList from './pages/admin/brands/BrandsList.jsx';
 import BrandForm from './pages/admin/brands/BrandForm.jsx';
+import DiscountsList from './pages/admin/discounts/DiscountsList.jsx';
+import DiscountForm from './pages/admin/discounts/DiscountForm.jsx';
+import ReviewsList from './pages/admin/reviews/ReviewsList.jsx';
+import SettingsPage from './pages/admin/settings/SettingsPage.jsx';
 
 function App() {
     return (
@@ -60,15 +65,20 @@ function App() {
                 <Route path="categories/:id/edit" element={<CategoryEditorPage />} />
                 <Route path="categories/list" element={<CategoriesList />} />
                 <Route path="users" element={<UsersList />} />
+                <Route path="users/create" element={<UserForm />} />
+                <Route path="users/:id/edit" element={<UserForm />} />
                 <Route path="banners" element={<BannersList />} />
                 <Route path="banners/create" element={<BannerForm />} />
                 <Route path="banners/:id/edit" element={<BannerForm />} />
                 <Route path="brands" element={<BrandsList />} />
                 <Route path="brands/create" element={<BrandForm />} />
                 <Route path="brands/:id/edit" element={<BrandForm />} />
+                <Route path="discounts" element={<DiscountsList />} />
+                <Route path="discounts/create" element={<DiscountForm />} />
+                <Route path="discounts/:id/edit" element={<DiscountForm />} />
                 <Route path="orders" element={<div className="p-6"><h1 className="text-3xl font-bold">Orders Management (Coming Soon)</h1></div>} />
-                <Route path="reviews" element={<div className="p-6"><h1 className="text-3xl font-bold">Reviews Management (Coming Soon)</h1></div>} />
-                <Route path="settings" element={<div className="p-6"><h1 className="text-3xl font-bold">Settings (Coming Soon)</h1></div>} />
+                <Route path="reviews" element={<ReviewsList />} />
+                <Route path="settings" element={<SettingsPage />} />
             </Route>
 
             {/* 404 */}

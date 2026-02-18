@@ -31,6 +31,7 @@ const MENU_ITEMS = [
     { path: '/admin/orders', icon: '🛍️', label: 'Orders' },
     { path: '/admin/banners', icon: '🖼️', label: 'Banners' },
     { path: '/admin/brands', icon: '🏷️', label: 'Brands' },
+    { path: '/admin/discounts', icon: '%', label: 'Discounts' },
     { path: '/admin/reviews', icon: '⭐', label: 'Reviews' },
     { path: '/admin/settings', icon: '⚙️', label: 'Settings' },
 ];

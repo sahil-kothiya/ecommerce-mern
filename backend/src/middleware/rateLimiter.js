@@ -3,10 +3,11 @@ import { config } from '../config/index.js';
 
 export const rateLimiter = rateLimit({
     windowMs: config.rateLimit.windowMs,
-    max: config.rateLimit.maxRequests,
+    max: () => (config.nodeEnv === 'development' ? 5000 : config.rateLimit.maxRequests),
     message: 'Too many requests from this IP, please try again later',
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.method === 'OPTIONS',
 });
 
 export const authRateLimiter = rateLimit({

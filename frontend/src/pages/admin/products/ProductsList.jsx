@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { API_CONFIG } from '../../../constants';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
@@ -6,40 +6,72 @@ import notify from '../../../utils/notify';
 
 const ProductsList = () => {
     const [products, setProducts] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
+    const [isFetching, setIsFetching] = useState(false);
     const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({ category: '', status: 'active' });
     const [productToDelete, setProductToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const requestCounterRef = useRef(0);
 
     useEffect(() => {
-        loadProducts();
+        loadProducts({}, { background: !isInitialLoading });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pagination.page, filters]);
+    }, [pagination.page]);
 
-    const loadProducts = async () => {
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (pagination.page !== 1) {
+                setPagination((prev) => ({ ...prev, page: 1 }));
+                return;
+            }
+            loadProducts({ page: 1 }, { background: true });
+        }, 350);
+
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchTerm, filters.status, filters.category]);
+
+    const loadProducts = async (overrides = {}, options = {}) => {
+        const requestId = ++requestCounterRef.current;
+        const isBackground = Boolean(options.background);
         try {
-            setIsLoading(true);
+            if (isBackground) {
+                setIsFetching(true);
+            } else {
+                setIsInitialLoading(true);
+            }
+            const page = overrides.page || pagination.page;
+            const activeFilters = {
+                category: overrides.category ?? filters.category,
+                status: overrides.status ?? filters.status,
+            };
             const params = new URLSearchParams({
-                page: pagination.page,
+                page,
                 limit: pagination.limit,
-                ...filters,
+                ...activeFilters,
             });
 
-            if (searchTerm) params.append('search', searchTerm);
+            const activeSearch = (overrides.search ?? searchTerm).trim();
+            if (activeSearch) params.append('search', activeSearch);
 
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}?${params}`);
             const data = await response.json();
+            if (requestId !== requestCounterRef.current) return;
 
             if (data.success) {
                 setProducts(data.data.products);
                 setPagination(prev => ({ ...prev, ...data.data.pagination }));
             }
         } catch (error) {
+            if (requestId !== requestCounterRef.current) return;
             console.error('Error loading products:', error);
         } finally {
-            setIsLoading(false);
+            if (requestId === requestCounterRef.current) {
+                setIsInitialLoading(false);
+                setIsFetching(false);
+            }
         }
     };
 
@@ -53,7 +85,7 @@ const ProductsList = () => {
 
             if (response.ok) {
                 setProductToDelete(null);
-                loadProducts();
+                loadProducts({ page: pagination.page }, { background: true });
                 notify.success('Product deleted successfully');
             } else {
                 const errorData = await response.json().catch(() => ({}));
@@ -65,12 +97,6 @@ const ProductsList = () => {
         } finally {
             setIsDeleting(false);
         }
-    };
-
-    const handleSearch = (e) => {
-        e.preventDefault();
-        setPagination(prev => ({ ...prev, page: 1 }));
-        loadProducts();
     };
 
     return (
@@ -94,7 +120,7 @@ const ProductsList = () => {
 
             {/* Filters */}
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <form onSubmit={handleSearch} className="flex gap-4">
+                <div className="flex gap-4">
                     <div className="flex-1">
                         <input
                             type="text"
@@ -115,17 +141,24 @@ const ProductsList = () => {
                         <option value="draft">Draft</option>
                     </select>
                     <button
-                        type="submit"
+                        type="button"
+                        onClick={() => {
+                            setSearchTerm('');
+                            setFilters((prev) => ({ ...prev, category: '', status: 'active' }));
+                            setPagination((prev) => ({ ...prev, page: 1 }));
+                            loadProducts({ page: 1, search: '', status: 'active', category: '' }, { background: true });
+                        }}
                         className="px-6 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-lg font-semibold transition-colors"
                     >
-                        Search
+                        Reset
                     </button>
-                </form>
+                </div>
+                {isFetching && <p className="mt-2 text-xs font-medium text-blue-700">Searching...</p>}
             </div>
 
             {/* Products Table */}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                {isLoading ? (
+                {isInitialLoading ? (
                     <div className="flex items-center justify-center h-64">
                         <div className="text-center">
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>

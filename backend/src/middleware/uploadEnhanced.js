@@ -97,6 +97,7 @@ const productStorage = createStorage('products', 'product');
 const brandStorage = createStorage('brands', 'brand');
 const bannerStorage = createStorage('banners', 'banner');
 const userStorage = createStorage('users', 'user');
+const settingsStorage = createStorage('settings', 'setting');
 
 // ===========================
 // Multer Upload Instances
@@ -161,6 +162,19 @@ export const uploadUserAvatar = multer({
     limits: { fileSize: 2 * 1024 * 1024, files: 1 },
     fileFilter: imageFileFilter
 }).single('avatar');
+
+/**
+ * Settings assets upload
+ * @description Handles site logo and favicon uploads
+ */
+export const uploadSettingsAssets = multer({
+    storage: settingsStorage,
+    limits: { fileSize: config.upload.maxFileSize, files: 2 },
+    fileFilter: imageFileFilter
+}).fields([
+    { name: 'logo', maxCount: 1 },
+    { name: 'favicon', maxCount: 1 }
+]);
 
 /**
  * Brand multi-field upload (logo + banners)

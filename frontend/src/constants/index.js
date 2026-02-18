@@ -10,10 +10,14 @@ export const API_CONFIG = {
         PRODUCTS: '/api/products',
         CATEGORIES: '/api/categories',
         BRANDS: '/api/brands',
+        DISCOUNTS: '/api/discounts',
         BANNERS: '/api/banners',
+        REVIEWS: '/api/reviews',
+        SETTINGS: '/api/settings',
         CART: '/api/cart',
         ORDERS: '/api/orders',
-        AUTH: '/api/auth'
+        AUTH: '/api/auth',
+        USERS: '/api/users',
     },
     TIMEOUT: 10000,
     RETRY_ATTEMPTS: 3

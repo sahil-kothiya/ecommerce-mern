@@ -263,7 +263,7 @@ const productSchema = new Schema({
         },
         type: {
             type: String,
-            enum: ['percentage', 'amount']
+            enum: ['percentage', 'fixed', 'amount']
         },
         value: Number,
         endsAt: Date
