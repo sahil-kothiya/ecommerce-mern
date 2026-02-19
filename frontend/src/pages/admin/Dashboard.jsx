@@ -74,8 +74,8 @@ const Dashboard = () => {
                 title: 'Total Products',
                 value: stats.totalProducts,
                 link: '/admin/products',
-                theme: 'from-cyan-500 via-blue-500 to-indigo-600',
-                ring: 'ring-cyan-300/50',
+                theme: 'from-[#4250d5] via-[#6a88e2] to-[#a5bbfc]',
+                ring: 'ring-[#d2dff9]/70',
                 icon: (
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
@@ -86,8 +86,8 @@ const Dashboard = () => {
                 title: 'Total Users',
                 value: stats.totalUsers,
                 link: '/admin/users',
-                theme: 'from-emerald-500 via-teal-500 to-cyan-600',
-                ring: 'ring-emerald-300/50',
+                theme: 'from-[#11115b] via-[#4250d5] to-[#6a88e2]',
+                ring: 'ring-[#a7c0f1]/70',
                 icon: (
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-5-3.87M9 20H4v-2a4 4 0 015-3.87m8-4a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -98,8 +98,8 @@ const Dashboard = () => {
                 title: 'Total Orders',
                 value: stats.totalOrders,
                 link: '/admin/orders',
-                theme: 'from-amber-500 via-orange-500 to-rose-500',
-                ring: 'ring-amber-300/50',
+                theme: 'from-[#a5460f] via-[#f9730c] to-[#ffa336]',
+                ring: 'ring-[#ffb053]/70',
                 icon: (
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m1.6 8L5.4 5M7 13l-1.5 7h13" />
@@ -110,8 +110,8 @@ const Dashboard = () => {
                 title: 'Revenue',
                 value: `$${Number(stats.totalRevenue || 0).toLocaleString()}`,
                 link: '/admin/orders',
-                theme: 'from-blue-500 via-indigo-500 to-violet-600',
-                ring: 'ring-blue-300/50',
+                theme: 'from-[#29211d] via-[#0a2156] to-[#4250d5]',
+                ring: 'ring-[#a5bbfc]/70',
                 icon: (
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .672-3 1.5S10.343 11 12 11s3 .672 3 1.5S13.657 14 12 14m0-8v2m0 6v2" />
@@ -122,8 +122,8 @@ const Dashboard = () => {
                 title: 'Paid Orders',
                 value: stats.paidOrders,
                 link: '/admin/orders',
-                theme: 'from-violet-500 via-fuchsia-500 to-pink-500',
-                ring: 'ring-violet-300/50',
+                theme: 'from-[#556adc] via-[#f9730c] to-[#ffb053]',
+                ring: 'ring-[#f0d5ba]/80',
                 icon: (
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -140,23 +140,23 @@ const Dashboard = () => {
 
     return (
         <div className="space-y-8">
-            <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-6 text-white shadow-[0_20px_60px_rgba(15,23,42,0.35)] sm:p-8">
-                <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-cyan-400/20 blur-3xl" />
-                <div className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-violet-400/20 blur-3xl" />
+            <div className="admin-hero rounded-3xl p-6 text-white sm:p-8">
+                <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-[#ffa336]/30 blur-3xl" />
+                <div className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-[#a5bbfc]/30 blur-3xl" />
                 <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                        <p className="text-xs uppercase tracking-[0.22em] text-cyan-200">Command Center</p>
-                        <h1 className="mt-2 text-3xl font-black leading-tight sm:text-4xl">Creative Admin Dashboard</h1>
-                        <p className="mt-2 max-w-xl text-slate-200/90">Track live performance, monitor recent activity, and jump into high-impact actions.</p>
+                        <p className="admin-hero-eyebrow text-xs uppercase">Command Center</p>
+                        <h1 className="admin-display mt-2 text-3xl leading-tight sm:text-4xl">Sovereign Commerce Dashboard</h1>
+                        <p className="mt-2 max-w-xl text-[#e8effc]">Track live performance, monitor recent activity, and jump into high-impact actions.</p>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                        <Link to="/admin/orders" className="rounded-xl border border-white/25 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20">
+                        <Link to="/admin/orders" className="admin-button-secondary rounded-full px-5 py-3 text-sm font-semibold">
                             Open Orders
                         </Link>
                         <button
                             type="button"
                             onClick={loadDashboardData}
-                            className="rounded-xl bg-cyan-400 px-5 py-3 text-sm font-black text-slate-900 transition hover:bg-cyan-300"
+                            className="admin-button-primary rounded-full px-5 py-3 text-sm font-black transition"
                         >
                             Refresh Data
                         </button>
@@ -171,13 +171,13 @@ const Dashboard = () => {
                         to={stat.link}
                         className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${stat.theme} p-[1px] shadow-lg transition duration-300 hover:-translate-y-1 hover:shadow-xl`}
                     >
-                        <div className={`rounded-2xl bg-slate-950/85 p-5 text-white ring-1 ${stat.ring}`}>
+                        <div className={`rounded-2xl border border-white/20 bg-[#0f172a]/85 p-5 text-white ring-1 ${stat.ring}`}>
                             <div className="mb-4 flex items-center justify-between">
                                 <span className="text-xs uppercase tracking-[0.16em] text-slate-300">{stat.title}</span>
-                                <span className="rounded-lg bg-white/10 p-2 text-cyan-200">{stat.icon}</span>
+                                <span className="rounded-lg bg-white/10 p-2 text-[#ffb053]">{stat.icon}</span>
                             </div>
                             <p className="text-3xl font-black">{stat.value}</p>
-                            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-300/90 group-hover:text-cyan-200">View details</p>
+                            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-300/90 group-hover:text-[#ffb053]">View details</p>
                         </div>
                     </Link>
                 ))}
@@ -187,7 +187,7 @@ const Dashboard = () => {
                 <AdminSurface>
                     <div className="mb-4 flex items-center justify-between">
                         <h2 className="text-xl font-black text-slate-900">Top Products</h2>
-                        <Link to="/admin/products" className="text-sm font-semibold text-cyan-700 hover:text-cyan-600">Manage</Link>
+                        <Link to="/admin/products" className="admin-link-quiet text-sm font-semibold">Manage</Link>
                     </div>
                     <div className="space-y-3">
                         {stats.topProducts.length === 0 ? (
@@ -212,7 +212,7 @@ const Dashboard = () => {
                 <AdminSurface>
                     <div className="mb-4 flex items-center justify-between">
                         <h2 className="text-xl font-black text-slate-900">Recent Orders</h2>
-                        <Link to="/admin/orders" className="text-sm font-semibold text-cyan-700 hover:text-cyan-600">View All</Link>
+                        <Link to="/admin/orders" className="admin-link-quiet text-sm font-semibold">View All</Link>
                     </div>
                     <div className="space-y-3">
                         {stats.recentOrders.length === 0 ? (
@@ -237,11 +237,11 @@ const Dashboard = () => {
                 <AdminSurface className="xl:col-span-1">
                     <h2 className="mb-4 text-xl font-black text-slate-900">Quick Actions</h2>
                     <div className="grid grid-cols-1 gap-3">
-                        <Link to="/admin/products/create" className="rounded-xl border border-cyan-200 bg-gradient-to-r from-cyan-50 to-sky-50 px-4 py-3 font-semibold text-cyan-900 transition hover:from-cyan-100 hover:to-sky-100">Create Product</Link>
-                        <Link to="/admin/categories/create" className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 px-4 py-3 font-semibold text-indigo-900 transition hover:from-indigo-100 hover:to-blue-100">Create Category</Link>
-                        <Link to="/admin/users/create" className="rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 py-3 font-semibold text-emerald-900 transition hover:from-emerald-100 hover:to-teal-100">Create User</Link>
-                        <Link to="/admin/banners/create" className="rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-4 py-3 font-semibold text-violet-900 transition hover:from-violet-100 hover:to-fuchsia-100">Create Banner</Link>
-                        <Link to="/admin/coupons/create" className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3 font-semibold text-amber-900 transition hover:from-amber-100 hover:to-orange-100">Create Coupon</Link>
+                        <Link to="/admin/products/create" className="admin-button-secondary rounded-xl px-4 py-3 font-semibold">Create Product</Link>
+                        <Link to="/admin/categories/create" className="admin-button-secondary rounded-xl px-4 py-3 font-semibold">Create Category</Link>
+                        <Link to="/admin/users/create" className="admin-button-secondary rounded-xl px-4 py-3 font-semibold">Create User</Link>
+                        <Link to="/admin/banners/create" className="admin-button-secondary rounded-xl px-4 py-3 font-semibold">Create Banner</Link>
+                        <Link to="/admin/coupons/create" className="admin-button-secondary rounded-xl px-4 py-3 font-semibold">Create Coupon</Link>
                     </div>
                 </AdminSurface>
             </div>

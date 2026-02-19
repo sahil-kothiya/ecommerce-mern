@@ -117,39 +117,39 @@ const AdminLayout = () => {
     }, [isLoggingOut, navigate]);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-cyan-50 text-slate-800">
-            <header className="fixed left-0 right-0 top-0 z-40 border-b border-slate-200/70 bg-white/80 backdrop-blur-lg">
+        <div className="admin-theme min-h-screen text-slate-800">
+            <header className="admin-topbar fixed left-0 right-0 top-0 z-40">
                 <div className="flex items-center justify-between px-4 py-3 sm:px-6">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={toggleSidebar}
-                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 shadow-sm transition hover:border-cyan-300 hover:text-cyan-700"
+                            className="admin-button-secondary rounded-2xl px-3 py-2 text-slate-700 transition"
                             aria-label="Toggle sidebar"
                             aria-expanded={isSidebarOpen}
                         >
                             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                         </button>
                         <Link to="/admin" className="flex items-center gap-3">
-                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-700 text-sm font-black text-white shadow-lg shadow-cyan-500/25">EC</span>
+                            <span className="admin-brand-mark flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black text-white">EC</span>
                             <span className="hidden sm:block">
-                                <span className="block text-[11px] font-bold uppercase tracking-[0.25em] text-cyan-700">Admin Console</span>
-                                <span className="block text-base font-black text-slate-900">{UI_CONFIG.BRAND_NAME}</span>
+                                <span className="block text-[11px] font-bold uppercase tracking-[0.24em] text-[#4250d5]">Sovereign Console</span>
+                                <span className="admin-display block text-base text-[#131313]">{UI_CONFIG.BRAND_NAME}</span>
                             </span>
                         </Link>
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <Link to="/" className="hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700 sm:block">View Site</Link>
-                        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 text-sm font-bold text-white">{userInitial}</span>
+                        <Link to="/" className="admin-button-secondary hidden rounded-full px-4 py-2 text-sm font-semibold sm:block">View Site</Link>
+                        <div className="admin-surface flex items-center gap-2 rounded-2xl px-3 py-2">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#4250d5] via-[#6a88e2] to-[#ffa336] text-sm font-bold text-white">{userInitial}</span>
                             <div className="hidden text-left md:block">
-                                <p className="text-sm font-semibold text-slate-900">{userName}</p>
-                                <p className="text-xs text-slate-500">{userEmail}</p>
+                                <p className="text-sm font-semibold text-[#131313]">{userName}</p>
+                                <p className="text-xs text-[#666666]">{userEmail}</p>
                             </div>
                             <button
                                 onClick={handleLogout}
                                 disabled={isLoggingOut}
-                                className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
+                                className="rounded-xl p-2 text-[#666666] transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
                                 title="Logout"
                                 aria-label="Logout"
                             >
@@ -162,16 +162,16 @@ const AdminLayout = () => {
 
             <div className="flex pt-16">
                 <aside
-                    className={`fixed left-0 top-16 z-30 h-[calc(100vh-4rem)] overflow-hidden border-r border-slate-800/80 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 text-slate-200 shadow-2xl transition-all duration-300 ${
+                    className={`admin-sidebar fixed left-0 top-16 z-30 h-[calc(100vh-4rem)] overflow-hidden text-slate-200 shadow-2xl transition-all duration-300 ${
                         isSidebarOpen ? UI_CONFIG.SIDEBAR_OPEN : UI_CONFIG.SIDEBAR_CLOSED
                     }`}
                     aria-label="Main navigation"
                     aria-hidden={!isSidebarOpen}
                 >
                     <div className="h-full overflow-y-auto px-4 py-5">
-                        <div className="mb-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
-                            <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Navigation</p>
-                            <p className="mt-1 text-sm font-semibold text-cyan-100">Manage all modules from one place</p>
+                        <div className="admin-nav-panel mb-4 rounded-2xl p-4">
+                            <p className="text-[11px] uppercase tracking-[0.22em] text-[#d5e2ff]">Navigation</p>
+                            <p className="mt-1 text-sm font-semibold text-[#fafcff]">Manage all modules from one place</p>
                         </div>
 
                         <nav className="space-y-2" role="navigation">
@@ -185,23 +185,21 @@ const AdminLayout = () => {
                                             <button
                                                 type="button"
                                                 onClick={() => toggleMenu(item.key)}
-                                                className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition ${
-                                                    isMenuActive
-                                                        ? 'border-cyan-400/40 bg-cyan-400/15 text-cyan-100'
-                                                        : 'border-slate-700 bg-slate-800/60 text-slate-200 hover:border-slate-500 hover:bg-slate-800'
+                                                className={`admin-nav-item flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm transition ${
+                                                    isMenuActive ? 'admin-nav-item-active' : ''
                                                 }`}
                                             >
                                                 <span className="flex items-center gap-2.5">
-                                                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-700/70 text-cyan-200">
+                                                    <span className="admin-nav-glyph flex h-7 w-7 items-center justify-center rounded-lg">
                                                         <NavGlyph name={item.key} />
                                                     </span>
                                                     <span className="font-semibold">{item.label}</span>
                                                 </span>
-                                                <span className="text-xs font-bold text-slate-300">{isExpanded ? 'v' : '>'}</span>
+                                                <span className={`text-xs font-bold ${isExpanded ? 'text-[#ffa336]' : 'text-slate-300'}`}>{isExpanded ? 'v' : '>'}</span>
                                             </button>
 
                                             {isExpanded && (
-                                                <div className="space-y-1 rounded-xl border border-slate-700 bg-slate-800/60 p-2">
+                                                <div className="admin-nav-submenu space-y-1 rounded-xl p-2">
                                                     {item.children.map((child) => {
                                                         const isChildActive = isActive(child.path, true);
                                                         return (
@@ -210,8 +208,8 @@ const AdminLayout = () => {
                                                                 to={child.path}
                                                                 className={`block rounded-lg px-3 py-2 text-sm transition ${
                                                                     isChildActive
-                                                                        ? 'bg-cyan-400/15 text-cyan-100'
-                                                                        : 'text-slate-300 hover:bg-slate-700/60 hover:text-white'
+                                                                        ? 'bg-white/15 text-white'
+                                                                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
                                                                 }`}
                                                             >
                                                                 {child.label}
@@ -229,14 +227,12 @@ const AdminLayout = () => {
                                     <Link
                                         key={item.path}
                                         to={item.path}
-                                        className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition ${
-                                            isCurrent
-                                                ? 'border-cyan-400/40 bg-cyan-400/15 text-cyan-100'
-                                                : 'border-slate-700 bg-slate-800/60 text-slate-200 hover:border-slate-500 hover:bg-slate-800'
+                                        className={`admin-nav-item flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm transition ${
+                                            isCurrent ? 'admin-nav-item-active' : ''
                                         }`}
                                         aria-current={isCurrent ? 'page' : undefined}
                                     >
-                                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-700/70 text-cyan-200">
+                                        <span className="admin-nav-glyph flex h-7 w-7 items-center justify-center rounded-lg">
                                             <NavGlyph name={item.key} />
                                         </span>
                                         <span className="font-semibold">{item.label}</span>
