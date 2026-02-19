@@ -10,8 +10,8 @@ const CategoriesList = () => {
     const [categories, setCategories] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [typeFilter, setTypeFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('active');
+    const [typeFilter, setTypeFilter] = useState('root');
     const [sortField, setSortField] = useState('title');
     const [sortDirection, setSortDirection] = useState('asc');
     const [currentPage, setCurrentPage] = useState(1);
@@ -270,8 +270,8 @@ const CategoriesList = () => {
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
-                    <div className="relative lg:col-span-2">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto_auto_auto]">
+                    <div className="relative">
                         <svg className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
@@ -301,6 +301,18 @@ const CategoriesList = () => {
                         <option value="root">Root Only</option>
                         <option value="child">Child Only</option>
                     </select>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setSearchTerm('');
+                            setStatusFilter('active');
+                            setTypeFilter('root');
+                            setCurrentPage(1);
+                        }}
+                        className="rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white transition-colors hover:bg-slate-700"
+                    >
+                        Reset
+                    </button>
                 </div>
                 <p className="mt-3 text-sm text-slate-500">
                     Showing <span className="font-semibold text-slate-800">{totalItems}</span> filtered categories

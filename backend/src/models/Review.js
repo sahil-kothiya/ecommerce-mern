@@ -50,6 +50,7 @@ const reviewSchema = new Schema(
 reviewSchema.index({ productId: 1 });
 reviewSchema.index({ userId: 1 });
 reviewSchema.index({ productId: 1, userId: 1 }, { unique: true });
+reviewSchema.index({ productId: 1, status: 1, createdAt: -1 });
 reviewSchema.index({ status: 1 });
 reviewSchema.index({ rating: 1 });
 
@@ -74,9 +75,16 @@ reviewSchema.post('save', async function () {
     await updateProductRating(this.productId);
 });
 
-// Update product rating after delete
-reviewSchema.post('remove', async function () {
+// Update product rating after document deletion
+reviewSchema.post('deleteOne', { document: true, query: false }, async function () {
     await updateProductRating(this.productId);
+});
+
+// Update product rating after query-based deletion.
+reviewSchema.post('findOneAndDelete', async function (doc) {
+    if (doc?.productId) {
+        await updateProductRating(doc.productId);
+    }
 });
 
 // Helper function to update product rating
@@ -94,17 +102,17 @@ async function updateProductRating(productId) {
 
     if (stats.length > 0) {
         await mongoose.models.Product.findByIdAndUpdate(productId, {
-            rating: {
-                average: Math.round(stats[0].avgRating * 10) / 10,
-                count: stats[0].count,
-            },
+            $set: {
+                'ratings.average': Math.round(stats[0].avgRating * 10) / 10,
+                'ratings.count': stats[0].count,
+            }
         });
     } else {
         await mongoose.models.Product.findByIdAndUpdate(productId, {
-            rating: {
-                average: 0,
-                count: 0,
-            },
+            $set: {
+                'ratings.average': 0,
+                'ratings.count': 0,
+            }
         });
     }
 }

@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { API_CONFIG } from '../../../constants';
 import authService from '../../../services/authService';
 import notify from '../../../utils/notify';
+import { applyServerFieldErrors, clearFieldError, getFieldBorderClass, hasValidationErrors } from '../../../utils/formValidation';
 
 const CategoryEditorPage = () => {
     const { id } = useParams();
@@ -35,6 +36,7 @@ const CategoryEditorPage = () => {
     const [brandSearchTerm, setBrandSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [errors, setErrors] = useState({});
     const brandPickerRef = useRef(null);
 
     useEffect(() => {
@@ -139,15 +141,39 @@ const CategoryEditorPage = () => {
     const handleFileChange = (event) => {
         const file = event.target.files?.[0];
         if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            setErrors((prev) => ({ ...prev, photo: 'Please select an image file' }));
+            notify.error('Please select an image file');
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            setErrors((prev) => ({ ...prev, photo: 'Image must be less than 5MB' }));
+            notify.error('Image must be less than 5MB');
+            return;
+        }
 
         setSelectedFile(file);
+        clearFieldError(setErrors, 'photo');
         const reader = new FileReader();
         reader.onloadend = () => setImagePreview(reader.result);
         reader.readAsDataURL(file);
     };
 
+    const validateForm = () => {
+        const nextErrors = {};
+        if (!formData.title.trim()) nextErrors.title = 'Title is required';
+        if (formData.sortOrder && Number(formData.sortOrder) < 0) nextErrors.sortOrder = 'Sort order cannot be negative';
+        setErrors(nextErrors);
+        return Object.keys(nextErrors).length === 0;
+    };
+
     const handleSubmit = async (event) => {
         event.preventDefault();
+        const isValid = validateForm();
+        if (!isValid) {
+            notify.error('Please fix form validation errors');
+            return;
+        }
         setIsSaving(true);
 
         try {
@@ -180,6 +206,11 @@ const CategoryEditorPage = () => {
 
             const data = await response.json();
             if (!response.ok) {
+                const mapped = applyServerFieldErrors(setErrors, data?.errors);
+                if (hasValidationErrors(mapped)) {
+                    notify.error(data?.message || 'Please fix form validation errors');
+                    return;
+                }
                 notify.error(data?.message || 'Failed to save category');
                 return;
             }
@@ -269,10 +300,10 @@ const CategoryEditorPage = () => {
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6 pb-20">
+            <form onSubmit={handleSubmit} noValidate className="space-y-6 pb-20">
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
                     <div className="order-2 space-y-6 lg:order-2">
-                        <div className="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all hover:shadow-[0_20px_40px_rgba(15,23,42,0.12)] sm:p-7">
+                        <div className="media-card">
                             <div className="mb-4 flex items-center justify-between">
                                 <h2 className="text-xl font-black text-slate-900">Category Media</h2>
                                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200 bg-gradient-to-br from-indigo-100 to-blue-100 text-indigo-700">
@@ -287,17 +318,16 @@ const CategoryEditorPage = () => {
                                 {imagePreview ? (
                                     <img src={imagePreview} alt="preview" className="h-32 w-full rounded-xl border-2 border-slate-200 object-cover md:h-36" />
                                 ) : (
-                                    <div className="flex h-32 items-center justify-center rounded-2xl border-2 border-dashed border-indigo-200 bg-gradient-to-br from-indigo-50 via-slate-50 to-blue-100 md:h-36">
-                                        <p className="text-sm font-semibold text-slate-600">No category image selected</p>
-                                    </div>
+                                    <div className="media-preview-empty md:h-36">No category image selected</div>
                                 )}
 
                                 <input
                                     type="file"
                                     accept="image/*"
                                     onChange={handleFileChange}
-                                    className="block w-full cursor-pointer rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900"
+                                    className={`media-file-input ${errors.photo ? 'border-red-500 focus:ring-red-200' : ''}`}
                                 />
+                                {errors.photo && <p className="text-sm text-red-600">{errors.photo}</p>}
                             </div>
                         </div>
 
@@ -402,12 +432,15 @@ const CategoryEditorPage = () => {
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Title *</label>
                                     <input
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
+                                        className={`w-full rounded-xl border px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${getFieldBorderClass(errors, 'title')}`}
                                         placeholder="Enter category title"
                                         value={formData.title}
-                                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                        required
+                                        onChange={(e) => {
+                                            setFormData({ ...formData, title: e.target.value });
+                                            clearFieldError(setErrors, 'title');
+                                        }}
                                     />
+                                    {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
                                 </div>
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">SEO Title</label>
@@ -457,11 +490,15 @@ const CategoryEditorPage = () => {
                                     <input
                                         type="number"
                                         min="0"
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
+                                        className={`w-full rounded-xl border px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${getFieldBorderClass(errors, 'sortOrder')}`}
                                         placeholder="Enter sort order"
                                         value={formData.sortOrder}
-                                        onChange={(e) => setFormData({ ...formData, sortOrder: e.target.value })}
+                                        onChange={(e) => {
+                                            setFormData({ ...formData, sortOrder: e.target.value });
+                                            clearFieldError(setErrors, 'sortOrder');
+                                        }}
                                     />
+                                    {errors.sortOrder && <p className="mt-1 text-sm text-red-600">{errors.sortOrder}</p>}
                                 </div>
                                 <div className="flex items-end">
                                     <label className="flex w-full items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5">

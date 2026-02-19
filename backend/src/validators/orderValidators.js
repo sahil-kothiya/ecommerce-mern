@@ -2,59 +2,41 @@ import { body, param, query } from 'express-validator';
 import mongoose from 'mongoose';
 
 export const createOrderValidator = [
-    body('items')
-        .isArray({ min: 1 })
-        .withMessage('Order must contain at least one item'),
-    
-    body('items.*.product')
-        .custom(value => mongoose.Types.ObjectId.isValid(value))
-        .withMessage('Invalid product ID'),
-    
-    body('items.*.quantity')
-        .isInt({ min: 1 })
-        .withMessage('Quantity must be at least 1'),
-    
-    body('shippingAddress')
-        .notEmpty()
-        .withMessage('Shipping address is required'),
-    
-    body('shippingAddress.fullName')
+    body('firstName')
         .trim()
         .isLength({ min: 2, max: 100 })
-        .withMessage('Full name must be between 2 and 100 characters'),
-    
-    body('shippingAddress.phone')
+        .withMessage('First name must be between 2 and 100 characters'),
+    body('lastName')
         .trim()
-        .matches(/^[0-9]{10,15}$/)
-        .withMessage('Phone number must be 10-15 digits'),
-    
-    body('shippingAddress.addressLine1')
+        .isLength({ min: 2, max: 100 })
+        .withMessage('Last name must be between 2 and 100 characters'),
+    body('email')
+        .trim()
+        .isEmail()
+        .withMessage('Valid email is required'),
+    body('phone')
+        .trim()
+        .matches(/^[\d\s()+-]{10,20}$/)
+        .withMessage('Phone number must be 10-20 characters'),
+    body('address1')
         .trim()
         .isLength({ min: 5, max: 200 })
-        .withMessage('Address must be between 5 and 200 characters'),
-    
-    body('shippingAddress.city')
+        .withMessage('Address line 1 must be between 5 and 200 characters'),
+    body('city')
         .trim()
         .isLength({ min: 2, max: 100 })
         .withMessage('City must be between 2 and 100 characters'),
-    
-    body('shippingAddress.state')
+    body('postCode')
         .trim()
-        .isLength({ min: 2, max: 100 })
-        .withMessage('State must be between 2 and 100 characters'),
-    
-    body('shippingAddress.postalCode')
-        .trim()
-        .matches(/^[0-9]{5,10}$/)
-        .withMessage('Postal code must be 5-10 digits'),
-    
-    body('shippingAddress.country')
+        .isLength({ min: 3, max: 20 })
+        .withMessage('Post code must be between 3 and 20 characters'),
+    body('country')
         .trim()
         .isLength({ min: 2, max: 100 })
         .withMessage('Country must be between 2 and 100 characters'),
     
     body('paymentMethod')
-        .isIn(['credit_card', 'debit_card', 'paypal', 'stripe', 'cod'])
+        .isIn(['paypal', 'stripe', 'cod'])
         .withMessage('Invalid payment method'),
     
     body('couponCode')
@@ -70,7 +52,7 @@ export const updateOrderStatusValidator = [
         .withMessage('Invalid order ID'),
     
     body('status')
-        .isIn(['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'])
+        .isIn(['new', 'process', 'delivered', 'cancelled'])
         .withMessage('Invalid order status'),
     
     body('notes')
@@ -99,6 +81,37 @@ export const orderQueryValidator = [
     
     query('status')
         .optional()
-        .isIn(['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'])
+        .isIn(['new', 'process', 'delivered', 'cancelled'])
         .withMessage('Invalid status')
+];
+
+export const returnRequestValidator = [
+    param('id')
+        .custom((value) => mongoose.Types.ObjectId.isValid(value))
+        .withMessage('Invalid order ID'),
+    body('reason')
+        .trim()
+        .isLength({ min: 5, max: 500 })
+        .withMessage('Reason must be between 5 and 500 characters'),
+    body('notes')
+        .optional()
+        .trim()
+        .isLength({ max: 1000 })
+        .withMessage('Notes cannot exceed 1000 characters'),
+    body('items')
+        .optional()
+        .isArray({ min: 1 })
+        .withMessage('Items must be a non-empty array'),
+    body('items.*.productId')
+        .optional()
+        .custom((value) => mongoose.Types.ObjectId.isValid(value))
+        .withMessage('Invalid product ID in return items'),
+    body('items.*.variantId')
+        .optional({ nullable: true })
+        .custom((value) => value === null || value === '' || mongoose.Types.ObjectId.isValid(value))
+        .withMessage('Invalid variant ID in return items'),
+    body('items.*.quantity')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('Quantity must be at least 1'),
 ];

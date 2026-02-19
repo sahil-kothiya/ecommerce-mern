@@ -1,8 +1,8 @@
 import { logger } from '../utils/logger.js';
 
-import { categoryBrandVariantBaseSeeder } from './CategoryBrandVariantBaseSeeder.js';
-import { productSeeder } from './ProductSeeder.js';
+import { catalogSeeder } from './CatalogSeeder.js';
 import { UserSeeder } from './UserSeeder.js';
+import { variantSeeder } from './VariantSeeder.js';
 import mongoose from 'mongoose';
 
 export class DatabaseSeeder {
@@ -12,73 +12,92 @@ export class DatabaseSeeder {
 
     async run(options = {}) {
         this.startTime = Date.now();
-        logger.info('ðŸš€ Starting complete database seeding...\n');
+        logger.info('Starting complete database seeding...\n');
 
         const {
-            products = 10000,
-            users = 1000,
+            products = 10,
+            categories = 10,
+            brands = 10,
+            banners = 10,
+            users = 10,
+            variantTypes = 10,
+            clearExisting = true,
             skipCategories = false,
             skipBrands = false,
+            skipBanners = false,
             skipProducts = false,
-            skipUsers = false
+            skipUsers = false,
+            skipVariantTypes = false,
         } = options;
 
         try {
-            // Ensure database connection
             await this.ensureConnection();
 
-            // Step 1: Create base categories, brands, and variant types
-            if (!skipCategories && !skipBrands) {
-                logger.info('ðŸ—ï¸  Phase 1: Setting up categories, brands, and variant types...');
-                await categoryBrandVariantBaseSeeder.run();
-                this.logPhaseCompletion('Phase 1');
-            }
+            logger.info('Phase 1: Seeding catalog entities...');
+            await catalogSeeder.run({
+                clearExisting,
+                categories: {
+                    enabled: !skipCategories,
+                    count: categories,
+                },
+                brands: {
+                    enabled: !skipBrands,
+                    count: brands,
+                },
+                banners: {
+                    enabled: !skipBanners,
+                    count: banners,
+                },
+                products: {
+                    enabled: !skipProducts,
+                    count: products,
+                },
+            });
+            this.logPhaseCompletion('Phase 1');
 
-            // Step 2: Create products
-            if (!skipProducts) {
-                logger.info('ðŸ›ï¸  Phase 2: Creating products...');
-                await productSeeder.run(products);
+            if (!skipUsers) {
+                logger.info('Phase 2: Creating users...');
+                const userSeeder = new UserSeeder();
+                await userSeeder.run(users);
                 this.logPhaseCompletion('Phase 2');
             }
 
-            // Step 3: Create users
-            if (!skipUsers) {
-                logger.info('ðŸ‘¥ Phase 3: Creating users...');
-                const userSeeder = new UserSeeder();
-                await userSeeder.run(users);
+            if (!skipVariantTypes) {
+                logger.info('Phase 3: Creating variant types and options...');
+                await variantSeeder.run({
+                    clearExisting,
+                    count: variantTypes,
+                    optionsPerType: 5,
+                });
                 this.logPhaseCompletion('Phase 3');
             }
 
-            // Step 4: Additional setup (indexes, etc.)
-            logger.info('âš™ï¸  Phase 4: Final optimization...');
+            logger.info('Phase 4: Final optimization...');
             await this.createIndexes();
             await this.updateStats();
             this.logPhaseCompletion('Phase 4');
 
             this.logFinalSummary();
-
         } catch (error) {
-            console.error('âŒ Database seeding failed:', error);
+            console.error('Database seeding failed:', error);
             throw error;
         }
     }
 
     async ensureConnection() {
         if (mongoose.connection.readyState === 0) {
-            logger.info('ðŸ”Œ Connecting to database...');
-            // Connection should be established in your main app
+            logger.info('Connecting to database...');
             throw new Error('Database connection not established. Please connect to MongoDB first.');
         }
-        logger.info('âœ… Database connection verified');
+        logger.info('Database connection verified');
     }
 
     async createIndexes() {
-        logger.info('ðŸ“‡ Creating additional indexes...');
+        logger.info('Creating additional indexes...');
 
-        const { Product, Category, Brand, User, Order, Cart } = mongoose.models;
+        const { Product, Category, Brand, User, Order, Cart, VariantType, VariantOption } = mongoose.models;
 
         try {
-            // Product indexes for performance
             await Product.collection.createIndex({ 'category.id': 1, status: 1 });
             await Product.collection.createIndex({ 'brand.id': 1, status: 1 });
             await Product.collection.createIndex({ basePrice: 1, status: 1 });
@@ -88,64 +107,67 @@ export class DatabaseSeeder {
             await Product.collection.createIndex({ salesCount: -1, status: 1 });
             await Product.collection.createIndex({ viewCount: -1 });
 
-            // Category indexes
-            await Category.collection.createIndex({ parent: 1, position: 1 });
+            await Category.collection.createIndex({ parentId: 1, sortOrder: 1 });
             await Category.collection.createIndex({ level: 1, status: 1 });
 
-            // User indexes
             if (User) {
                 await User.collection.createIndex({ email: 1 }, { unique: true });
                 await User.collection.createIndex({ status: 1 });
             }
 
-            // Order indexes  
             if (Order) {
-                await Order.collection.createIndex({ user: 1, status: 1 });
+                await Order.collection.createIndex({ userId: 1, status: 1 });
                 await Order.collection.createIndex({ orderNumber: 1 }, { unique: true });
                 await Order.collection.createIndex({ createdAt: -1 });
             }
 
-            // Cart indexes
             if (Cart) {
-                await Cart.collection.createIndex({ user: 1, status: 1 });
-                await Cart.collection.createIndex({ sessionId: 1, status: 1 });
+                await Cart.collection.createIndex({ userId: 1, productId: 1, variantId: 1 }, { unique: true });
+                await Cart.collection.createIndex({ userId: 1, createdAt: -1 });
             }
 
-            logger.info('âœ… Additional indexes created');
+            if (VariantType) {
+                await VariantType.collection.createIndex({ name: 1 }, { unique: true });
+                await VariantType.collection.createIndex({ status: 1, sortOrder: 1 });
+            }
 
+            if (VariantOption) {
+                await VariantOption.collection.createIndex({ variantTypeId: 1, value: 1 }, { unique: true });
+                await VariantOption.collection.createIndex({ variantTypeId: 1, status: 1, sortOrder: 1 });
+            }
+
+            logger.info('Additional indexes created');
         } catch (error) {
-            console.warn('âš ï¸  Some indexes may already exist:', error.message);
+            console.warn('Some indexes may already exist:', error.message);
         }
     }
 
     async updateStats() {
-        logger.info('ðŸ“Š Updating statistics...');
+        logger.info('Updating statistics...');
 
         const { Product, Category, Brand } = mongoose.models;
 
         try {
-            // Update category product counts
             const categories = await Category.find();
 
             for (const category of categories) {
-                const productCount = await Product.countDocuments({
+                const productsCount = await Product.countDocuments({
                     'category.id': category._id,
-                    status: 'active'
+                    status: 'active',
                 });
 
                 await Category.updateOne(
                     { _id: category._id },
-                    { $set: { productCount } }
+                    { $set: { productsCount } }
                 );
             }
 
-            // Update brand product counts
             const brands = await Brand.find();
 
             for (const brand of brands) {
                 const productCount = await Product.countDocuments({
                     'brand.id': brand._id,
-                    status: 'active'
+                    status: 'active',
                 });
 
                 await Brand.updateOne(
@@ -154,87 +176,96 @@ export class DatabaseSeeder {
                 );
             }
 
-            logger.info('âœ… Statistics updated');
-
+            logger.info('Statistics updated');
         } catch (error) {
-            console.warn('âš ï¸  Statistics update failed:', error.message);
+            console.warn('Statistics update failed:', error.message);
         }
     }
 
     logPhaseCompletion(phase) {
         const elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1);
-        logger.info(`âœ… ${phase} completed in ${elapsed}s\n`);
+        logger.info(`${phase} completed in ${elapsed}s\n`);
     }
 
     logFinalSummary() {
         const totalTime = ((Date.now() - this.startTime) / 1000).toFixed(1);
 
-        logger.info('\nðŸŽ‰ DATABASE SEEDING COMPLETED! ðŸŽ‰');
-        logger.info('â•'.repeat(50));
-        logger.info(`â±ï¸  Total time: ${totalTime}s`);
-        logger.info(`ðŸ—„ï¸  Database: ${mongoose.connection.name}`);
-        logger.info(`ðŸ”— Connection: ${mongoose.connection.host}:${mongoose.connection.port}`);
-        logger.info('\nðŸ“ˆ Your e-commerce database is ready for action!');
-        logger.info('â•'.repeat(50));
+        logger.info('\nDATABASE SEEDING COMPLETED');
+        logger.info('='.repeat(50));
+        logger.info(`Total time: ${totalTime}s`);
+        logger.info(`Database: ${mongoose.connection.name}`);
+        logger.info(`Connection: ${mongoose.connection.host}:${mongoose.connection.port}`);
+        logger.info('='.repeat(50));
     }
 
-    // Utility methods for specific seeding scenarios
-
     async seedMinimal() {
-        logger.info('ðŸƒâ€â™‚ï¸ Running minimal seed (categories, brands, 100 products)...');
+        logger.info('Running minimal seed (10 categories/brands/banners/products)...');
 
         await this.run({
-            products: 100,
-            users: 50,
-            skipUsers: false
+            products: 10,
+            categories: 10,
+            brands: 10,
+            banners: 10,
+            users: 10,
+            variantTypes: 10,
+            skipUsers: false,
+            skipVariantTypes: false,
         });
     }
 
     async seedDevelopment() {
-        logger.info('ðŸ› ï¸  Running development seed (1K products)...');
+        logger.info('Running development seed...');
 
         await this.run({
             products: 1000,
-            users: 100
+            categories: 25,
+            brands: 25,
+            banners: 20,
+            users: 100,
+            variantTypes: 10,
         });
     }
 
     async seedProduction() {
-        logger.info('ðŸ­ Running production seed (10M products)...');
+        logger.info('Running production seed...');
 
         await this.run({
-            products: 10000000,
-            users: 10000
+            products: 100000,
+            categories: 250,
+            brands: 250,
+            banners: 100,
+            users: 10000,
+            variantTypes: 10,
         });
     }
 
     async seedOnlyProducts(count = 1000) {
-        logger.info(`ðŸ›ï¸  Seeding only ${count.toLocaleString()} products...`);
+        logger.info(`Seeding only ${count.toLocaleString()} products...`);
 
         await this.run({
             products: count,
             skipCategories: true,
             skipBrands: true,
-            skipUsers: true
+            skipBanners: true,
+            skipUsers: true,
+            skipVariantTypes: true,
+            clearExisting: false,
         });
     }
 
     async reseedProducts(count = 10000) {
-        logger.info(`ðŸ”„ Re-seeding ${count.toLocaleString()} products...`);
+        logger.info(`Re-seeding ${count.toLocaleString()} products...`);
 
-        // Clear existing products
         const { Product } = mongoose.models;
         await Product.deleteMany({});
-        logger.info('ðŸ§¹ Existing products cleared');
+        logger.info('Existing products cleared');
 
         await this.seedOnlyProducts(count);
     }
 }
 
-// Export singleton instance
 export const databaseSeeder = new DatabaseSeeder();
 
-// Export convenience functions
 export const seedMinimal = () => databaseSeeder.seedMinimal();
 export const seedDevelopment = () => databaseSeeder.seedDevelopment();
 export const seedProduction = () => databaseSeeder.seedProduction();

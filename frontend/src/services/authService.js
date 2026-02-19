@@ -221,6 +221,28 @@ class AuthService {
     }
 
     /**
+     * Handle unauthorized responses from direct fetch calls.
+     * @param {Response} response - Fetch response object.
+     * @returns {boolean} True if response was unauthorized and handled.
+     */
+    handleUnauthorizedResponse(response) {
+        if (response?.status !== 401) {
+            return false;
+        }
+
+        this.clearAuth();
+        localStorage.removeItem('token');
+
+        sessionStorage.setItem('sessionExpired', 'true');
+
+        if (!window.location.pathname.startsWith('/login')) {
+            window.location.href = '/login';
+        }
+
+        return true;
+    }
+
+    /**
      * Check if user is authenticated
      * @returns {boolean} True if user has valid token
      */
@@ -256,6 +278,7 @@ class AuthService {
     clearAuth() {
         localStorage.removeItem(this.TOKEN_KEY);
         localStorage.removeItem(this.USER_KEY);
+        localStorage.removeItem('token');
     }
 
     /**

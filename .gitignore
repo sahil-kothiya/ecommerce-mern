@@ -53,6 +53,7 @@ backend/uploads/*
 !backend/uploads/.gitkeep
 frontend/public/uploads/*
 !frontend/public/uploads/.gitkeep
+images/
 
 # OS files
 Thumbs.db

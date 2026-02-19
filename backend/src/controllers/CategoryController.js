@@ -107,7 +107,7 @@ export class CategoryController {
                 sort = 'sortOrder'
             } = req.query;
 
-            let query = {};
+            const query = {};
             
             // Only filter by status if provided
             if (status) {
@@ -342,7 +342,7 @@ export class CategoryController {
                 });
             }
 
-            let result = category.toObject();
+            const result = category.toObject();
 
             // Include children if requested
             if (includeChildren === 'true') {
@@ -387,7 +387,7 @@ export class CategoryController {
                 });
             }
 
-            let result = category.toObject();
+            const result = category.toObject();
 
             // Include children if requested
             if (includeChildren === 'true') {

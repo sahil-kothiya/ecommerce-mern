@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { getRandomProductImage } from '../services/imageService';
 import { formatPrice, calculateDiscountPrice } from '../utils/productUtils';
 import { API_CONFIG, PRODUCT_CONDITIONS, CURRENCY_CONFIG } from '../constants';
+import authService from '../services/authService';
+import notify from '../utils/notify';
 
-const PRODUCT_FETCH_LIMIT = 600;
+const PRODUCT_FETCH_LIMIT = 120;
 const FEATURED_CATEGORY_LIMIT = 12;
 const FEATURED_PRODUCTS_TARGET = 60;
 const PRODUCTS_PER_CATEGORY_LIMIT = 40;
-const IMAGE_ROTATION_INTERVAL = 800;
+const IMAGE_ROTATION_INTERVAL = 1400;
 
 const FALLBACK_CATEGORIES = [
     { _id: 'cat1', title: 'Electronics', slug: 'electronics' },
@@ -35,6 +37,31 @@ const HomePage = () => {
     const [currentImageIndex, setCurrentImageIndex] = useState({});
     const [sortOption, setSortOption] = useState('newest');
     const hoverIntervalsRef = useRef({});
+
+    const loadWishlist = async () => {
+        if (!authService.isAuthenticated()) {
+            setWishlistItems([]);
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, {
+                headers: authService.getAuthHeaders(),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data?.message || 'Failed to load wishlist');
+            }
+
+            const items = Array.isArray(data?.data?.items) ? data.data.items : [];
+            const products = items
+                .map((item) => item.productId)
+                .filter(Boolean);
+            setWishlistItems(products);
+        } catch (error) {
+            notify.error(error, 'Failed to load wishlist');
+        }
+    };
 
     const loadData = async () => {
         try {
@@ -107,11 +134,12 @@ const HomePage = () => {
 
     useEffect(() => {
         loadData();
+        loadWishlist();
 
         return () => {
             Object.values(hoverIntervalsRef.current).forEach(intervalId => clearInterval(intervalId));
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, []);
 
     const generateMockProductsWithImages = () => {
@@ -220,32 +248,108 @@ const HomePage = () => {
         setCurrentImageIndex(indices);
     };
 
-    const addToCart = (product) => {
-        setCartItems(prev => {
-            const existing = prev.find(item => item._id === product._id);
-            if (existing) {
-                return prev.map(item => (
-                    item._id === product._id
-                        ? { ...item, quantity: item.quantity + 1 }
-                        : item
-                ));
+    const addToCart = async (product) => {
+        if (!authService.isAuthenticated()) {
+            navigate('/login');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
+                method: 'POST',
+                headers: authService.getAuthHeaders(),
+                body: JSON.stringify({
+                    productId: product._id,
+                    quantity: 1,
+                }),
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data?.success) {
+                throw new Error(data?.message || 'Failed to add item to cart');
             }
 
-            return [...prev, { ...product, quantity: 1 }];
-        });
+            setCartItems((prev) => {
+                const existing = prev.find((item) => item._id === product._id);
+                if (existing) {
+                    return prev.map((item) => (
+                        item._id === product._id
+                            ? { ...item, quantity: item.quantity + 1 }
+                            : item
+                    ));
+                }
+
+                return [...prev, { ...product, quantity: 1 }];
+            });
+        } catch (error) {
+            notify.error(error, 'Failed to add item to cart');
+        }
     };
 
-    const addToWishlist = (product) => {
-        setWishlistItems(prev => {
-            if (prev.some(item => item._id === product._id)) {
-                return prev;
+    const addToWishlist = async (product) => {
+        if (!authService.isAuthenticated()) {
+            navigate('/login');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, {
+                method: 'POST',
+                headers: authService.getAuthHeaders(),
+                body: JSON.stringify({ productId: product._id }),
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data?.message || 'Failed to add to wishlist');
             }
-            return [...prev, product];
-        });
+
+            setWishlistItems((prev) => {
+                if (prev.some((item) => item._id === product._id)) {
+                    return prev;
+                }
+                return [...prev, product];
+            });
+        } catch (error) {
+            notify.error(error, 'Failed to add to wishlist');
+        }
     };
 
-    const removeFromWishlist = (productId) => {
-        setWishlistItems(prev => prev.filter(item => item._id !== productId));
+    const removeFromWishlist = async (productId) => {
+        if (!authService.isAuthenticated()) {
+            setWishlistItems((prev) => prev.filter((item) => item._id !== productId));
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, {
+                headers: authService.getAuthHeaders(),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data?.message || 'Failed to resolve wishlist item');
+            }
+
+            const items = Array.isArray(data?.data?.items) ? data.data.items : [];
+            const matched = items.find((item) => item.productId?._id === productId);
+            if (!matched?._id) {
+                setWishlistItems((prev) => prev.filter((item) => item._id !== productId));
+                return;
+            }
+
+            const deleteResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${matched._id}`, {
+                method: 'DELETE',
+                headers: authService.getAuthHeaders(),
+            });
+            const deleteData = await deleteResponse.json();
+            if (!deleteResponse.ok) {
+                throw new Error(deleteData?.message || 'Failed to remove from wishlist');
+            }
+
+            setWishlistItems((prev) => prev.filter((item) => item._id !== productId));
+        } catch (error) {
+            notify.error(error, 'Failed to remove from wishlist');
+        }
     };
 
     const isInWishlist = (productId) => wishlistItems.some(item => item._id === productId);
@@ -350,11 +454,11 @@ const HomePage = () => {
         const finalPrice = calculateDiscountPrice(product.basePrice || 0, product.baseDiscount || 0);
         const isHovered = hoveredProduct === product._id;
         const inWishlist = isInWishlist(product._id);
-        const wishlistHandler = () => {
+        const wishlistHandler = async () => {
             if (inWishlist) {
-                removeFromWishlist(product._id);
+                await removeFromWishlist(product._id);
             } else {
-                addToWishlist(product);
+                await addToWishlist(product);
             }
         };
 

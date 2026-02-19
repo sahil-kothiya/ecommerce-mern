@@ -44,6 +44,60 @@ const orderItemSchema = new Schema(
     { _id: false }
 );
 
+const returnRequestItemSchema = new Schema(
+    {
+        productId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Product',
+            required: true,
+        },
+        variantId: {
+            type: Schema.Types.ObjectId,
+            default: null,
+        },
+        quantity: {
+            type: Number,
+            required: true,
+            min: 1,
+        },
+    },
+    { _id: false }
+);
+
+const returnRequestSchema = new Schema(
+    {
+        reason: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: 500,
+        },
+        notes: {
+            type: String,
+            trim: true,
+            maxlength: 1000,
+        },
+        status: {
+            type: String,
+            enum: ['requested', 'approved', 'rejected', 'received', 'refunded'],
+            default: 'requested',
+        },
+        items: {
+            type: [returnRequestItemSchema],
+            required: true,
+            validate: {
+                validator: (items) => Array.isArray(items) && items.length > 0,
+                message: 'Return request must contain at least one item',
+            },
+        },
+        requestedAt: {
+            type: Date,
+            default: Date.now,
+        },
+    },
+    { _id: true }
+);
+
 const orderSchema = new Schema(
     {
         orderNumber: {
@@ -167,6 +221,10 @@ const orderSchema = new Schema(
         trackingNumber: {
             type: String,
         },
+        returnRequests: {
+            type: [returnRequestSchema],
+            default: [],
+        },
     },
     {
         timestamps: true,
@@ -176,12 +234,13 @@ const orderSchema = new Schema(
 );
 
 // Indexes
-orderSchema.index({ orderNumber: 1 });
 orderSchema.index({ userId: 1 });
 orderSchema.index({ status: 1 });
 orderSchema.index({ paymentStatus: 1 });
 orderSchema.index({ createdAt: -1 });
 orderSchema.index({ email: 1 });
+orderSchema.index({ userId: 1, createdAt: -1 });
+orderSchema.index({ status: 1, createdAt: -1 });
 
 // Virtual populate user
 orderSchema.virtual('user', {

@@ -3,6 +3,93 @@ import bcrypt from 'bcryptjs';
 
 const { Schema } = mongoose;
 
+const addressSchema = new Schema(
+    {
+        label: {
+            type: String,
+            trim: true,
+            maxlength: 100,
+        },
+        firstName: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: 100,
+        },
+        lastName: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: 100,
+        },
+        phone: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: 30,
+        },
+        address1: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: 200,
+        },
+        address2: {
+            type: String,
+            trim: true,
+            maxlength: 200,
+        },
+        city: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: 100,
+        },
+        state: {
+            type: String,
+            trim: true,
+            maxlength: 100,
+        },
+        postCode: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: 20,
+        },
+        country: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: 100,
+        },
+        isDefault: {
+            type: Boolean,
+            default: false,
+        },
+    },
+    { _id: true, timestamps: true }
+);
+
+const savedProductFilterSchema = new Schema(
+    {
+        name: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: 80,
+        },
+        filters: {
+            search: { type: String, trim: true, maxlength: 120, default: '' },
+            category: { type: String, trim: true, maxlength: 120, default: 'all' },
+            brand: { type: String, trim: true, maxlength: 120, default: 'all' },
+            minPrice: { type: String, trim: true, maxlength: 20, default: '' },
+            maxPrice: { type: String, trim: true, maxlength: 20, default: '' },
+            sort: { type: String, trim: true, maxlength: 40, default: 'newest' },
+        },
+    },
+    { _id: false, timestamps: false }
+);
+
 const userSchema = new Schema(
     {
         name: {
@@ -70,6 +157,22 @@ const userSchema = new Schema(
         refreshToken: {
             type: String,
             select: false,
+        },
+        addresses: {
+            type: [addressSchema],
+            default: [],
+        },
+        preferences: {
+            productDiscovery: {
+                savedFilters: {
+                    type: [savedProductFilterSchema],
+                    default: [],
+                },
+                recentSearches: {
+                    type: [String],
+                    default: [],
+                },
+            },
         },
     },
     {

@@ -7,6 +7,7 @@
 import { BaseController } from '../core/BaseController.js';
 import { AuthService } from '../services/AuthService.js';
 import { logger } from '../utils/logger.js';
+import { AppError } from '../middleware/errorHandler.js';
 
 /**
  * Authentication Controller Class
@@ -34,11 +35,7 @@ export class AuthController extends BaseController {
      * @access Public
      */
     register = this.catchAsync(async (req, res) => {
-        const { name, email, password, confirmPassword } = req.body;
-
-        // Log incoming data for debugging
-        logger.info('=== REGISTER CONTROLLER ===');
-        logger.info('Request body:', { name, email, password: '***', confirmPassword: '***' });
+        const { name, email, password } = req.body;
 
         // Validate required fields (throws 400 error if missing)
         this.validateRequiredFields(req.body, ['name', 'email', 'password']);
@@ -76,14 +73,6 @@ export class AuthController extends BaseController {
      */
     login = this.catchAsync(async (req, res) => {
         const { email, password, rememberMe: rememberMeRaw } = req.body;
-
-        // Log incoming request for debugging (helps diagnose client/server data type issues)
-        logger.info('Login request received:', { 
-            email, 
-            rememberMeRaw, 
-            rememberMeType: typeof rememberMeRaw,
-            body: req.body 
-        });
 
         // Validate required credentials
         this.validateRequiredFields(req.body, ['email', 'password']);
@@ -218,7 +207,7 @@ export class AuthController extends BaseController {
     /** Refresh access token using refresh token */
     refreshToken = this.catchAsync(async (req, res) => {
         // Try to get refresh token from body, cookie, or authorization header
-        let refreshToken = req.body.refreshToken || req.cookies?.refreshToken;
+        const refreshToken = req.body.refreshToken || req.cookies?.refreshToken;
 
         if (!refreshToken) {
             throw new AppError('Refresh token is required', 401);
@@ -240,5 +229,63 @@ export class AuthController extends BaseController {
             200,
             'Token refreshed successfully'
         );
+    });
+
+    forgotPassword = this.catchAsync(async (req, res) => {
+        const { email } = req.body;
+        this.validateRequiredFields(req.body, ['email']);
+
+        const result = await this.service.requestPasswordReset(email);
+        this.logAction('Password Reset Requested', { email });
+
+        this.sendSuccess(res, result, 200);
+    });
+
+    resetPassword = this.catchAsync(async (req, res) => {
+        const { token, newPassword } = req.body;
+        this.validateRequiredFields(req.body, ['token', 'newPassword']);
+
+        const result = await this.service.resetPassword(token, newPassword);
+        this.logAction('Password Reset Completed');
+
+        this.sendSuccess(res, result, 200);
+    });
+
+    getAddresses = this.catchAsync(async (req, res) => {
+        const userId = this.getUserId(req);
+        const addresses = await this.service.getAddresses(userId);
+        this.sendSuccess(res, { addresses }, 200);
+    });
+
+    addAddress = this.catchAsync(async (req, res) => {
+        const userId = this.getUserId(req);
+        const addresses = await this.service.addAddress(userId, req.body);
+        this.sendSuccess(res, { addresses }, 201, 'Address added successfully');
+    });
+
+    updateAddress = this.catchAsync(async (req, res) => {
+        const userId = this.getUserId(req);
+        const { addressId } = req.params;
+        const addresses = await this.service.updateAddress(userId, addressId, req.body);
+        this.sendSuccess(res, { addresses }, 200, 'Address updated successfully');
+    });
+
+    deleteAddress = this.catchAsync(async (req, res) => {
+        const userId = this.getUserId(req);
+        const { addressId } = req.params;
+        const addresses = await this.service.deleteAddress(userId, addressId);
+        this.sendSuccess(res, { addresses }, 200, 'Address deleted successfully');
+    });
+
+    getSearchPreferences = this.catchAsync(async (req, res) => {
+        const userId = this.getUserId(req);
+        const productDiscovery = await this.service.getSearchPreferences(userId);
+        this.sendSuccess(res, { productDiscovery }, 200);
+    });
+
+    updateSearchPreferences = this.catchAsync(async (req, res) => {
+        const userId = this.getUserId(req);
+        const productDiscovery = await this.service.updateSearchPreferences(userId, req.body || {});
+        this.sendSuccess(res, { productDiscovery }, 200, 'Search preferences updated');
     });
 }

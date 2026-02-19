@@ -7,9 +7,10 @@ import { API_CONFIG } from '../../../constants';
 const ReviewsList = () => {
     const [reviews, setReviews] = useState([]);
     const [products, setProducts] = useState([]);
-    const [filters, setFilters] = useState({ search: '', status: '', productId: '' });
+    const [filters, setFilters] = useState({ search: '', status: 'active', productId: '' });
     const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0, hasPrev: false, hasNext: false });
     const [isLoading, setIsLoading] = useState(true);
+    const [isFetching, setIsFetching] = useState(false);
     const [reviewToDelete, setReviewToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -18,12 +19,29 @@ const ReviewsList = () => {
     }, [pagination.page]);
 
     useEffect(() => {
+        const timer = setTimeout(() => {
+            if (pagination.page !== 1) {
+                setPagination((prev) => ({ ...prev, page: 1 }));
+                return;
+            }
+            loadReviews({ page: 1 }, { background: true });
+        }, 350);
+
+        return () => clearTimeout(timer);
+    }, [filters.search, filters.status, filters.productId]);
+
+    useEffect(() => {
         loadProductOptions();
     }, []);
 
-    const loadReviews = async (overrides = {}) => {
+    const loadReviews = async (overrides = {}, options = {}) => {
+        const isBackground = Boolean(options.background);
         try {
-            setIsLoading(true);
+            if (isBackground) {
+                setIsFetching(true);
+            } else {
+                setIsLoading(true);
+            }
             const query = {
                 page: overrides.page || pagination.page,
                 limit: pagination.limit,
@@ -40,6 +58,7 @@ const ReviewsList = () => {
             notify.error(error, 'Failed to load reviews');
         } finally {
             setIsLoading(false);
+            setIsFetching(false);
         }
     };
 
@@ -53,12 +72,6 @@ const ReviewsList = () => {
         } catch {
             setProducts([]);
         }
-    };
-
-    const handleSearch = (event) => {
-        event.preventDefault();
-        setPagination((prev) => ({ ...prev, page: 1 }));
-        loadReviews({ page: 1 });
     };
 
     const toggleStatus = async (review) => {
@@ -90,10 +103,24 @@ const ReviewsList = () => {
     const activeCount = useMemo(() => reviews.filter((r) => r.status === 'active').length, [reviews]);
 
     return (
-        <div className="space-y-6">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h1 className="text-3xl font-black text-slate-900">Reviews</h1>
-                <p className="mt-1 text-slate-600">Manage product reviews and moderation.</p>
+        <div className="space-y-8">
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-6 sm:p-8 text-white shadow-lg">
+                <div className="absolute -top-20 -right-10 h-48 w-48 rounded-full bg-cyan-400/20 blur-3xl"></div>
+                <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-teal-300/20 blur-3xl"></div>
+                <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-200/80">Admin Console</p>
+                        <h1 className="mt-2 text-3xl sm:text-4xl font-black leading-tight">Review Studio</h1>
+                        <p className="mt-2 text-slate-200/90 max-w-xl">Manage product reviews and moderation with one consistent admin workflow.</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => loadReviews({ page: pagination.page }, { background: true })}
+                        className="rounded-xl border border-white/30 bg-white/10 px-5 py-3 font-semibold backdrop-blur-sm transition-all hover:bg-white/20"
+                    >
+                        Refresh
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -111,19 +138,36 @@ const ReviewsList = () => {
                 </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <form className="flex gap-3" onSubmit={handleSearch}>
-                    <input
-                        type="text"
-                        value={filters.search}
-                        onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-                        className="flex-1 rounded-xl border border-slate-300 px-4 py-2"
-                        placeholder="Search by title/comment"
-                    />
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto_auto_auto]">
+                    <div className="relative">
+                        <svg className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                            type="text"
+                            value={filters.search}
+                            onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                            placeholder="Search by title/comment"
+                        />
+                        {filters.search && (
+                            <button
+                                type="button"
+                                onClick={() => setFilters((prev) => ({ ...prev, search: '' }))}
+                                className="absolute right-3 top-3 text-slate-400 hover:text-slate-700"
+                                aria-label="Clear search"
+                            >
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
                     <select
                         value={filters.status}
                         onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
-                        className="rounded-xl border border-slate-300 px-4 py-2"
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
                     >
                         <option value="">All status</option>
                         <option value="active">Active</option>
@@ -132,7 +176,7 @@ const ReviewsList = () => {
                     <select
                         value={filters.productId}
                         onChange={(e) => setFilters((prev) => ({ ...prev, productId: e.target.value }))}
-                        className="rounded-xl border border-slate-300 px-4 py-2"
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
                     >
                         <option value="">All products</option>
                         {products.map((product) => (
@@ -141,8 +185,22 @@ const ReviewsList = () => {
                             </option>
                         ))}
                     </select>
-                    <button type="submit" className="rounded-xl bg-slate-900 px-5 py-2 font-semibold text-white hover:bg-slate-700">Search</button>
-                </form>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setFilters({ search: '', status: 'active', productId: '' });
+                            setPagination((prev) => ({ ...prev, page: 1 }));
+                            loadReviews({ page: 1, search: '', status: 'active', productId: '' }, { background: true });
+                        }}
+                        className="rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white transition-colors hover:bg-slate-700"
+                    >
+                        Reset
+                    </button>
+                </div>
+                <p className="mt-3 text-sm text-slate-500">
+                    Showing <span className="font-semibold text-slate-800">{reviews.length}</span> result{reviews.length !== 1 ? 's' : ''}.
+                    {isFetching ? <span className="ml-2 font-semibold text-cyan-700"> Updating...</span> : null}
+                </p>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm overflow-x-auto">

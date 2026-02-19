@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import notify from '../../../utils/notify';
-import { ErrorAlert, FieldError } from '../../../components/common';
+import { FieldError } from '../../../components/common';
 import discountService from '../../../services/discountService';
+import { clearFieldError, getFieldBorderClass, hasValidationErrors, mapServerFieldErrors } from '../../../utils/formValidation';
 
 const toLocalInputDateTime = (value) => {
     if (!value) return '';
@@ -66,7 +67,8 @@ const extractApiErrors = (error) => {
     const data = error?.data || error?.response?.data || null;
     const message = data?.message || error?.message || 'Something went wrong';
 
-    const { fieldMap, messages } = buildFieldMapFromArray(Array.isArray(data?.errors) ? data.errors : []);
+    const fieldMap = mapServerFieldErrors(Array.isArray(data?.errors) ? data.errors : []);
+    const messages = [...new Set(Object.values(fieldMap).filter(Boolean))];
 
     const finalMessages = messages.length > 0 ? messages : [message];
     return { fieldMap, messages: finalMessages, message };
@@ -212,7 +214,6 @@ const DiscountForm = () => {
 
     const [formData, setFormData] = useState(createInitialForm());
     const [fieldErrors, setFieldErrors] = useState({});
-    const [alertErrors, setAlertErrors] = useState([]);
 
     const [categorySearch, setCategorySearch] = useState('');
     const [productSearch, setProductSearch] = useState('');
@@ -268,9 +269,7 @@ const DiscountForm = () => {
 
     const setFieldValue = (field, value) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
-        if (fieldErrors[field]) {
-            setFieldErrors((prev) => ({ ...prev, [field]: null }));
-        }
+        clearFieldError(setFieldErrors, field);
     };
 
     const handleDiscountTypeChange = (nextType) => {
@@ -281,7 +280,8 @@ const DiscountForm = () => {
         }
 
         if (fieldErrors.type || fieldErrors.value) {
-            setFieldErrors((prev) => ({ ...prev, type: null, value: null }));
+            clearFieldError(setFieldErrors, 'type');
+            clearFieldError(setFieldErrors, 'value');
         }
     };
 
@@ -316,7 +316,7 @@ const DiscountForm = () => {
         });
 
         if (fieldErrors[field]) {
-            setFieldErrors((prev) => ({ ...prev, [field]: null }));
+            clearFieldError(setFieldErrors, field);
         }
     };
 
@@ -372,13 +372,11 @@ const DiscountForm = () => {
         if (validationErrors.length > 0) {
             const parsed = buildFieldMapFromArray(validationErrors);
             setFieldErrors(parsed.fieldMap);
-            setAlertErrors(parsed.messages);
-            notify.error(parsed.messages[0], 'Please fix form errors');
+            notify.error('Please fix form validation errors');
             return;
         }
 
         setIsSaving(true);
-        setAlertErrors([]);
 
         try {
             const payload = {
@@ -404,8 +402,11 @@ const DiscountForm = () => {
         } catch (error) {
             const parsed = extractApiErrors(error);
             setFieldErrors(parsed.fieldMap);
-            setAlertErrors(parsed.messages);
-            notify.error(parsed.message, 'Failed to save discount');
+            if (hasValidationErrors(parsed.fieldMap)) {
+                notify.error('Please fix form validation errors');
+            } else {
+                notify.error(parsed.message, 'Failed to save discount');
+            }
         } finally {
             setIsSaving(false);
         }
@@ -463,12 +464,6 @@ const DiscountForm = () => {
             </div>
 
             <form onSubmit={handleSubmit} noValidate className="space-y-6 rounded-3xl border border-slate-200 bg-white/95 backdrop-blur p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] sm:p-7">
-                <ErrorAlert
-                    errors={alertErrors}
-                    title="Please fix the following"
-                    onClose={() => setAlertErrors([])}
-                />
-
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Title <span className="text-rose-500">*</span></label>
@@ -477,7 +472,7 @@ const DiscountForm = () => {
                             value={formData.title}
                             onChange={(event) => setFieldValue('title', event.target.value)}
                             placeholder="Enter discount title"
-                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${fieldErrors.title ? 'border-red-500' : 'border-slate-300'}`}
+                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${getFieldBorderClass(fieldErrors, 'title')}`}
                         />
                         <FieldError error={fieldErrors.title} />
                     </div>
@@ -487,7 +482,7 @@ const DiscountForm = () => {
                         <select
                             value={formData.type}
                             onChange={(event) => handleDiscountTypeChange(event.target.value)}
-                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${fieldErrors.type ? 'border-red-500' : 'border-slate-300'}`}
+                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${getFieldBorderClass(fieldErrors, 'type')}`}
                         >
                             <option value="percentage">Percentage</option>
                             <option value="fixed">Fixed Amount</option>
@@ -505,7 +500,7 @@ const DiscountForm = () => {
                             min={formData.type === 'percentage' ? '1' : '0.01'}
                             max={formData.type === 'percentage' ? '100' : undefined}
                             placeholder={formData.type === 'percentage' ? 'Enter integer percentage (1-100)' : 'Enter fixed amount'}
-                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${fieldErrors.value ? 'border-red-500' : 'border-slate-300'}`}
+                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${getFieldBorderClass(fieldErrors, 'value')}`}
                         />
                         <FieldError error={fieldErrors.value} />
                     </div>
@@ -527,7 +522,7 @@ const DiscountForm = () => {
                             type="datetime-local"
                             value={formData.startsAt}
                             onChange={(event) => setFieldValue('startsAt', event.target.value)}
-                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${fieldErrors.startsAt ? 'border-red-500' : 'border-slate-300'}`}
+                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${getFieldBorderClass(fieldErrors, 'startsAt')}`}
                         />
                         <FieldError error={fieldErrors.startsAt} />
                     </div>
@@ -538,7 +533,7 @@ const DiscountForm = () => {
                             type="datetime-local"
                             value={formData.endsAt}
                             onChange={(event) => setFieldValue('endsAt', event.target.value)}
-                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${fieldErrors.endsAt ? 'border-red-500' : 'border-slate-300'}`}
+                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${getFieldBorderClass(fieldErrors, 'endsAt')}`}
                         />
                         <FieldError error={fieldErrors.endsAt} />
                     </div>

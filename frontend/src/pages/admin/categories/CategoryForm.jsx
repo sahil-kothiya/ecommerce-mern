@@ -281,7 +281,7 @@ const CategoryForm = () => {
                 </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} noValidate className="space-y-6">
                 {/* Basic Information */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
                     <h2 className="text-xl font-bold text-gray-900">Basic Information</h2>
@@ -295,7 +295,6 @@ const CategoryForm = () => {
                             name="title"
                             value={formData.title}
                             onChange={handleChange}
-                            required
                             className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
                                 errors.title ? 'border-red-500' : 'border-gray-300'
                             }`}

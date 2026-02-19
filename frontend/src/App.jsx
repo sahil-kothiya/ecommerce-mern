@@ -1,6 +1,11 @@
 import { Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage.jsx';
 import ProductDetailPage from './pages/ProductDetailPage.jsx';
+import CartPage from './pages/CartPage.jsx';
+import CheckoutPage from './pages/CheckoutPage.jsx';
+import ProductsPage from './pages/ProductsPage.jsx';
+import CategoryPage from './pages/CategoryPage.jsx';
+import WishlistPage from './pages/WishlistPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
 import UserDashboard from './pages/UserDashboard.jsx';
@@ -23,8 +28,15 @@ import BrandsList from './pages/admin/brands/BrandsList.jsx';
 import BrandForm from './pages/admin/brands/BrandForm.jsx';
 import DiscountsList from './pages/admin/discounts/DiscountsList.jsx';
 import DiscountForm from './pages/admin/discounts/DiscountForm.jsx';
+import CouponsList from './pages/admin/coupons/CouponsList.jsx';
+import CouponForm from './pages/admin/coupons/CouponForm.jsx';
 import ReviewsList from './pages/admin/reviews/ReviewsList.jsx';
 import SettingsPage from './pages/admin/settings/SettingsPage.jsx';
+import VariantTypesList from './pages/admin/variants/VariantTypesList.jsx';
+import VariantTypeForm from './pages/admin/variants/VariantTypeForm.jsx';
+import VariantOptionsList from './pages/admin/variants/VariantOptionsList.jsx';
+import VariantOptionForm from './pages/admin/variants/VariantOptionForm.jsx';
+import OrdersList from './pages/admin/orders/OrdersList.jsx';
 
 function App() {
     return (
@@ -33,14 +45,29 @@ function App() {
             <Route index element={<HomePage />} />
             <Route path="/" element={<HomePage />} />
 
-            {/* Placeholder routes for future development */}
-            <Route path="/products" element={<div>Products Page (Coming Soon)</div>} />
+            <Route path="/products" element={<ProductsPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
-            <Route path="/cart" element={<div>Cart Page (Coming Soon)</div>} />
-            <Route path="/checkout" element={<div>Checkout Page (Coming Soon)</div>} />
-            <Route path="/categories/:slug" element={<div>Category Page (Coming Soon)</div>} />
-            <Route path="/wishlist" element={<div>Wishlist Page (Coming Soon)</div>} />
-            <Route path="/account" element={<div>Account Page (Coming Soon)</div>} />
+            <Route path="/cart" element={
+                <ProtectedRoute>
+                    <CartPage />
+                </ProtectedRoute>
+            } />
+            <Route path="/checkout" element={
+                <ProtectedRoute>
+                    <CheckoutPage />
+                </ProtectedRoute>
+            } />
+            <Route path="/categories/:slug" element={<CategoryPage />} />
+            <Route path="/wishlist" element={
+                <ProtectedRoute>
+                    <WishlistPage />
+                </ProtectedRoute>
+            } />
+            <Route path="/account" element={
+                <ProtectedRoute>
+                    <UserDashboard />
+                </ProtectedRoute>
+            } />
             <Route path="/dashboard" element={
                 <ProtectedRoute>
                     <UserDashboard />
@@ -76,7 +103,16 @@ function App() {
                 <Route path="discounts" element={<DiscountsList />} />
                 <Route path="discounts/create" element={<DiscountForm />} />
                 <Route path="discounts/:id/edit" element={<DiscountForm />} />
-                <Route path="orders" element={<div className="p-6"><h1 className="text-3xl font-bold">Orders Management (Coming Soon)</h1></div>} />
+                <Route path="coupons" element={<CouponsList />} />
+                <Route path="coupons/create" element={<CouponForm />} />
+                <Route path="coupons/:id/edit" element={<CouponForm />} />
+                <Route path="variant-type" element={<VariantTypesList />} />
+                <Route path="variant-type/create" element={<VariantTypeForm />} />
+                <Route path="variant-type/:id/edit" element={<VariantTypeForm />} />
+                <Route path="variant-option" element={<VariantOptionsList />} />
+                <Route path="variant-option/create" element={<VariantOptionForm />} />
+                <Route path="variant-option/:id/edit" element={<VariantOptionForm />} />
+                <Route path="orders" element={<OrdersList />} />
                 <Route path="reviews" element={<ReviewsList />} />
                 <Route path="settings" element={<SettingsPage />} />
             </Route>

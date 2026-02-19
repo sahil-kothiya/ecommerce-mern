@@ -1,4 +1,4 @@
-import { IMAGE_CONFIG, ERROR_MESSAGES } from '../constants/index.js';
+import { IMAGE_CONFIG } from '../constants/index.js';
 import { getRandomItems } from '../utils/index.js';
 
 // Available product images (copied from Laravel project)
@@ -115,7 +115,7 @@ class ImageService {
      * @param {boolean} thumbnail - Whether to get thumbnail version
      * @returns {string} Complete image URL
      */
-    getProductImageUrl(filename, thumbnail = false) {
+    getProductImageUrl(filename, _thumbnail = false) {
         try {
             if (!filename || typeof filename !== 'string') {
                 return this.getDefaultProductImage();
@@ -148,7 +148,7 @@ class ImageService {
      * @param {boolean} thumbnail - Whether to get thumbnail version
      * @returns {string} Complete image URL
      */
-    getVariantImageUrl(filename, thumbnail = false) {
+    getVariantImageUrl(filename, _thumbnail = false) {
         try {
             if (!filename || typeof filename !== 'string') {
                 return this.getDefaultVariantImage();

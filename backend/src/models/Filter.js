@@ -34,7 +34,6 @@ const filterSchema = new Schema(
     }
 );
 
-filterSchema.index({ name: 1 }, { unique: true });
 filterSchema.index({ status: 1 });
 
 export const Filter = mongoose.model('Filter', filterSchema);

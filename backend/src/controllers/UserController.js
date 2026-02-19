@@ -25,6 +25,15 @@ export class UserController {
         return value;
     }
 
+    normalizePhoto(photo, uploadedFile = null) {
+        if (uploadedFile?.filename) {
+            return `/uploads/users/${uploadedFile.filename}`;
+        }
+        if (photo === undefined || photo === null) return null;
+        const value = String(photo).trim();
+        return value.length ? value : null;
+    }
+
     async index(req, res, next) {
         try {
             const page = Math.max(1, Number(req.query.page) || 1);
@@ -97,6 +106,7 @@ export class UserController {
             const password = String(req.body.password || '');
             const role = this.normalizeRole(req.body.role || 'user');
             const status = String(req.body.status || 'active').trim().toLowerCase();
+            const photo = this.normalizePhoto(req.body.photo, req.file);
 
             const errors = [];
             if (!name || name.length < 2) errors.push({ field: 'name', message: 'Name must be at least 2 characters' });
@@ -117,7 +127,7 @@ export class UserController {
                 return next(new AppError('Validation failed', 422, errors));
             }
 
-            const user = await User.create({ name, email, password, role, status });
+            const user = await User.create({ name, email, password, role, status, photo });
             res.status(201).json({
                 success: true,
                 message: 'User created successfully',
@@ -160,6 +170,9 @@ export class UserController {
             const nextRole = req.body.role !== undefined ? this.normalizeRole(req.body.role) : user.role;
             const nextStatus = req.body.status !== undefined ? String(req.body.status).trim().toLowerCase() : user.status;
             const nextPassword = req.body.password !== undefined ? String(req.body.password || '') : '';
+            const nextPhoto = req.file
+                ? this.normalizePhoto(null, req.file)
+                : (req.body.photo !== undefined ? this.normalizePhoto(req.body.photo) : user.photo);
 
             const errors = [];
             if (!nextName || nextName.length < 2) errors.push({ field: 'name', message: 'Name must be at least 2 characters' });
@@ -184,6 +197,7 @@ export class UserController {
             user.email = nextEmail;
             user.role = nextRole;
             user.status = nextStatus;
+            user.photo = nextPhoto;
             if (nextPassword) user.password = nextPassword;
 
             await user.save();

@@ -5,6 +5,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getRandomProductImage } from '../services/imageService';
 import { formatPrice, calculateDiscountPrice } from '../utils/productUtils';
 import { API_CONFIG, PRODUCT_CONDITIONS, CURRENCY_CONFIG } from '../constants';
+import authService from '../services/authService';
+import notify from '../utils/notify';
 
 const ProductDetailPage = () => {
     const { id } = useParams();
@@ -17,7 +19,7 @@ const ProductDetailPage = () => {
 
     useEffect(() => {
         loadProductDetail();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [id]);
 
     const loadProductDetail = async () => {
@@ -54,14 +56,40 @@ const ProductDetailPage = () => {
         return path;
     };
 
-    const handleAddToCart = () => {
-        logger.info('Adding to cart:', { product, quantity, selectedVariant });
-        alert(`Added ${quantity} item(s) to cart!`);
+    const handleAddToCart = async () => {
+        if (!authService.isAuthenticated()) {
+            navigate('/login');
+            return false;
+        }
+
+        try {
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
+                method: 'POST',
+                headers: authService.getAuthHeaders(),
+                body: JSON.stringify({
+                    productId: product._id,
+                    variantId: selectedVariant?._id || null,
+                    quantity,
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data?.success) {
+                throw new Error(data?.message || 'Failed to add to cart');
+            }
+            logger.info('Added to cart:', { productId: product._id, quantity });
+            notify.success(`Added ${quantity} item(s) to cart`);
+            return true;
+        } catch (error) {
+            notify.error(error, 'Failed to add to cart');
+            return false;
+        }
     };
 
-    const handleBuyNow = () => {
-        handleAddToCart();
-        navigate('/cart');
+    const handleBuyNow = async () => {
+        const added = await handleAddToCart();
+        if (added) {
+            navigate('/cart');
+        }
     };
 
     if (isLoading) {

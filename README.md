@@ -1,63 +1,35 @@
-# Enterprise E-commerce API
+﻿# Enterprise Ecommerce Monorepo
 
-A robust MERN stack e-commerce application backend.
+MERN ecommerce project with backend API and frontend client.
 
-## 🚀 Quick Start
+## Quick Start
 
-### Prerequisites
+## Prerequisites
+- Node.js 18+
+- MongoDB (local or managed)
 
-- Node.js (v16+)
-- MongoDB (Local or Atlas)
-- Redis (Optional, for caching)
-
-### Installation
-
-1. **Configure Environment**
-
-   ```bash
-   cd backend
-   cp .env.example .env
-   ```
-
-   Update `.env` with your MongoDB URI.
-
-2. **Install Dependencies**
-
-   ```bash
-   npm install
-   ```
-
-3. **Seed Database**
-
-   ```bash
-   npm run seed -- --minimal
-   ```
-
-4. **Start Server**
-   ```bash
-   npm run dev
-   ```
-
-## 📂 Project Structure
-
-```text
-src/
-├── config/         # Environment variables and configuration
-├── controllers/    # Request logic
-├── middleware/     # Express middleware (Auth, Error handling)
-├── models/         # Mongoose models
-├── routes/         # API route definitions
-└── utils/          # Helper functions (Logger, etc.)
+## Setup
+```bash
+npm ci
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+npm run dev
 ```
 
-## 📝 Coding Standards
+## Quality Commands
+```bash
+npm run lint
+npm test
+npm run build
+```
 
-Please refer to `.github/instructions/inline-comments-standard.instructions.md` for detailed commenting and documentation guidelines.
-
-## 🛠 Troubleshooting
-
-**MongoDB Connection Fails?**
-
-1. Ensure MongoDB service is running (`net start MongoDB` on Windows).
-2. Check IP whitelist if using MongoDB Atlas.
-3. Verify connection string in `.env`.
+## Documentation
+- Roadmap: `docs/ROADMAP_MVP_CHECKOUT.md`
+- Engineering quality gates: `docs/ENGINEERING_QUALITY_GATES.md`
+- Release checklist: `docs/RELEASE_CHECKLIST.md`
+- Observability plan: `docs/OBSERVABILITY.md`
+- Environment matrix: `docs/ENVIRONMENT_MATRIX.md`
+- Architecture map: `docs/ARCHITECTURE_MAP.md`
+- API contracts: `docs/API_CONTRACTS.md`
+- Deployment guide: `docs/DEPLOYMENT_GUIDE.md`
+- Docs index: `docs/README.md`

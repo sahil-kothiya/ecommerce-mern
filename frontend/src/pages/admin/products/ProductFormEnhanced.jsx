@@ -3,6 +3,7 @@ import { logger } from '../../../utils/logger.js';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_CONFIG } from '../../../constants';
+import notify from '../../../utils/notify';
 
 const ProductFormEnhanced = () => {
     const { id } = useParams();
@@ -409,12 +410,14 @@ const ProductFormEnhanced = () => {
      * Show notification (implement with your notification system)
      */
     const showNotification = (message, type = 'info') => {
-        // TODO: Implement with toast/notification library
         if (type === 'error') {
-            alert(`Error: ${message}`);
+            notify.error(message);
+        } else if (type === 'success') {
+            notify.success(message);
         } else {
-            logger.info(`${type}: ${message}`);
+            notify.info(message);
         }
+        logger.info(`${type}: ${message}`);
     };
 
     /**
@@ -457,7 +460,7 @@ const ProductFormEnhanced = () => {
                 </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form onSubmit={handleSubmit} noValidate className="space-y-8">
                 {/* Basic Information Section */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
                     <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
@@ -475,7 +478,6 @@ const ProductFormEnhanced = () => {
                                 name="title"
                                 value={formData.title}
                                 onChange={handleChange}
-                                required
                                 className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
                                     errors.title ? 'border-red-500' : 'border-gray-300'
                                 }`}
@@ -539,7 +541,6 @@ const ProductFormEnhanced = () => {
                                     name="basePrice"
                                     value={formData.basePrice}
                                     onChange={handleChange}
-                                    required
                                     step="0.01"
                                     min="0"
                                     className={`w-full pl-8 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
@@ -588,7 +589,6 @@ const ProductFormEnhanced = () => {
                                 name="baseStock"
                                 value={formData.baseStock}
                                 onChange={handleChange}
-                                required
                                 min="0"
                                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                                 placeholder="0"
@@ -604,7 +604,6 @@ const ProductFormEnhanced = () => {
                                 name="baseSku"
                                 value={formData.baseSku}
                                 onChange={handleChange}
-                                required={!isEdit}
                                 className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all uppercase ${
                                     errors.baseSku ? 'border-red-500' : 'border-gray-300'
                                 }`}

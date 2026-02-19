@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import notify from '../../../utils/notify';
 import { API_CONFIG } from '../../../constants';
+import { AdminLoadingState, AdminPageHeader, AdminSurface } from '../../../components/admin/AdminTheme';
+import { applyServerFieldErrors, clearFieldError, getFieldBorderClass, hasValidationErrors } from '../../../utils/formValidation';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -21,14 +23,35 @@ const UserForm = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [selectedPhotoFile, setSelectedPhotoFile] = useState(null);
+    const [photoPreview, setPhotoPreview] = useState('');
 
     useEffect(() => {
-        if (isEdit) loadUser();
+        if (isEdit) {
+            loadUser();
+            return;
+        }
+        setSelectedPhotoFile(null);
+        setPhotoPreview('');
     }, [id]);
+
+    useEffect(() => () => {
+        if (photoPreview && photoPreview.startsWith('blob:')) {
+            URL.revokeObjectURL(photoPreview);
+        }
+    }, [photoPreview]);
 
     const getAuthHeaders = () => {
         const token = localStorage.getItem('auth_token');
         return token ? { Authorization: `Bearer ${token}` } : {};
+    };
+
+    const getImageUrl = (path) => {
+        if (!path) return '';
+        if (/^https?:\/\//i.test(path)) return path;
+        if (path.startsWith('/images/')) return `${API_CONFIG.BASE_URL}${path}`;
+        if (path.startsWith('/uploads/')) return `${API_CONFIG.BASE_URL}${path}`;
+        return `${API_CONFIG.BASE_URL}/uploads/${path.replace(/^\/+/, '')}`;
     };
 
     const loadUser = async () => {
@@ -50,6 +73,8 @@ const UserForm = () => {
                 role: user.role || 'user',
                 status: user.status || 'active',
             });
+            setSelectedPhotoFile(null);
+            setPhotoPreview(user.photo ? getImageUrl(user.photo) : '');
         } catch (error) {
             notify.error(error, 'Failed to load user');
         } finally {
@@ -60,7 +85,32 @@ const UserForm = () => {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
-        if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
+        clearFieldError(setErrors, name);
+    };
+
+    const handlePhotoChange = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            setErrors((prev) => ({ ...prev, photo: 'Please select an image file' }));
+            notify.error('Please select an image file');
+            return;
+        }
+
+        if (file.size > 2 * 1024 * 1024) {
+            setErrors((prev) => ({ ...prev, photo: 'Image must be less than 2MB' }));
+            notify.error('Image must be less than 2MB');
+            return;
+        }
+
+        if (photoPreview && photoPreview.startsWith('blob:')) {
+            URL.revokeObjectURL(photoPreview);
+        }
+
+        setSelectedPhotoFile(file);
+        setPhotoPreview(URL.createObjectURL(file));
+        clearFieldError(setErrors, 'photo');
     };
 
     const validate = () => {
@@ -80,29 +130,24 @@ const UserForm = () => {
         return nextErrors;
     };
 
-    const showAllErrorToasts = (errorMap, fallback) => {
-        const messages = Array.from(new Set(Object.values(errorMap || {}).filter(Boolean)));
-        if (messages.length > 0) {
-            messages.forEach((msg) => notify.error(msg));
-            return;
-        }
-        if (fallback) notify.error(fallback);
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         const clientErrors = validate();
         setErrors(clientErrors);
+        if (hasValidationErrors(clientErrors)) {
+            notify.error('Please fix form validation errors');
+            return;
+        }
 
         try {
             setIsSaving(true);
-            const payload = {
-                name: formData.name.trim(),
-                email: formData.email.trim().toLowerCase(),
-                role: formData.role,
-                status: formData.status,
-            };
-            if (formData.password) payload.password = formData.password;
+            const payload = new FormData();
+            payload.append('name', formData.name.trim());
+            payload.append('email', formData.email.trim().toLowerCase());
+            payload.append('role', formData.role);
+            payload.append('status', formData.status);
+            if (formData.password) payload.append('password', formData.password);
+            if (selectedPhotoFile) payload.append('avatar', selectedPhotoFile);
 
             const url = isEdit
                 ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}/${id}`
@@ -110,39 +155,30 @@ const UserForm = () => {
             const response = await fetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     ...getAuthHeaders(),
                 },
-                body: JSON.stringify(payload),
+                body: payload,
             });
             const data = await response.json();
 
             if (!response.ok || !data?.success) {
-                const mapped = { ...clientErrors };
-                if (Array.isArray(data?.errors)) {
-                    data.errors.forEach((item) => {
-                        if (item?.field && item?.message) mapped[item.field] = item.message;
-                    });
-                }
+                const mapped = applyServerFieldErrors(setErrors, data?.errors, clientErrors);
                 const fallbackMessage = String(data?.message || '').toLowerCase();
                 if (!mapped.email && fallbackMessage.includes('already exists') && fallbackMessage.includes('email')) {
                     mapped.email = 'User already exists with this email';
+                    setErrors((prev) => ({ ...prev, email: mapped.email }));
                 }
-                if (Object.keys(mapped).length > 0) {
-                    setErrors(mapped);
+                if (hasValidationErrors(mapped)) {
+                    notify.error(data?.message || 'Please fix form validation errors');
+                    return;
                 }
-                showAllErrorToasts(mapped, data?.message || `Failed to ${isEdit ? 'update' : 'create'} user`);
+                notify.error(data?.message || `Failed to ${isEdit ? 'update' : 'create'} user`);
                 return;
             }
 
             notify.success(`User ${isEdit ? 'updated' : 'created'} successfully`);
             navigate('/admin/users');
         } catch (error) {
-            if (Object.keys(clientErrors).length > 0) {
-                setErrors(clientErrors);
-                showAllErrorToasts(clientErrors, null);
-                return;
-            }
             notify.error(error, `Failed to ${isEdit ? 'update' : 'create'} user`);
         } finally {
             setIsSaving(false);
@@ -150,24 +186,19 @@ const UserForm = () => {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex h-[420px] items-center justify-center">
-                <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-                    <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-b-4 border-slate-700" />
-                    <p className="text-lg font-semibold text-slate-800">Loading user form...</p>
-                </div>
-            </div>
-        );
+        return <AdminLoadingState title="Loading user form..." subtitle="Preparing account details" />;
     }
 
     return (
-        <div className="space-y-6">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h1 className="text-3xl font-black text-slate-900">{isEdit ? 'Edit User' : 'Create User'}</h1>
-                <p className="mt-1 text-slate-600">Manage user account details and permissions.</p>
-            </div>
+        <div className="space-y-8">
+            <AdminPageHeader
+                eyebrow="User Studio"
+                title={isEdit ? 'Edit User' : 'Create User'}
+                subtitle="Manage account identity, access role, and profile information in one place."
+            />
 
-            <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
+            <AdminSurface>
+                <form onSubmit={handleSubmit} noValidate className="space-y-5">
                 <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">Name *</label>
                     <input
@@ -175,7 +206,7 @@ const UserForm = () => {
                         name="name"
                         value={formData.name}
                         onChange={handleChange}
-                        className={`w-full rounded-xl border px-4 py-3 ${errors.name ? 'border-red-500' : 'border-slate-300'}`}
+                        className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'name')}`}
                         placeholder="Enter full name"
                     />
                     {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
@@ -188,7 +219,7 @@ const UserForm = () => {
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
-                        className={`w-full rounded-xl border px-4 py-3 ${errors.email ? 'border-red-500' : 'border-slate-300'}`}
+                        className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'email')}`}
                         placeholder="user@example.com"
                     />
                     {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
@@ -202,7 +233,7 @@ const UserForm = () => {
                             name="password"
                             value={formData.password}
                             onChange={handleChange}
-                            className={`w-full rounded-xl border px-4 py-3 pr-12 ${errors.password ? 'border-red-500' : 'border-slate-300'}`}
+                            className={`w-full rounded-xl border px-4 py-3 pr-12 ${getFieldBorderClass(errors, 'password')}`}
                             placeholder={isEdit ? 'Leave blank to keep current password' : 'Enter password'}
                         />
                         <button
@@ -216,6 +247,39 @@ const UserForm = () => {
                     {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
                 </div>
 
+                <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">Profile Photo</label>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto] md:items-end">
+                        <div>
+                            <input
+                                type="file"
+                                name="avatar"
+                                accept="image/jpeg,image/png,image/gif,image/webp"
+                                onChange={handlePhotoChange}
+                                className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'photo')}`}
+                            />
+                            <p className="mt-1 text-xs text-slate-500">Allowed: JPG, PNG, GIF, WEBP. Max file size: 2MB.</p>
+                            {errors.photo && <p className="mt-1 text-sm text-red-600">{errors.photo}</p>}
+                        </div>
+                        <div className="h-16 w-16 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+                            {photoPreview ? (
+                                <img
+                                    src={photoPreview}
+                                    alt="Profile preview"
+                                    className="h-full w-full object-cover"
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                    }}
+                                />
+                            ) : (
+                                <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-slate-500">
+                                    No Photo
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Role *</label>
@@ -223,7 +287,7 @@ const UserForm = () => {
                             name="role"
                             value={formData.role}
                             onChange={handleChange}
-                            className={`w-full rounded-xl border px-4 py-3 ${errors.role ? 'border-red-500' : 'border-slate-300'}`}
+                            className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'role')}`}
                         >
                             <option value="user">User</option>
                             <option value="admin">Admin</option>
@@ -236,7 +300,7 @@ const UserForm = () => {
                             name="status"
                             value={formData.status}
                             onChange={handleChange}
-                            className={`w-full rounded-xl border px-4 py-3 ${errors.status ? 'border-red-500' : 'border-slate-300'}`}
+                            className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'status')}`}
                         >
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
@@ -261,7 +325,8 @@ const UserForm = () => {
                         Cancel
                     </button>
                 </div>
-            </form>
+                </form>
+            </AdminSurface>
         </div>
     );
 };

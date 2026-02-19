@@ -5,17 +5,75 @@ import { VariantType, VariantOption } from '../models/Supporting.models.js';
 import mongoose from 'mongoose';
 import slugify from 'slugify';
 
+const MAX_PAGE_SIZE = 100;
+const PRODUCT_LIST_SELECT = [
+    'title',
+    'slug',
+    'summary',
+    'condition',
+    'status',
+    'isFeatured',
+    'hasVariants',
+    'basePrice',
+    'baseDiscount',
+    'baseStock',
+    'images',
+    'category',
+    'brand',
+    'ratings',
+    'viewCount',
+    'salesCount',
+    'createdAt'
+].join(' ');
+
+const ALLOWED_SORT_FIELDS = new Set([
+    'createdAt',
+    'basePrice',
+    'viewCount',
+    'salesCount',
+    'ratings.average',
+    'title'
+]);
+
+const SORT_ALIASES = {
+    newest: '-createdAt',
+    oldest: 'createdAt',
+    'price-low': 'basePrice',
+    'price-high': '-basePrice',
+    rating: '-ratings.average',
+    popular: '-salesCount',
+    popularity: '-salesCount',
+};
+
+const parseSort = (sort = '-createdAt') => {
+    const normalized = String(sort || '').trim();
+    const value = SORT_ALIASES[normalized] || normalized || '-createdAt';
+    const descending = value.startsWith('-');
+    const field = descending ? value.slice(1) : value;
+
+    if (!ALLOWED_SORT_FIELDS.has(field)) {
+        return { createdAt: -1 };
+    }
+
+    return { [field]: descending ? -1 : 1 };
+};
+
 export class ProductController {
     // GET /api/products - List products with pagination
     async index(req, res) {
         try {
-            const page = parseInt(req.query.page) || 1;
-            const limit = parseInt(req.query.limit) || 20;
+            const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+            const limit = Math.min(
+                MAX_PAGE_SIZE,
+                Math.max(1, Number.parseInt(req.query.limit, 10) || 20)
+            );
             const skip = (page - 1) * limit;
 
             const {
                 search,
+                category,
                 categoryId,
+                brand,
                 brandId,
                 minPrice,
                 maxPrice,
@@ -32,18 +90,27 @@ export class ProductController {
                 query.$text = { $search: search };
             }
 
-            if (categoryId) {
+            if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
                 query['category.id'] = new mongoose.Types.ObjectId(categoryId);
+            } else if (category && category !== 'all') {
+                query['category.slug'] = String(category).trim();
             }
 
-            if (brandId) {
+            if (brandId && mongoose.Types.ObjectId.isValid(brandId)) {
                 query['brand.id'] = new mongoose.Types.ObjectId(brandId);
+            } else if (brand && brand !== 'all') {
+                query['brand.slug'] = String(brand).trim();
             }
 
             if (minPrice || maxPrice) {
                 query.basePrice = {};
-                if (minPrice) query.basePrice.$gte = parseFloat(minPrice);
-                if (maxPrice) query.basePrice.$lte = parseFloat(maxPrice);
+                const parsedMin = Number.parseFloat(minPrice);
+                const parsedMax = Number.parseFloat(maxPrice);
+                if (Number.isFinite(parsedMin)) query.basePrice.$gte = parsedMin;
+                if (Number.isFinite(parsedMax)) query.basePrice.$lte = parsedMax;
+                if (Object.keys(query.basePrice).length === 0) {
+                    delete query.basePrice;
+                }
             }
 
             if (condition) {
@@ -57,7 +124,8 @@ export class ProductController {
             // Execute query with pagination
             const [products, total] = await Promise.all([
                 Product.find(query)
-                    .sort(sort)
+                    .select(PRODUCT_LIST_SELECT)
+                    .sort(parseSort(sort))
                     .skip(skip)
                     .limit(limit)
                     .lean(),
@@ -99,6 +167,7 @@ export class ProductController {
                 status: 'active',
                 isFeatured: true
             })
+                .select(PRODUCT_LIST_SELECT)
                 .sort({ createdAt: -1 })
                 .limit(limit)
                 .lean();
@@ -147,17 +216,15 @@ export class ProductController {
     async show(req, res) {
         try {
             const { slug } = req.params;
-            let product;
-
-            // Try to find by ID first (if it's a valid MongoDB ObjectId)
-            if (mongoose.Types.ObjectId.isValid(slug) && slug.length === 24) {
-                product = await Product.findById(slug);
-            }
-            
-            // If not found by ID, try finding by slug
-            if (!product) {
-                product = await Product.findOne({ slug, status: 'active' });
-            }
+            const byIdQuery = mongoose.Types.ObjectId.isValid(slug) && slug.length === 24
+                ? { _id: slug }
+                : null;
+            const query = byIdQuery || { slug };
+            const product = await Product.findOneAndUpdate(
+                { ...query, status: 'active' },
+                { $inc: { viewCount: 1 } },
+                { new: true }
+            );
 
             if (!product || product.status !== 'active') {
                 return res.status(404).json({
@@ -165,9 +232,6 @@ export class ProductController {
                     message: 'Product not found'
                 });
             }
-
-            // Increment view count
-            await product.incrementViewCount();
 
             res.json({
                 success: true,
@@ -187,7 +251,11 @@ export class ProductController {
         try {
             const { slug } = req.params;
 
-            const product = await Product.findBySlug(slug);
+            const product = await Product.findOneAndUpdate(
+                { slug, status: 'active' },
+                { $inc: { viewCount: 1 } },
+                { new: true }
+            );
 
             if (!product) {
                 return res.status(404).json({
@@ -195,9 +263,6 @@ export class ProductController {
                     message: 'Product not found'
                 });
             }
-
-            // Increment view count
-            await product.incrementViewCount();
 
             res.json({
                 success: true,
@@ -686,7 +751,10 @@ export class ProductController {
     async related(req, res) {
         try {
             const { id } = req.params;
-            const limit = parseInt(req.query.limit) || 8;
+            const limit = Math.min(
+                20,
+                Math.max(1, Number.parseInt(req.query.limit, 10) || 8)
+            );
 
             const product = await Product.findById(id);
 
@@ -719,6 +787,7 @@ export class ProductController {
             }
 
             const relatedProducts = await Product.find(query)
+                .select(PRODUCT_LIST_SELECT)
                 .sort({ salesCount: -1, 'ratings.average': -1 })
                 .limit(limit)
                 .lean();

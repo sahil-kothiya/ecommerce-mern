@@ -1,398 +1,280 @@
+import mongoose from 'mongoose';
 import { Order } from '../models/Order.js';
 import { Cart } from '../models/Cart.js';
 import { Product } from '../models/Product.js';
-import { User } from '../models/User.js';
-import mongoose from 'mongoose';
+import { AppError } from '../middleware/errorHandler.js';
+
+const ORDER_STATUSES = ['new', 'process', 'delivered', 'cancelled'];
+const PAYMENT_STATUSES = ['paid', 'unpaid'];
+
+const parsePagination = (query, defaultLimit = 20, maxLimit = 100) => {
+    const page = Math.max(1, Number.parseInt(query.page, 10) || 1);
+    const limit = Math.min(maxLimit, Math.max(1, Number.parseInt(query.limit, 10) || defaultLimit));
+    const skip = (page - 1) * limit;
+
+    return { page, limit, skip };
+};
+
+const parseSort = (sortInput = '-createdAt') => {
+    const sortValue = String(sortInput || '-createdAt').trim();
+    const descending = sortValue.startsWith('-');
+    const field = descending ? sortValue.slice(1) : sortValue;
+    const allowed = new Set(['createdAt', 'totalAmount', 'orderNumber', 'status', 'paymentStatus']);
+
+    if (!allowed.has(field)) {
+        return { createdAt: -1 };
+    }
+
+    return { [field]: descending ? -1 : 1 };
+};
+
+const buildSearchQuery = (search = '') => {
+    const trimmed = String(search || '').trim();
+    if (!trimmed) return null;
+
+    return {
+        $or: [
+            { orderNumber: { $regex: trimmed, $options: 'i' } },
+            { email: { $regex: trimmed, $options: 'i' } },
+            { firstName: { $regex: trimmed, $options: 'i' } },
+            { lastName: { $regex: trimmed, $options: 'i' } },
+        ],
+    };
+};
+
+const PAYMENT_METHODS = ['cod', 'stripe', 'paypal'];
+
+const round = (value) => Math.round((Number(value) || 0) * 100) / 100;
+
+const resolveOrderItemPricing = (product, variantId = null) => {
+    if (variantId) {
+        const variant = (product.variants || []).find(
+            (item) => item._id.toString() === variantId.toString()
+        );
+        if (!product.hasVariants || !variant || variant.status !== 'active') {
+            return null;
+        }
+
+        return {
+            price: round(variant.price * (1 - (variant.discount || 0) / 100)),
+            stock: Number(variant.stock || 0),
+            variantId: variant._id,
+        };
+    }
+
+    if (product.hasVariants) {
+        return null;
+    }
+
+    return {
+        price: round(product.basePrice * (1 - (product.baseDiscount || 0) / 100)),
+        stock: Number(product.baseStock || 0),
+        variantId: null,
+    };
+};
 
 export class OrderController {
-    // GET /api/orders - List user's orders
-    async index(req, res) {
+    async store(req, res, next) {
+        const session = await mongoose.startSession();
+        let createdOrder = null;
+
         try {
-            const userId = req.user.id;
-            const page = parseInt(req.query.page) || 1;
-            const limit = parseInt(req.query.limit) || 10;
-            const status = req.query.status;
-            const sort = req.query.sort || '-createdAt';
-
-            const skip = (page - 1) * limit;
-            const query = { user: userId };
-
-            if (status) {
-                query.status = status;
-            }
-
-            const [orders, total] = await Promise.all([
-                Order.find(query)
-                    .sort(sort)
-                    .skip(skip)
-                    .limit(limit)
-                    .lean(),
-                Order.countDocuments(query)
-            ]);
-
-            res.json({
-                success: true,
-                data: {
-                    orders,
-                    pagination: {
-                        page,
-                        limit,
-                        total,
-                        pages: Math.ceil(total / limit)
-                    }
-                }
-            });
-        } catch (error) {
-            console.error('Orders index error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch orders'
-            });
-        }
-    }
-
-    // GET /api/orders/:id - Get single order
-    async show(req, res) {
-        try {
-            const { id } = req.params;
-            const userId = req.user.id;
-
-            const order = await Order.findOne({
-                _id: id,
-                user: userId
-            });
-
-            if (!order) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Order not found'
-                });
-            }
-
-            res.json({
-                success: true,
-                data: order
-            });
-        } catch (error) {
-            console.error('Order show error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch order'
-            });
-        }
-    }
-
-    // POST /api/orders - Create new order from cart
-    async store(req, res) {
-        try {
-            const userId = req.user.id;
+            const userId = req.user?._id || req.user?.id;
             const {
-                shippingAddress,
-                billingAddress,
+                firstName,
+                lastName,
+                email,
+                phone,
+                address1,
+                address2,
+                city,
+                state,
+                postCode,
+                country,
                 paymentMethod,
-                shippingMethod = 'standard',
-                notes = ''
+                notes,
+                couponCode,
             } = req.body;
 
-            // Validate required fields
-            if (!shippingAddress || !paymentMethod) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Shipping address and payment method are required'
-                });
+            if (!PAYMENT_METHODS.includes(paymentMethod)) {
+                throw new AppError('Invalid payment method', 422);
             }
 
-            // Get user's active cart
-            const cart = await Cart.findOne({
-                user: userId,
-                status: 'active'
-            }).populate('items.product');
-
-            if (!cart || cart.items.length === 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Cart is empty'
-                });
+            const requiredFields = { firstName, lastName, email, phone, address1, city, postCode, country };
+            const missingField = Object.entries(requiredFields).find(([, value]) => !String(value || '').trim());
+            if (missingField) {
+                throw new AppError(`Missing required field: ${missingField[0]}`, 422);
             }
 
-            // Validate cart items
-            const validation = await cart.validateItems();
-            if (!validation.isValid) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Cart contains invalid items',
-                    errors: validation.errors
-                });
-            }
-
-            // Create order number
-            const orderNumber = await this.generateOrderNumber();
-
-            // Prepare order items
-            const orderItems = cart.items.map(item => ({
-                product: {
-                    id: item.product._id,
-                    title: item.product.title,
-                    slug: item.product.slug,
-                    image: item.product.images[0] || null
-                },
-                variant: item.variant ? {
-                    id: item.variant._id,
-                    title: item.variant.title,
-                    sku: item.variant.sku,
-                    options: item.variant.options
-                } : null,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                totalPrice: item.totalPrice
-            }));
-
-            // Create order
-            const order = new Order({
-                orderNumber,
-                user: userId,
-                items: orderItems,
-                totals: cart.totals,
-                status: 'pending',
-                shippingAddress,
-                billingAddress: billingAddress || shippingAddress,
-                paymentMethod,
-                shippingMethod,
-                notes,
-                tracking: {
-                    orderPlaced: new Date()
+            await session.withTransaction(async () => {
+                const cartItems = await Cart.find({ userId }).session(session).lean();
+                if (!cartItems.length) {
+                    throw new AppError('Cart is empty', 400);
                 }
-            });
 
-            // Start transaction for order creation and stock update
-            const session = await mongoose.startSession();
+                const productIds = [...new Set(cartItems.map((item) => item.productId.toString()))];
+                const products = await Product.find({ _id: { $in: productIds }, status: 'active' }).session(session).lean();
+                const productMap = new Map(products.map((item) => [item._id.toString(), item]));
 
-            try {
-                await session.withTransaction(async () => {
-                    // Save order
-                    await order.save({ session });
+                const orderItems = [];
+                let totalQuantity = 0;
+                let subTotal = 0;
 
-                    // Update product stock
-                    for (const item of cart.items) {
-                        const product = await Product.findById(item.product._id).session(session);
-
-                        if (item.variant) {
-                            await product.updateStock(item.variant._id, -item.quantity, session);
-                        } else {
-                            await product.updateStock(null, -item.quantity, session);
-                        }
+                for (const cartItem of cartItems) {
+                    const product = productMap.get(cartItem.productId.toString());
+                    if (!product) {
+                        throw new AppError('One or more cart products are unavailable', 400);
                     }
 
-                    // Clear cart
-                    await cart.clearCart({ session });
-                });
+                    const quantity = Number(cartItem.quantity || 0);
+                    if (!quantity || quantity < 1) {
+                        throw new AppError('Invalid cart quantity', 400);
+                    }
 
-                await session.commitTransaction();
-            } catch (error) {
-                await session.abortTransaction();
-                throw error;
-            } finally {
-                session.endSession();
-            }
+                    let itemTitle = product.title;
+                    let itemSku = product.baseSku;
+                    let itemPrice = round(product.basePrice * (1 - (product.baseDiscount || 0) / 100));
+                    let stockUpdated = null;
 
-            // Process payment (implement your payment gateway here)
-            try {
-                const paymentResult = await this.processPayment(order, paymentMethod);
+                    if (cartItem.variantId) {
+                        const variant = (product.variants || []).find((entry) => (
+                            entry._id.toString() === cartItem.variantId.toString()
+                        ));
 
-                if (paymentResult.success) {
-                    order.paymentStatus = 'paid';
-                    order.status = 'confirmed';
-                    order.tracking.paymentConfirmed = new Date();
-                    await order.save();
-                } else {
-                    order.paymentStatus = 'failed';
-                    order.paymentFailureReason = paymentResult.error;
-                    await order.save();
+                        if (!product.hasVariants || !variant || variant.status !== 'active') {
+                            throw new AppError('One or more cart variants are unavailable', 400);
+                        }
 
-                    return res.status(402).json({
-                        success: false,
-                        message: 'Payment failed',
-                        error: paymentResult.error
+                        itemTitle = `${product.title} (${variant.displayName || variant.sku})`;
+                        itemSku = variant.sku;
+                        itemPrice = round(variant.price * (1 - (variant.discount || 0) / 100));
+
+                        stockUpdated = await Product.findOneAndUpdate(
+                            {
+                                _id: product._id,
+                                status: 'active',
+                                'variants._id': variant._id,
+                                'variants.stock': { $gte: quantity },
+                            },
+                            {
+                                $inc: {
+                                    'variants.$.stock': -quantity,
+                                    salesCount: quantity,
+                                },
+                            },
+                            { session, new: true }
+                        ).lean();
+                    } else {
+                        stockUpdated = await Product.findOneAndUpdate(
+                            {
+                                _id: product._id,
+                                status: 'active',
+                                hasVariants: false,
+                                baseStock: { $gte: quantity },
+                            },
+                            {
+                                $inc: {
+                                    baseStock: -quantity,
+                                    salesCount: quantity,
+                                },
+                            },
+                            { session, new: true }
+                        ).lean();
+                    }
+
+                    if (!stockUpdated) {
+                        throw new AppError(`Insufficient stock for ${product.title}`, 400);
+                    }
+
+                    const amount = round(itemPrice * quantity);
+                    subTotal += amount;
+                    totalQuantity += quantity;
+
+                    orderItems.push({
+                        productId: product._id,
+                        variantId: cartItem.variantId || null,
+                        title: itemTitle,
+                        sku: itemSku || `SKU-${product._id.toString().slice(-8).toUpperCase()}`,
+                        price: itemPrice,
+                        quantity,
+                        amount,
+                        image: product.images?.[0]?.path || undefined,
                     });
                 }
-            } catch (paymentError) {
-                console.error('Payment processing error:', paymentError);
-                order.paymentStatus = 'failed';
-                order.paymentFailureReason = paymentError.message;
-                await order.save();
 
-                return res.status(500).json({
-                    success: false,
-                    message: 'Payment processing failed'
+                subTotal = round(subTotal);
+                const shippingCost = subTotal >= 100 ? 0 : 10;
+                const couponDiscount = 0;
+                const totalAmount = round(subTotal + shippingCost - couponDiscount);
+
+                const order = new Order({
+                    userId,
+                    items: orderItems,
+                    subTotal,
+                    shippingCost,
+                    couponDiscount,
+                    totalAmount,
+                    quantity: totalQuantity,
+                    firstName: String(firstName).trim(),
+                    lastName: String(lastName).trim(),
+                    email: String(email).trim().toLowerCase(),
+                    phone: String(phone).trim(),
+                    address1: String(address1).trim(),
+                    address2: String(address2 || '').trim() || undefined,
+                    city: String(city).trim(),
+                    state: String(state || '').trim() || undefined,
+                    postCode: String(postCode).trim(),
+                    country: String(country).trim(),
+                    paymentMethod,
+                    paymentStatus: 'unpaid',
+                    status: 'new',
+                    couponCode: String(couponCode || '').trim() || undefined,
+                    notes: String(notes || '').trim() || undefined,
                 });
-            }
 
-            res.status(201).json({
+                await order.save({ session });
+                await Cart.deleteMany({ userId }).session(session);
+                createdOrder = order.toObject();
+            });
+
+            return res.status(201).json({
                 success: true,
-                message: 'Order created successfully',
-                data: order
+                message: 'Order placed successfully',
+                data: createdOrder,
             });
         } catch (error) {
-            console.error('Order creation error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to create order',
-                error: error.message
-            });
+            return next(error instanceof AppError ? error : new AppError('Failed to create order', 500));
+        } finally {
+            await session.endSession();
         }
     }
 
-    // PUT /api/orders/:id/cancel - Cancel order
-    async cancel(req, res) {
+    async index(req, res, next) {
         try {
-            const { id } = req.params;
-            const userId = req.user.id;
-            const { reason } = req.body;
+            const userId = req.user?._id || req.user?.id;
+            const { page, limit, skip } = parsePagination(req.query, 10, 50);
+            const sort = parseSort(req.query.sort);
 
-            const order = await Order.findOne({
-                _id: id,
-                user: userId
-            });
-
-            if (!order) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Order not found'
-                });
+            const query = { userId };
+            if (ORDER_STATUSES.includes(req.query.status)) {
+                query.status = req.query.status;
             }
-
-            if (!order.canBeCancelled()) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Order cannot be cancelled at this stage'
-                });
+            if (PAYMENT_STATUSES.includes(req.query.paymentStatus)) {
+                query.paymentStatus = req.query.paymentStatus;
             }
-
-            await order.cancel(reason);
-
-            res.json({
-                success: true,
-                message: 'Order cancelled successfully',
-                data: order
-            });
-        } catch (error) {
-            console.error('Order cancel error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to cancel order'
-            });
-        }
-    }
-
-    // GET /api/orders/:id/tracking - Get order tracking
-    async tracking(req, res) {
-        try {
-            const { id } = req.params;
-            const userId = req.user.id;
-
-            const order = await Order.findOne({
-                _id: id,
-                user: userId
-            }).select('orderNumber status tracking shippingDetails');
-
-            if (!order) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Order not found'
-                });
-            }
-
-            const trackingInfo = order.getTrackingInfo();
-
-            res.json({
-                success: true,
-                data: trackingInfo
-            });
-        } catch (error) {
-            console.error('Order tracking error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch tracking information'
-            });
-        }
-    }
-
-    // GET /api/orders/summary - Get order summary stats
-    async summary(req, res) {
-        try {
-            const userId = req.user.id;
-
-            const [
-                totalOrders,
-                pendingOrders,
-                completedOrders,
-                totalSpent
-            ] = await Promise.all([
-                Order.countDocuments({ user: userId }),
-                Order.countDocuments({ user: userId, status: 'pending' }),
-                Order.countDocuments({ user: userId, status: 'delivered' }),
-                Order.aggregate([
-                    { $match: { user: new mongoose.Types.ObjectId(userId) } },
-                    { $group: { _id: null, total: { $sum: '$totals.total' } } }
-                ])
-            ]);
-
-            res.json({
-                success: true,
-                data: {
-                    totalOrders,
-                    pendingOrders,
-                    completedOrders,
-                    totalSpent: totalSpent[0]?.total || 0
-                }
-            });
-        } catch (error) {
-            console.error('Order summary error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch order summary'
-            });
-        }
-    }
-
-    // Admin methods
-
-    // GET /api/admin/orders - List all orders (admin)
-    async adminIndex(req, res) {
-        try {
-            const page = parseInt(req.query.page) || 1;
-            const limit = parseInt(req.query.limit) || 20;
-            const status = req.query.status;
-            const search = req.query.search;
-            const sort = req.query.sort || '-createdAt';
-
-            const skip = (page - 1) * limit;
-            const query = {};
-
-            if (status) {
-                query.status = status;
-            }
-
-            if (search) {
-                query.$or = [
-                    { orderNumber: new RegExp(search, 'i') },
-                    { 'user.email': new RegExp(search, 'i') },
-                    { 'user.firstName': new RegExp(search, 'i') },
-                    { 'user.lastName': new RegExp(search, 'i') }
-                ];
-            }
+            const searchQuery = buildSearchQuery(req.query.search);
+            if (searchQuery) Object.assign(query, searchQuery);
 
             const [orders, total] = await Promise.all([
                 Order.find(query)
-                    .populate('user', 'firstName lastName email')
                     .sort(sort)
                     .skip(skip)
                     .limit(limit)
                     .lean(),
-                Order.countDocuments(query)
+                Order.countDocuments(query),
             ]);
 
-            res.json({
+            return res.json({
                 success: true,
                 data: {
                     orders,
@@ -400,128 +282,389 @@ export class OrderController {
                         page,
                         limit,
                         total,
-                        pages: Math.ceil(total / limit)
-                    }
-                }
+                        pages: Math.ceil(total / limit),
+                        hasPrev: page > 1,
+                        hasNext: page * limit < total,
+                    },
+                },
             });
         } catch (error) {
-            console.error('Admin orders index error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to fetch orders'
-            });
+            return next(new AppError('Failed to fetch orders', 500));
         }
     }
 
-    // PUT /api/admin/orders/:id/status - Update order status (admin)
-    async updateStatus(req, res) {
+    async show(req, res, next) {
         try {
             const { id } = req.params;
-            const { status, notes } = req.body;
-
-            const order = await Order.findById(id);
-
-            if (!order) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Order not found'
-                });
+            if (!mongoose.Types.ObjectId.isValid(id)) {
+                return next(new AppError('Invalid order ID', 400));
             }
 
-            await order.updateStatus(status, notes);
+            const userId = req.user?._id || req.user?.id;
+            const order = await Order.findOne({ _id: id, userId }).lean();
 
-            res.json({
+            if (!order) {
+                return next(new AppError('Order not found', 404));
+            }
+
+            return res.json({ success: true, data: order });
+        } catch (error) {
+            return next(new AppError('Failed to fetch order', 500));
+        }
+    }
+
+    async listReturns(req, res, next) {
+        try {
+            const userId = req.user?._id || req.user?.id;
+            const orders = await Order.find({
+                userId,
+                'returnRequests.0': { $exists: true },
+            })
+                .select('orderNumber status createdAt returnRequests')
+                .sort({ createdAt: -1 })
+                .lean();
+
+            const returnRequests = orders.flatMap((order) =>
+                (order.returnRequests || []).map((request) => ({
+                    ...request,
+                    orderId: order._id,
+                    orderNumber: order.orderNumber,
+                    orderStatus: order.status,
+                    orderCreatedAt: order.createdAt,
+                }))
+            );
+
+            return res.json({
                 success: true,
-                message: 'Order status updated successfully',
-                data: order
+                data: {
+                    returnRequests,
+                    total: returnRequests.length,
+                },
             });
         } catch (error) {
-            console.error('Update order status error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to update order status'
-            });
+            return next(new AppError('Failed to fetch returns', 500));
         }
     }
 
-    // PUT /api/admin/orders/:id/shipping - Update shipping info (admin)
-    async updateShipping(req, res) {
+    async reorder(req, res, next) {
         try {
+            const userId = req.user?._id || req.user?.id;
             const { id } = req.params;
-            const { carrier, trackingNumber, estimatedDelivery } = req.body;
 
-            const order = await Order.findById(id);
+            if (!mongoose.Types.ObjectId.isValid(id)) {
+                return next(new AppError('Invalid order ID', 400));
+            }
 
+            const order = await Order.findOne({ _id: id, userId }).lean();
             if (!order) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Order not found'
+                return next(new AppError('Order not found', 404));
+            }
+
+            const addedItems = [];
+            const skippedItems = [];
+
+            for (const item of order.items || []) {
+                const product = await Product.findOne({
+                    _id: item.productId,
+                    status: 'active',
+                }).lean();
+
+                if (!product) {
+                    skippedItems.push({
+                        productId: item.productId,
+                        reason: 'Product unavailable',
+                    });
+                    continue;
+                }
+
+                const pricing = resolveOrderItemPricing(product, item.variantId);
+                if (!pricing) {
+                    skippedItems.push({
+                        productId: item.productId,
+                        variantId: item.variantId,
+                        reason: 'Variant unavailable',
+                    });
+                    continue;
+                }
+
+                if (pricing.stock < 1) {
+                    skippedItems.push({
+                        productId: item.productId,
+                        variantId: item.variantId,
+                        reason: 'Out of stock',
+                    });
+                    continue;
+                }
+
+                const existing = await Cart.findOne({
+                    userId,
+                    productId: product._id,
+                    variantId: pricing.variantId,
+                });
+
+                const requestedQty = Math.max(1, Number(item.quantity || 1));
+                const existingQty = existing?.quantity || 0;
+                const maxAddable = Math.max(0, pricing.stock - existingQty);
+                const quantityToAdd = Math.min(requestedQty, maxAddable);
+
+                if (quantityToAdd < 1) {
+                    skippedItems.push({
+                        productId: item.productId,
+                        variantId: item.variantId,
+                        reason: 'Stock limit reached in cart',
+                    });
+                    continue;
+                }
+
+                if (existing) {
+                    existing.quantity = existingQty + quantityToAdd;
+                    existing.price = pricing.price;
+                    existing.amount = round(existing.quantity * pricing.price);
+                    await existing.save();
+                } else {
+                    await Cart.create({
+                        userId,
+                        productId: product._id,
+                        variantId: pricing.variantId,
+                        quantity: quantityToAdd,
+                        price: pricing.price,
+                        amount: round(quantityToAdd * pricing.price),
+                    });
+                }
+
+                addedItems.push({
+                    productId: item.productId,
+                    variantId: item.variantId,
+                    quantity: quantityToAdd,
                 });
             }
 
-            order.shippingDetails = {
-                carrier,
-                trackingNumber,
-                estimatedDelivery: estimatedDelivery ? new Date(estimatedDelivery) : null
+            const cartItems = await Cart.find({ userId })
+                .populate('productId')
+                .sort({ createdAt: -1 })
+                .lean();
+
+            return res.json({
+                success: true,
+                message: addedItems.length > 0
+                    ? 'Items added to cart from order'
+                    : 'No items were added from this order',
+                data: {
+                    addedItems,
+                    skippedItems,
+                    cartItems,
+                },
+            });
+        } catch (error) {
+            return next(new AppError('Failed to reorder items', 500));
+        }
+    }
+
+    async requestReturn(req, res, next) {
+        try {
+            const userId = req.user?._id || req.user?.id;
+            const { id } = req.params;
+            const { reason, notes, items } = req.body;
+
+            if (!mongoose.Types.ObjectId.isValid(id)) {
+                return next(new AppError('Invalid order ID', 400));
+            }
+
+            const order = await Order.findOne({ _id: id, userId });
+            if (!order) {
+                return next(new AppError('Order not found', 404));
+            }
+
+            if (order.status !== 'delivered') {
+                return next(new AppError('Returns can only be requested for delivered orders', 400));
+            }
+
+            const requestedItems = (Array.isArray(items) && items.length > 0
+                ? items
+                : order.items.map((item) => ({
+                    productId: item.productId,
+                    variantId: item.variantId || null,
+                    quantity: item.quantity,
+                })))
+                .map((item) => ({
+                    productId: item.productId,
+                    variantId: item.variantId || null,
+                    quantity: Math.max(1, Number(item.quantity || 1)),
+                }));
+
+            for (const requestedItem of requestedItems) {
+                const matched = order.items.find((item) => {
+                    const sameProduct = String(item.productId) === String(requestedItem.productId);
+                    const sameVariant = String(item.variantId || '') === String(requestedItem.variantId || '');
+                    return sameProduct && sameVariant;
+                });
+
+                if (!matched) {
+                    return next(new AppError('Return item does not exist in order', 400));
+                }
+
+                if (requestedItem.quantity > matched.quantity) {
+                    return next(new AppError('Return quantity exceeds purchased quantity', 400));
+                }
+            }
+
+            const returnRequest = {
+                reason: String(reason || '').trim(),
+                notes: String(notes || '').trim() || undefined,
+                items: requestedItems,
+                status: 'requested',
+                requestedAt: new Date(),
             };
 
-            if (trackingNumber && order.status === 'confirmed') {
-                order.status = 'shipped';
-                order.tracking.shipped = new Date();
-            }
-
+            order.returnRequests.push(returnRequest);
             await order.save();
 
-            res.json({
+            return res.status(201).json({
                 success: true,
-                message: 'Shipping information updated successfully',
-                data: order
+                message: 'Return request submitted',
+                data: order.returnRequests[order.returnRequests.length - 1],
             });
         } catch (error) {
-            console.error('Update shipping error:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Failed to update shipping information'
-            });
+            if (error instanceof AppError) {
+                return next(error);
+            }
+            return next(new AppError('Failed to request return', 500));
         }
     }
 
-    // Helper methods
+    async adminAll(req, res, next) {
+        try {
+            const { page, limit, skip } = parsePagination(req.query, 20, 200);
+            const sort = parseSort(req.query.sort);
 
-    async generateOrderNumber() {
-        const prefix = 'ORD';
-        const timestamp = Date.now().toString(36).toUpperCase();
-        const random = Math.random().toString(36).substr(2, 4).toUpperCase();
-        return `${prefix}-${timestamp}-${random}`;
+            const query = {};
+            if (ORDER_STATUSES.includes(req.query.status)) {
+                query.status = req.query.status;
+            }
+            if (PAYMENT_STATUSES.includes(req.query.paymentStatus)) {
+                query.paymentStatus = req.query.paymentStatus;
+            }
+            const searchQuery = buildSearchQuery(req.query.search);
+            if (searchQuery) Object.assign(query, searchQuery);
+
+            const [orders, total] = await Promise.all([
+                Order.find(query)
+                    .populate('userId', 'name email role status')
+                    .sort(sort)
+                    .skip(skip)
+                    .limit(limit)
+                    .lean(),
+                Order.countDocuments(query),
+            ]);
+
+            return res.json({
+                success: true,
+                data: {
+                    orders,
+                    pagination: {
+                        page,
+                        limit,
+                        total,
+                        pages: Math.ceil(total / limit),
+                        hasPrev: page > 1,
+                        hasNext: page * limit < total,
+                    },
+                },
+            });
+        } catch (error) {
+            return next(new AppError('Failed to fetch admin orders', 500));
+        }
     }
 
-    async processPayment(order, paymentMethod) {
-        // Implement your payment gateway integration here
-        // This is a mock implementation
-
+    async adminSummary(req, res, next) {
         try {
-            // Mock payment processing delay
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const [summary] = await Order.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        totalOrders: { $sum: 1 },
+                        totalRevenue: { $sum: '$totalAmount' },
+                        paidOrders: {
+                            $sum: {
+                                $cond: [{ $eq: ['$paymentStatus', 'paid'] }, 1, 0],
+                            },
+                        },
+                        newOrders: {
+                            $sum: {
+                                $cond: [{ $eq: ['$status', 'new'] }, 1, 0],
+                            },
+                        },
+                        processingOrders: {
+                            $sum: {
+                                $cond: [{ $eq: ['$status', 'process'] }, 1, 0],
+                            },
+                        },
+                        deliveredOrders: {
+                            $sum: {
+                                $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0],
+                            },
+                        },
+                        cancelledOrders: {
+                            $sum: {
+                                $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0],
+                            },
+                        },
+                    },
+                },
+            ]);
 
-            // Mock success/failure (90% success rate)
-            const success = Math.random() > 0.1;
-
-            if (success) {
-                return {
-                    success: true,
-                    transactionId: `txn_${Date.now()}`
-                };
-            } else {
-                return {
-                    success: false,
-                    error: 'Payment declined by bank'
-                };
-            }
+            return res.json({
+                success: true,
+                data: {
+                    totalOrders: summary?.totalOrders || 0,
+                    totalRevenue: summary?.totalRevenue || 0,
+                    paidOrders: summary?.paidOrders || 0,
+                    newOrders: summary?.newOrders || 0,
+                    processingOrders: summary?.processingOrders || 0,
+                    deliveredOrders: summary?.deliveredOrders || 0,
+                    cancelledOrders: summary?.cancelledOrders || 0,
+                },
+            });
         } catch (error) {
-            return {
-                success: false,
-                error: error.message
-            };
+            return next(new AppError('Failed to fetch order summary', 500));
+        }
+    }
+
+    async updateStatus(req, res, next) {
+        try {
+            const { id } = req.params;
+            const { status, paymentStatus } = req.body;
+
+            if (!mongoose.Types.ObjectId.isValid(id)) {
+                return next(new AppError('Invalid order ID', 400));
+            }
+
+            if (status !== undefined && !ORDER_STATUSES.includes(status)) {
+                return next(new AppError('Invalid order status', 422));
+            }
+
+            if (paymentStatus !== undefined && !PAYMENT_STATUSES.includes(paymentStatus)) {
+                return next(new AppError('Invalid payment status', 422));
+            }
+
+            const update = {};
+            if (status !== undefined) update.status = status;
+            if (paymentStatus !== undefined) update.paymentStatus = paymentStatus;
+
+            const order = await Order.findByIdAndUpdate(id, update, { new: true, runValidators: true }).lean();
+
+            if (!order) {
+                return next(new AppError('Order not found', 404));
+            }
+
+            return res.json({
+                success: true,
+                message: 'Order updated successfully',
+                data: order,
+            });
+        } catch (error) {
+            if (error instanceof AppError) return next(error);
+            return next(new AppError('Failed to update order', 500));
         }
     }
 }

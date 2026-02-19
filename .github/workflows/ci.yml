@@ -1,0 +1,66 @@
+name: CI
+
+on:
+    push:
+        branches: ['**']
+    pull_request:
+
+jobs:
+    quality:
+        runs-on: ubuntu-latest
+        services:
+            mongo:
+                image: mongo:7
+                ports:
+                    - 27017:27017
+                options: >-
+                    --health-cmd "mongosh --eval 'db.adminCommand({ ping: 1 })'"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 10
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Lint
+              run: npm run lint
+
+            - name: Test
+              run: npm test
+
+            - name: Build
+              run: npm run build
+
+            - name: Prepare Backend Env For Smoke
+              run: |
+                  cp backend/.env.example backend/.env
+                  {
+                    echo "PORT=5001"
+                    echo "API_URL=http://127.0.0.1:5001"
+                    echo "MONGODB_URI=mongodb://127.0.0.1:27017/enterprise_ecommerce_ci"
+                    echo "FRONTEND_URL=http://127.0.0.1:5173"
+                    echo "JWT_SECRET=ci-jwt-secret-change-this-at-least-32-chars"
+                    echo "JWT_REFRESH_SECRET=ci-refresh-secret-change-this-at-least-32-chars"
+                    echo "ADMIN_PASSWORD=CiAdminPassword123!"
+                  } >> backend/.env
+
+            - name: API E2E Smoke
+              run: |
+                  nohup node backend/src/server.js > backend-smoke.log 2>&1 &
+                  for i in {1..30}; do
+                    if curl -fsS "http://127.0.0.1:5001/health" > /tmp/health.json; then
+                      break
+                    fi
+                    sleep 2
+                  done
+                  cat /tmp/health.json
+                  grep -q "\"success\":true" /tmp/health.json

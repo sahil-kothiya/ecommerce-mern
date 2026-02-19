@@ -9,6 +9,7 @@ const BrandsList = () => {
     const [brands, setBrands] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('active');
     const [brandToDelete, setBrandToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -74,9 +75,11 @@ const BrandsList = () => {
         }
     };
 
-    const filteredBrands = brands.filter(brand =>
-        brand.title?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredBrands = brands.filter((brand) => {
+        const matchesSearch = brand.title?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStatus = !statusFilter || brand.status === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
 
     const totalBrands = brands.length;
     const activeBrands = brands.filter((brand) => brand.status === 'active').length;
@@ -151,28 +154,49 @@ const BrandsList = () => {
 
             {/* Search Section */}
             <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm">
-                <div className="relative max-w-2xl">
-                    <svg className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <input
-                        type="text"
-                        placeholder="Search by brand title..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full px-4 py-3 pl-10 pr-10 border border-slate-300 rounded-xl focus:ring-2 focus:ring-cyan-300 focus:border-cyan-400 text-slate-800"
-                    />
-                    {searchTerm && (
-                        <button
-                            onClick={() => setSearchTerm('')}
-                            className="absolute right-3 top-3 text-slate-400 hover:text-slate-700"
-                            aria-label="Clear search"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    )}
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto_auto]">
+                    <div className="relative">
+                        <svg className="w-5 h-5 text-slate-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                            type="text"
+                            placeholder="Search by brand title..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full px-4 py-3 pl-10 pr-10 border border-slate-300 rounded-xl focus:ring-2 focus:ring-cyan-300 focus:border-cyan-400 text-slate-800"
+                        />
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-3 top-3 text-slate-400 hover:text-slate-700"
+                                aria-label="Clear search"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:ring-2 focus:ring-cyan-300 focus:border-cyan-400"
+                    >
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setSearchTerm('');
+                            setStatusFilter('active');
+                        }}
+                        className="rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white transition-colors hover:bg-slate-700"
+                    >
+                        Reset
+                    </button>
                 </div>
                 <p className="text-sm text-slate-500 mt-3">
                     Showing <span className="font-semibold text-slate-800">{filteredBrands.length}</span> result{filteredBrands.length !== 1 ? 's' : ''}.

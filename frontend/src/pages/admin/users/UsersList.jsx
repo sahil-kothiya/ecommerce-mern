@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import notify from '../../../utils/notify';
 import { API_CONFIG } from '../../../constants';
+import authService from '../../../services/authService';
 
 const UsersList = () => {
     const [users, setUsers] = useState([]);
@@ -11,7 +12,7 @@ const UsersList = () => {
     const [userToDelete, setUserToDelete] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState('');
-    const [statusFilter, setStatusFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('active');
     const [pagination, setPagination] = useState({
         page: 1,
         limit: 10,
@@ -21,6 +22,14 @@ const UsersList = () => {
         hasNext: false,
     });
     const requestCounterRef = useRef(0);
+
+    const getPhotoUrl = (path) => {
+        if (!path) return '';
+        if (/^https?:\/\//i.test(path)) return path;
+        if (path.startsWith('/images/')) return `${API_CONFIG.BASE_URL}${path}`;
+        if (path.startsWith('/uploads/')) return `${API_CONFIG.BASE_URL}${path}`;
+        return `${API_CONFIG.BASE_URL}/uploads/${path.replace(/^\/+/, '')}`;
+    };
 
     useEffect(() => {
         loadUsers();
@@ -47,7 +56,6 @@ const UsersList = () => {
             } else {
                 setIsInitialLoading(true);
             }
-            const token = localStorage.getItem('auth_token');
             const page = overrides.page || pagination.page;
             const query = new URLSearchParams({
                 page: String(page),
@@ -61,8 +69,9 @@ const UsersList = () => {
             if (status) query.append('status', status);
 
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}?${query.toString()}`, {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                headers: authService.getAuthHeaders({}, false),
             });
+            if (authService.handleUnauthorizedResponse(response)) return;
             const data = await response.json();
             if (requestId !== requestCounterRef.current) return;
             if (!response.ok || !data?.success) {
@@ -102,6 +111,16 @@ const UsersList = () => {
         return { total, active, admins, normalUsers };
     }, [users]);
 
+    const orderedUsers = useMemo(() => {
+        const rolePriority = { admin: 0, user: 1 };
+        return [...users].sort((a, b) => {
+            const roleA = rolePriority[a.role] ?? 2;
+            const roleB = rolePriority[b.role] ?? 2;
+            if (roleA !== roleB) return roleA - roleB;
+            return String(a.name || '').localeCompare(String(b.name || ''));
+        });
+    }, [users]);
+
     const dynamicDescription = useMemo(() => {
         return `Showing ${users.length} of ${stats.total} users | Active (page): ${stats.active} | Admins (page): ${stats.admins}`;
     }, [users.length, stats.total, stats.active, stats.admins]);
@@ -109,11 +128,11 @@ const UsersList = () => {
     const handleDelete = async () => {
         if (!userToDelete?._id) return;
         try {
-            const token = localStorage.getItem('auth_token');
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}/${userToDelete._id}`, {
                 method: 'DELETE',
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                headers: authService.getAuthHeaders({}, false),
             });
+            if (authService.handleUnauthorizedResponse(response)) return;
             const data = await response.json();
             if (!response.ok || !data?.success) {
                 notify.error(data, 'Failed to delete user');
@@ -190,14 +209,31 @@ const UsersList = () => {
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
-                    <input
-                        type="text"
-                        placeholder="Search name or email..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 lg:col-span-2"
-                    />
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto_auto_auto]">
+                    <div className="relative">
+                        <svg className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                            type="text"
+                            placeholder="Search name or email..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                        />
+                        {searchTerm && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-3 top-3 text-slate-400 hover:text-slate-700"
+                                aria-label="Clear search"
+                            >
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
                     <select
                         value={roleFilter}
                         onChange={(e) => setRoleFilter(e.target.value)}
@@ -216,20 +252,18 @@ const UsersList = () => {
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
                     </select>
-                </div>
-                <div className="mt-3">
                     <button
                         type="button"
                         onClick={() => {
                             setSearchTerm('');
                             setRoleFilter('');
-                            setStatusFilter('');
+                            setStatusFilter('active');
                             setPagination((prev) => ({ ...prev, page: 1 }));
-                            loadUsers({ page: 1, search: '', role: '', status: '' }, { background: true });
+                            loadUsers({ page: 1, search: '', role: '', status: 'active' }, { background: true });
                         }}
-                        className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                        className="rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white transition-colors hover:bg-slate-700"
                     >
-                        Reset Filters
+                        Reset
                     </button>
                 </div>
                 {isFetching && (
@@ -254,12 +288,24 @@ const UsersList = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {users.map((user, index) => (
+                        {orderedUsers.map((user, index) => (
                             <tr key={user._id} className="border-b border-slate-100">
                                 <td className="py-3 pr-3">{(pagination.page - 1) * pagination.limit + index + 1}</td>
                                 <td className="py-3 pr-3">
                                     <div className="flex items-center gap-3">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-cyan-600 to-blue-600 font-semibold text-white">
+                                        {user.photo ? (
+                                            <img
+                                                src={getPhotoUrl(user.photo)}
+                                                alt={user.name || 'User photo'}
+                                                className="h-10 w-10 rounded-full object-cover"
+                                                onError={(e) => {
+                                                    e.currentTarget.style.display = 'none';
+                                                    const next = e.currentTarget.nextElementSibling;
+                                                    if (next) next.classList.remove('hidden');
+                                                }}
+                                            />
+                                        ) : null}
+                                        <div className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-cyan-600 to-blue-600 font-semibold text-white ${user.photo ? 'hidden' : ''}`}>
                                             {user.name?.charAt(0)?.toUpperCase() || 'U'}
                                         </div>
                                         <span className="font-semibold text-slate-900">{user.name}</span>

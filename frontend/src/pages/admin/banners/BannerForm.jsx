@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_CONFIG } from '../../../constants';
 import notify from '../../../utils/notify';
+import { applyServerFieldErrors, clearFieldError, getFieldBorderClass, hasValidationErrors } from '../../../utils/formValidation';
 
 const BannerForm = () => {
     const { id } = useParams();
@@ -37,6 +38,7 @@ const BannerForm = () => {
     const getImageUrl = (path) => {
         if (!path) return '';
         if (/^https?:\/\//i.test(path)) return path;
+        if (path.startsWith('/')) return `${API_CONFIG.BASE_URL}${path}`;
         return `${API_CONFIG.BASE_URL}/uploads/${path}`;
     };
 
@@ -110,7 +112,7 @@ const BannerForm = () => {
         }
 
         if (errors[name]) {
-            setErrors((prev) => ({ ...prev, [name]: null }));
+            clearFieldError(setErrors, name);
         }
     };
 
@@ -131,7 +133,7 @@ const BannerForm = () => {
         }
 
         setImage(file);
-        setErrors((prev) => ({ ...prev, image: null }));
+        clearFieldError(setErrors, 'image');
 
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -178,8 +180,9 @@ const BannerForm = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!validateForm()) {
-            notify.error('Please fix form errors');
+        const isValid = validateForm();
+        if (!isValid) {
+            notify.error('Please fix form validation errors');
             return;
         }
 
@@ -223,6 +226,11 @@ const BannerForm = () => {
             const data = await response.json();
 
             if (!response.ok || !data.success) {
+                const mapped = applyServerFieldErrors(setErrors, data?.errors);
+                if (hasValidationErrors(mapped)) {
+                    notify.error(data?.message || 'Please fix form validation errors');
+                    return;
+                }
                 notify.error(data, `Failed to ${isEdit ? 'update' : 'create'} banner`);
                 return;
             }
@@ -300,7 +308,7 @@ const BannerForm = () => {
             <form onSubmit={handleSubmit} noValidate className="space-y-6">
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
                     <div className="order-2 space-y-6 lg:order-2">
-                        <div className="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all hover:shadow-[0_20px_40px_rgba(15,23,42,0.12)] sm:p-7">
+                        <div className="media-card">
                             <div className="mb-4 flex items-center justify-between">
                                 <h2 className="text-xl font-black text-slate-900">Banner Image</h2>
                                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200 bg-gradient-to-br from-indigo-100 to-blue-100 text-indigo-700">
@@ -331,14 +339,7 @@ const BannerForm = () => {
                                             </button>
                                         </div>
                                     ) : (
-                                        <div className="flex h-48 items-center justify-center rounded-2xl border-2 border-dashed border-indigo-200 bg-gradient-to-br from-indigo-50 via-slate-50 to-blue-100">
-                                            <div className="text-center">
-                                                <svg className="mx-auto mb-2 h-12 w-12 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
-                                                </svg>
-                                                <p className="text-sm font-semibold text-slate-600">No banner image</p>
-                                            </div>
-                                        </div>
+                                        <div className="media-preview-empty h-48">No banner image</div>
                                     )}
                                 </div>
 
@@ -350,8 +351,8 @@ const BannerForm = () => {
                                         type="file"
                                         accept="image/jpeg,image/png,image/gif,image/webp"
                                         onChange={handleImageChange}
-                                        className={`block w-full cursor-pointer rounded-xl border bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:outline-none ${
-                                            errors.image ? 'border-red-500' : 'border-slate-300'
+                                        className={`media-file-input ${
+                                            getFieldBorderClass(errors, 'image')
                                         }`}
                                     />
                                     <p className="mt-2 text-sm text-slate-500">Upload image (JPG, PNG, GIF, WEBP - Max 5MB)</p>
@@ -383,7 +384,7 @@ const BannerForm = () => {
                                     value={formData.title}
                                     onChange={handleChange}
                                     className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${
-                                        errors.title ? 'border-red-500' : 'border-slate-300'
+                                        getFieldBorderClass(errors, 'title')
                                     }`}
                                     placeholder="Enter banner title"
                                 />
@@ -414,7 +415,7 @@ const BannerForm = () => {
                                         value={formData.linkType}
                                         onChange={handleChange}
                                         className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${
-                                            errors.linkType ? 'border-red-500' : 'border-slate-300'
+                                            getFieldBorderClass(errors, 'linkType')
                                         }`}
                                     >
                                         <option value="">-- Select Link Type --</option>
@@ -435,10 +436,10 @@ const BannerForm = () => {
                                             value={selectedDiscountId}
                                             onChange={(e) => {
                                                 setSelectedDiscountId(e.target.value);
-                                                if (errors.discount) setErrors((prev) => ({ ...prev, discount: null }));
+                                                clearFieldError(setErrors, 'discount');
                                             }}
                                             className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${
-                                                errors.discount ? 'border-red-500' : 'border-slate-300'
+                                                getFieldBorderClass(errors, 'discount')
                                             }`}
                                         >
                                             <option value="">-- Select Discount --</option>
@@ -461,7 +462,7 @@ const BannerForm = () => {
                                             value={formData.link}
                                             onChange={handleChange}
                                             className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${
-                                                errors.link ? 'border-red-500' : 'border-slate-300'
+                                                getFieldBorderClass(errors, 'link')
                                             }`}
                                             placeholder="e.g. /product/sku-123 OR /category/electronics OR https://example.com"
                                         />

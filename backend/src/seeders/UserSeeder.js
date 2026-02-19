@@ -1,18 +1,27 @@
 import { logger } from '../utils/logger.js';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const sourceImagesRoot = path.resolve(__dirname, '../../../images');
 
 export class UserSeeder {
     constructor() {
         this.userCount = 0;
         this.batchSize = 500;
+        this.userImages = [];
     }
 
     async run(totalUsers = 1000) {
         logger.info(`ðŸ‘¥ Starting User Seeding (${totalUsers.toLocaleString()} users)...\n`);
 
         try {
+            await this.loadUserImages();
+
             // Clear existing users
             await this.clearExistingUsers();
 
@@ -40,6 +49,23 @@ export class UserSeeder {
         logger.info('âœ… Existing users cleared');
     }
 
+    async loadUserImages() {
+        try {
+            const files = await fs.readdir(sourceImagesRoot);
+            this.userImages = files.filter((name) => /\.(png|jpe?g|webp|gif|svg)$/i.test(name));
+            logger.info(`Loaded ${this.userImages.length} user seed images from /images`);
+        } catch (error) {
+            this.userImages = [];
+            logger.warn(`Could not read user image seed directory: ${sourceImagesRoot}`);
+        }
+    }
+
+    pickUserPhoto(index = 0) {
+        if (!this.userImages.length) return null;
+        const fileName = this.userImages[index % this.userImages.length];
+        return `/images/${fileName}`;
+    }
+
     async createAdminUser() {
         logger.info('ðŸ‘‘ Creating admin user...');
 
@@ -49,6 +75,7 @@ export class UserSeeder {
             password: 'password123',
             role: 'admin',
             status: 'active',
+            photo: this.pickUserPhoto(0),
             emailVerifiedAt: new Date(),
             profile: {
                 avatar: 'https://ui-avatars.com/api/?name=Admin+User&background=random',
@@ -93,6 +120,7 @@ export class UserSeeder {
             password: 'password123',
             role: 'user',
             status: 'active',
+            photo: this.pickUserPhoto(1),
             emailVerifiedAt: new Date(),
             profile: {
                 avatar: 'https://ui-avatars.com/api/?name=Demo+User&background=random',
@@ -164,6 +192,7 @@ export class UserSeeder {
             password: 'password123',
             role: this.getRandomRole(),
             status: this.getRandomStatus(),
+            photo: this.pickUserPhoto(index + 2),
             profile: {
                 avatar: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=random`,
                 bio: this.generateBio(firstName, lastName),

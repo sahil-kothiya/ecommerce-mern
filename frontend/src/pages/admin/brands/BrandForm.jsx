@@ -11,6 +11,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { API_CONFIG } from '../../../constants';
 import { brandService } from '../../../services/brandService';
+import { clearFieldError, getFieldBorderClass, mapServerFieldErrors } from '../../../utils/formValidation';
 
 const BrandForm = () => {
     const { id } = useParams();
@@ -79,9 +80,7 @@ const BrandForm = () => {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
-        if (errors[name]) {
-            setErrors(prev => ({ ...prev, [name]: null }));
-        }
+        clearFieldError(setErrors, name);
     };
 
     const handleLogoChange = (e) => {
@@ -90,15 +89,18 @@ const BrandForm = () => {
 
         if (!file.type.startsWith('image/')) {
             toast.error('Please select an image file');
+            setErrors(prev => ({ ...prev, logo: 'Please select an image file' }));
             return;
         }
 
         if (file.size > 5 * 1024 * 1024) {
             toast.error('Logo must be less than 5MB');
+            setErrors(prev => ({ ...prev, logo: 'Logo must be less than 5MB' }));
             return;
         }
 
         setLogo(file);
+        clearFieldError(setErrors, 'logo');
 
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -139,7 +141,7 @@ const BrandForm = () => {
 
         if (validFiles.length === 0) return;
 
-        setErrors(prev => ({ ...prev, banners: null }));
+        clearFieldError(setErrors, 'banners');
         setBannerImages(prev => [...prev, ...validFiles]);
 
         validFiles.forEach(file => {
@@ -168,12 +170,12 @@ const BrandForm = () => {
     const removeBanner = (index) => {
         setBannerImages(prev => prev.filter((_, i) => i !== index));
         setBannerPreviews(prev => prev.filter((_, i) => i !== index));
-        setErrors(prev => ({ ...prev, banners: null }));
+        clearFieldError(setErrors, 'banners');
     };
 
     const removeExistingBanner = (index) => {
         setExistingBanners(prev => prev.filter((_, i) => i !== index));
-        setErrors(prev => ({ ...prev, banners: null }));
+        clearFieldError(setErrors, 'banners');
     };
 
     /**
@@ -264,10 +266,7 @@ const BrandForm = () => {
             // Handle server-side validation errors
             if (error.errors && Array.isArray(error.errors)) {
                 // Format: [{ field: 'title', message: 'error message' }]
-                const serverErrors = {};
-                error.errors.forEach(err => {
-                    serverErrors[err.field] = err.message;
-                });
+                const serverErrors = mapServerFieldErrors(error.errors);
                 setErrors(serverErrors);
                 
                 // Show first error in toast
@@ -346,7 +345,7 @@ const BrandForm = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                     <div className="space-y-6 order-2 lg:order-2">
                         {/* Logo Upload */}
-                        <div className="bg-white/95 backdrop-blur rounded-3xl shadow-[0_10px_30px_rgba(15,23,42,0.08)] border border-slate-200 p-6 sm:p-7 transition-all hover:shadow-[0_20px_40px_rgba(15,23,42,0.12)]">
+                        <div className="media-card">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-black text-slate-900">Brand Logo (Optional)</h2>
                                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-cyan-100 to-sky-100 text-cyan-700 border border-cyan-200">
@@ -378,14 +377,7 @@ const BrandForm = () => {
                                             </button>
                                         </div>
                                     ) : (
-                                        <div className="w-full aspect-square bg-gradient-to-br from-cyan-50 via-slate-50 to-sky-100 rounded-2xl border-2 border-dashed border-cyan-200 flex items-center justify-center">
-                                            <div className="text-center">
-                                                <svg className="mx-auto h-12 w-12 text-cyan-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                </svg>
-                                                <p className="text-sm text-slate-600 font-semibold">No logo</p>
-                                            </div>
-                                        </div>
+                                        <div className="media-preview-empty aspect-square h-auto">No logo</div>
                                     )}
                                 </div>
 
@@ -399,7 +391,7 @@ const BrandForm = () => {
                                             type="file"
                                             accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
                                             onChange={handleLogoChange}
-                                            className="block w-full text-sm text-slate-900 border border-slate-300 rounded-xl cursor-pointer bg-slate-50 focus:outline-none px-3 py-2"
+                                            className={`media-file-input ${errors.logo ? 'border-red-500 focus:ring-red-200' : ''}`}
                                         />
                                         <p className="mt-2 text-sm text-slate-500">Upload logo (JPG, PNG, SVG, WEBP - Max 5MB)</p>
                                         {errors.logo && <p className="mt-2 text-sm text-red-600">{errors.logo}</p>}
@@ -433,7 +425,7 @@ const BrandForm = () => {
                                     value={formData.title}
                                     onChange={handleChange}
                                     className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-cyan-300 focus:border-cyan-400 text-slate-900 ${
-                                        errors.title ? 'border-red-500' : 'border-slate-300'
+                                        getFieldBorderClass(errors, 'title')
                                     }`}
                                     placeholder="Enter brand title"
                                 />
@@ -451,7 +443,7 @@ const BrandForm = () => {
                                     rows="4"
                                     maxLength="1000"
                                     className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-cyan-300 focus:border-cyan-400 text-slate-900 ${
-                                        errors.description ? 'border-red-500' : 'border-slate-300'
+                                        getFieldBorderClass(errors, 'description')
                                     }`}
                                     placeholder="Brand description"
                                 />
@@ -468,7 +460,7 @@ const BrandForm = () => {
                                     value={formData.status}
                                     onChange={handleChange}
                                     className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-cyan-300 focus:border-cyan-400 text-slate-900 ${
-                                        errors.status ? 'border-red-500' : 'border-slate-300'
+                                        getFieldBorderClass(errors, 'status')
                                     }`}
                                 >
                                     <option value="active">Active</option>
@@ -479,7 +471,7 @@ const BrandForm = () => {
                         </div>
 
                         {/* Banner Images */}
-                        <div className="bg-white/95 backdrop-blur rounded-3xl shadow-[0_10px_30px_rgba(15,23,42,0.08)] border border-slate-200 p-6 sm:p-7 transition-all hover:shadow-[0_20px_40px_rgba(15,23,42,0.12)]">
+                        <div className="media-card">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-black text-slate-900">Brand Banners (Optional)</h2>
                                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-amber-100 to-orange-100 text-amber-700 border border-amber-200">
@@ -499,8 +491,8 @@ const BrandForm = () => {
                                     multiple
                                     accept="image/jpeg,image/png,image/gif,image/webp"
                                     onChange={handleBannerChange}
-                                    className={`block w-full text-sm text-slate-900 border rounded-xl cursor-pointer bg-slate-50 focus:outline-none px-3 py-2 ${
-                                        errors.banners ? 'border-red-500 focus:ring-red-200' : 'border-slate-300'
+                                    className={`media-file-input ${
+                                        errors.banners ? 'border-red-500 focus:ring-red-200' : getFieldBorderClass(errors, 'banners')
                                     }`}
                                 />
                                 <p className="mt-2 text-sm text-slate-500">Upload banner images (JPG, PNG, GIF, WEBP - Max 5MB, Max 3 banners)</p>
@@ -510,9 +502,9 @@ const BrandForm = () => {
                             {existingBanners.length > 0 && (
                                 <div className="mb-6">
                                     <h3 className="text-sm font-semibold text-slate-700 mb-3">Current Banners</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="media-grid md:grid-cols-3">
                                         {existingBanners.map((banner, index) => (
-                                            <div key={index} className="relative group aspect-video bg-slate-100 rounded-xl overflow-hidden border-2 border-slate-200">
+                                            <div key={index} className="group media-thumb aspect-video">
                                                 <img
                                                     src={getImageUrl(banner)}
                                                     alt={`Banner ${index + 1}`}
@@ -521,7 +513,7 @@ const BrandForm = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => removeExistingBanner(index)}
-                                                    className="absolute top-2 right-2 bg-rose-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    className="media-remove-btn"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -536,9 +528,9 @@ const BrandForm = () => {
                             {bannerPreviews.length > 0 && (
                                 <div>
                                     <h3 className="text-sm font-semibold text-slate-700 mb-3">New Banners</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="media-grid md:grid-cols-3">
                                         {bannerPreviews.map((preview, index) => (
-                                            <div key={index} className="relative group aspect-video bg-slate-100 rounded-xl overflow-hidden border-2 border-slate-200">
+                                            <div key={index} className="group media-thumb aspect-video">
                                                 <img
                                                     src={preview.url}
                                                     alt={preview.name}
@@ -547,7 +539,7 @@ const BrandForm = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => removeBanner(index)}
-                                                    className="absolute top-2 right-2 bg-rose-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    className="media-remove-btn"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

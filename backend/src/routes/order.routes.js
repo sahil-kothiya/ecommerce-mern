@@ -1,35 +1,31 @@
 import { Router } from 'express';
 import { protect, authorize } from '../middleware/auth.js';
+import { orderController } from '../controllers/OrderController.js';
+import {
+    createOrderValidator,
+    orderIdValidator,
+    orderQueryValidator,
+    returnRequestValidator,
+    updateOrderStatusValidator,
+    validate,
+} from '../validators/index.js';
 
 const router = Router();
 
 // All order routes require authentication
 router.use(protect);
 
-// User routes
-router.get('/', (req, res) => {
-    res.status(501).json({ message: 'Get user orders endpoint - to be implemented' });
-});
-
-router.get('/:id', (req, res) => {
-    res.status(501).json({ message: 'Get order by ID endpoint - to be implemented' });
-});
-
-router.post('/', (req, res) => {
-    res.status(501).json({ message: 'Create order endpoint - to be implemented' });
-});
-
 // Admin routes
-router.get('/admin/all', authorize('admin'), (req, res) => {
-    res.status(501).json({ message: 'Get all orders endpoint - Admin - to be implemented' });
-});
+router.get('/admin/summary', authorize('admin'), orderController.adminSummary.bind(orderController));
+router.get('/admin/all', authorize('admin'), orderQueryValidator, validate, orderController.adminAll.bind(orderController));
+router.put('/:id/status', authorize('admin'), updateOrderStatusValidator, validate, orderController.updateStatus.bind(orderController));
 
-router.put('/:id/status', authorize('admin'), (req, res) => {
-    res.status(501).json({ message: 'Update order status endpoint - to be implemented' });
-});
-
-router.delete('/:id', authorize('admin'), (req, res) => {
-    res.status(501).json({ message: 'Delete order endpoint - to be implemented' });
-});
+// User routes
+router.post('/', createOrderValidator, validate, orderController.store.bind(orderController));
+router.get('/', orderQueryValidator, validate, orderController.index.bind(orderController));
+router.get('/returns', orderController.listReturns.bind(orderController));
+router.post('/:id/reorder', orderIdValidator, validate, orderController.reorder.bind(orderController));
+router.post('/:id/returns', returnRequestValidator, validate, orderController.requestReturn.bind(orderController));
+router.get('/:id', orderIdValidator, validate, orderController.show.bind(orderController));
 
 export default router;

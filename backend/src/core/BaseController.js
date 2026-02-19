@@ -1,5 +1,6 @@
 import { logger } from '../utils/logger.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { config } from '../config/index.js';
 
 export class BaseController {
     /**
@@ -73,7 +74,10 @@ export class BaseController {
      * @throws {AppError} If validation fails
      */
     validateRequiredFields(body, requiredFields) {
-        const missingFields = requiredFields.filter(field => !body[field]);
+        const missingFields = requiredFields.filter((field) => {
+            const value = body[field];
+            return value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
+        });
         
         if (missingFields.length > 0) {
             throw new AppError(
@@ -176,10 +180,12 @@ export class BaseController {
      * @param {Object} options - Additional cookie options
      */
     setTokenCookie(res, name, value, options = {}) {
+        const isProduction = config.nodeEnv === 'production';
+        const isCrossOrigin = config.frontendUrl !== config.apiUrl;
         const cookieOptions = {
             httpOnly: true, // Prevent XSS attacks
-            secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-            sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // 'lax' for cross-origin in dev
+            secure: isProduction, // HTTPS only in production
+            sameSite: isProduction && isCrossOrigin ? 'none' : 'lax',
             path: '/',
             ...options
         };
@@ -193,10 +199,12 @@ export class BaseController {
      * @param {string} name - Cookie name
      */
     clearTokenCookie(res, name) {
+        const isProduction = config.nodeEnv === 'production';
+        const isCrossOrigin = config.frontendUrl !== config.apiUrl;
         res.clearCookie(name, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+            secure: isProduction,
+            sameSite: isProduction && isCrossOrigin ? 'none' : 'lax',
             path: '/'
         });
     }

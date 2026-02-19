@@ -5,6 +5,26 @@ import path from 'path';
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [react()],
+    test: {
+        environment: 'jsdom',
+        globals: true,
+        setupFiles: './src/test/setup.js',
+    },
+    build: {
+        target: 'es2020',
+        sourcemap: false,
+        cssCodeSplit: true,
+        reportCompressedSize: true,
+        chunkSizeWarningLimit: 900,
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    react: ['react', 'react-dom', 'react-router-dom'],
+                    redux: ['@reduxjs/toolkit', 'react-redux'],
+                },
+            },
+        },
+    },
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src'),

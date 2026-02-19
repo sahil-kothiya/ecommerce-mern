@@ -1,364 +1,254 @@
-/**
- * AdminLayout Component
- * 
- * Main layout wrapper for the admin dashboard that provides:
- * - Fixed top navigation bar with branding and user info
- * - Collapsible sidebar navigation
- * - Main content area with nested routing
- * - Logout functionality
- * 
- * @component
- * @returns {JSX.Element} Admin layout with header, sidebar, and content area
- */
-
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-/**
- * Navigation menu items configuration
- * @constant {Array<Object>}
- */
 const MENU_ITEMS = [
-    { path: '/admin', icon: '📊', label: 'Dashboard', exact: true },
-    { path: '/admin/products', icon: '📦', label: 'Products' },
-    { path: '/admin/categories', icon: '📂', label: 'Categories' },
-    { path: '/admin/users', icon: '👥', label: 'Users' },
-    { path: '/admin/orders', icon: '🛍️', label: 'Orders' },
-    { path: '/admin/banners', icon: '🖼️', label: 'Banners' },
-    { path: '/admin/brands', icon: '🏷️', label: 'Brands' },
-    { path: '/admin/discounts', icon: '%', label: 'Discounts' },
-    { path: '/admin/reviews', icon: '⭐', label: 'Reviews' },
-    { path: '/admin/settings', icon: '⚙️', label: 'Settings' },
+    { key: 'dashboard', path: '/admin', label: 'Dashboard', exact: true },
+    { key: 'products', path: '/admin/products', label: 'Products' },
+    { key: 'categories', path: '/admin/categories', label: 'Categories' },
+    { key: 'users', path: '/admin/users', label: 'Users' },
+    { key: 'orders', path: '/admin/orders', label: 'Orders' },
+    { key: 'banners', path: '/admin/banners', label: 'Banners' },
+    { key: 'brands', path: '/admin/brands', label: 'Brands' },
+    { key: 'discounts', path: '/admin/discounts', label: 'Discounts' },
+    { key: 'coupons', path: '/admin/coupons', label: 'Coupons' },
+    {
+        key: 'variants',
+        label: 'Variants',
+        children: [
+            { key: 'variant-types', path: '/admin/variant-type', label: 'Types' },
+            { key: 'variant-type-create', path: '/admin/variant-type/create', label: 'Add Type' },
+            { key: 'variant-options', path: '/admin/variant-option', label: 'Options' },
+            { key: 'variant-option-create', path: '/admin/variant-option/create', label: 'Add Option' },
+        ],
+    },
+    { key: 'reviews', path: '/admin/reviews', label: 'Reviews' },
+    { key: 'settings', path: '/admin/settings', label: 'Settings' },
 ];
 
-/**
- * UI Configuration Constants
- */
 const UI_CONFIG = {
-    SIDEBAR_WIDTH: 'w-64',
-    SIDEBAR_COLLAPSED_WIDTH: 'w-0',
-    HEADER_HEIGHT: 'top-16',
-    BRAND_NAME: 'E-Shop Pro',
+    SIDEBAR_OPEN: 'w-72',
+    SIDEBAR_CLOSED: 'w-0',
+    BRAND_NAME: 'Enterprise Commerce',
 };
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
+const iconClass = 'h-[18px] w-[18px]';
+
+const NavGlyph = ({ name }) => {
+    switch (name) {
+        case 'dashboard':
+            return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6v-9h-6v9zm0-16v5h6V4h-6z" /></svg>;
+        case 'products':
+            return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" /></svg>;
+        case 'categories':
+            return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h8V3H3v4zm10 0h8V3h-8v4zM3 21h8v-10H3v10zm10 0h8v-10h-8v10z" /></svg>;
+        case 'users':
+            return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-5-3.87M9 20H4v-2a4 4 0 015-3.87m8-4a4 4 0 11-8 0 4 4 0 018 0zM6 10a3 3 0 100-6 3 3 0 000 6zm12 0a3 3 0 100-6 3 3 0 000 6z" /></svg>;
+        case 'orders':
+            return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m1.6 8L5.4 5M7 13l-1.5 7h13M9 20a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z" /></svg>;
+        case 'banners':
+            return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16v12H4z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l5-5 4 4 3-3 4 4" /></svg>;
+        case 'brands':
+            return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h10l2 5-7 7-7-7 2-5z" /></svg>;
+        case 'discounts':
+            return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 5L5 19M7 7h.01M17 17h.01" /></svg>;
+        case 'coupons':
+            return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-6 0h.01M15 14h.01M7 5h10a2 2 0 012 2v3a2 2 0 01-2 2h-1l-2 2 2 2h1a2 2 0 012 2v3a2 2 0 01-2 2H7a2 2 0 01-2-2v-3a2 2 0 012-2h1l2-2-2-2H7a2 2 0 01-2-2V7a2 2 0 012-2z" /></svg>;
+        case 'variants':
+            return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317a1 1 0 011.35-.936l1.612.806a1 1 0 001.184-.21l1.24-1.24a1 1 0 011.414 0l1.414 1.414a1 1 0 010 1.414l-1.24 1.24a1 1 0 00-.21 1.184l.806 1.612a1 1 0 01-.936 1.35H17a1 1 0 00-.95.684l-.538 1.614a1 1 0 01-.949.684h-2.126a1 1 0 01-.949-.684l-.538-1.614A1 1 0 0010 10H8.001a1 1 0 01-.936-1.35l.806-1.612a1 1 0 00-.21-1.184l-1.24-1.24a1 1 0 010-1.414l1.414-1.414a1 1 0 011.414 0l1.24 1.24a1 1 0 001.184.21l1.612-.806z" /></svg>;
+        case 'reviews':
+            return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.959a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.367 2.447a1 1 0 00-.364 1.118l1.286 3.959c.3.921-.755 1.688-1.539 1.118l-3.367-2.447a1 1 0 00-1.176 0L7.04 18.028c-.783.57-1.838-.197-1.539-1.118l1.286-3.959a1 1 0 00-.364-1.118L3.056 9.386c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.293-3.959z" /></svg>;
+        case 'settings':
+            return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 16v-2m8-6h-2M6 12H4m12.95 4.95l-1.414-1.414M8.464 8.464L7.05 7.05m9.9 0l-1.414 1.414M8.464 15.536L7.05 16.95M12 16a4 4 0 100-8 4 4 0 000 8z" /></svg>;
+        default:
+            return <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" strokeWidth={2} /></svg>;
+    }
+};
 
 const AdminLayout = () => {
-    // ------------------------------------------------------------------------
-    // Hooks
-    // ------------------------------------------------------------------------
     const location = useLocation();
     const navigate = useNavigate();
 
-    // ------------------------------------------------------------------------
-    // State Management
-    // ------------------------------------------------------------------------
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const [currentUser, setCurrentUser] = useState(null);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [expandedMenus, setExpandedMenus] = useState({ variants: false });
 
-    // ------------------------------------------------------------------------
-    // Effects
-    // ------------------------------------------------------------------------
-
-    /**
-     * Initialize user data on component mount
-     * Retrieves authenticated user information from localStorage
-     */
     useEffect(() => {
         try {
             const user = authService.getUser();
-            
-            if (user) {
-                setCurrentUser(user);
-            } else {
-                // Redirect to login if no user found
-                console.warn('No authenticated user found');
-                navigate('/login', { replace: true });
-            }
+            if (user) setCurrentUser(user);
+            else navigate('/login', { replace: true });
         } catch (error) {
-            console.error('Error loading user data:', error);
             navigate('/login', { replace: true });
         }
     }, [navigate]);
 
-    // ------------------------------------------------------------------------
-    // Memoized Values
-    // ------------------------------------------------------------------------
+    const userInitial = useMemo(() => currentUser?.name?.charAt(0)?.toUpperCase() || 'A', [currentUser]);
+    const userName = useMemo(() => currentUser?.name || 'Admin User', [currentUser]);
+    const userEmail = useMemo(() => currentUser?.email || 'admin@admin.com', [currentUser]);
 
-    /**
-     * Get user's initials for avatar display
-     * Extracts first letter of user's name, fallback to 'A'
-     */
-    const userInitial = useMemo(() => {
-        return currentUser?.name?.charAt(0)?.toUpperCase() || 'A';
-    }, [currentUser]);
-
-    /**
-     * Get user display name with fallback
-     */
-    const userName = useMemo(() => {
-        return currentUser?.name || 'Admin User';
-    }, [currentUser]);
-
-    /**
-     * Get user email with fallback
-     */
-    const userEmail = useMemo(() => {
-        return currentUser?.email || 'Loading...';
-    }, [currentUser]);
-
-    // ------------------------------------------------------------------------
-    // Event Handlers
-    // ------------------------------------------------------------------------
-
-    /**
-     * Toggle sidebar visibility
-     * @callback
-     */
-    const toggleSidebar = useCallback(() => {
-        setIsSidebarOpen(prev => !prev);
-    }, []);
-
-    /**
-     * Check if a route is currently active
-     * 
-     * @param {string} path - Route path to check
-     * @param {boolean} exact - Whether to use exact path matching
-     * @returns {boolean} True if route is active
-     */
     const isActive = useCallback((path, exact = false) => {
-        if (exact) {
-            return location.pathname === path;
-        }
+        if (exact) return location.pathname === path;
         return location.pathname.startsWith(path);
     }, [location.pathname]);
 
-    /**
-     * Handle user logout
-     * Clears authentication data and redirects to login page
-     * 
-     * @async
-     * @throws {Error} If logout fails
-     */
+    const toggleSidebar = useCallback(() => {
+        setIsSidebarOpen((prev) => !prev);
+    }, []);
+
+    const toggleMenu = useCallback((menuKey) => {
+        setExpandedMenus((prev) => ({ ...prev, [menuKey]: !prev[menuKey] }));
+    }, []);
+
     const handleLogout = useCallback(async () => {
-        // Prevent multiple logout attempts
         if (isLoggingOut) return;
-
         setIsLoggingOut(true);
-
         try {
-            // Call logout service
             await authService.logout();
-
-            // Clear local user state
             setCurrentUser(null);
-
-            // Redirect to login with replace to prevent back navigation
             navigate('/login', { replace: true });
         } catch (error) {
-            console.error('Logout failed:', error);
-
-            // Even if backend logout fails, clear local state and redirect
-            // This ensures user cannot access protected routes
             setCurrentUser(null);
             navigate('/login', { replace: true });
         } finally {
             setIsLoggingOut(false);
         }
-    }, [navigate, isLoggingOut]);
-
-    // ------------------------------------------------------------------------
-    // Render
-    // ------------------------------------------------------------------------
+    }, [isLoggingOut, navigate]);
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            {/* ============================================================ */}
-            {/* TOP NAVIGATION BAR                                           */}
-            {/* ============================================================ */}
-            <header className="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-30">
-                <div className="flex items-center justify-between px-4 py-3">
-                    {/* Left Section: Menu Toggle + Brand */}
-                    <div className="flex items-center gap-4">
-                        {/* Sidebar Toggle Button */}
+        <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-cyan-50 text-slate-800">
+            <header className="fixed left-0 right-0 top-0 z-40 border-b border-slate-200/70 bg-white/80 backdrop-blur-lg">
+                <div className="flex items-center justify-between px-4 py-3 sm:px-6">
+                    <div className="flex items-center gap-3">
                         <button
                             onClick={toggleSidebar}
-                            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 shadow-sm transition hover:border-cyan-300 hover:text-cyan-700"
                             aria-label="Toggle sidebar"
                             aria-expanded={isSidebarOpen}
                         >
-                            <svg 
-                                className="w-6 h-6 text-gray-600" 
-                                fill="none" 
-                                stroke="currentColor" 
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
-                            >
-                                <path 
-                                    strokeLinecap="round" 
-                                    strokeLinejoin="round" 
-                                    strokeWidth={2} 
-                                    d="M4 6h16M4 12h16M4 18h16" 
-                                />
-                            </svg>
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                         </button>
-
-                        {/* Brand Logo/Name */}
-                        <Link 
-                            to="/" 
-                            className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
-                            aria-label="Go to homepage"
-                        >
-                            {UI_CONFIG.BRAND_NAME}
+                        <Link to="/admin" className="flex items-center gap-3">
+                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-700 text-sm font-black text-white shadow-lg shadow-cyan-500/25">EC</span>
+                            <span className="hidden sm:block">
+                                <span className="block text-[11px] font-bold uppercase tracking-[0.25em] text-cyan-700">Admin Console</span>
+                                <span className="block text-base font-black text-slate-900">{UI_CONFIG.BRAND_NAME}</span>
+                            </span>
                         </Link>
-
-                        {/* Admin Badge */}
-                        <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
-                            Admin
-                        </span>
                     </div>
 
-                    {/* Right Section: Actions + User Profile */}
-                    <div className="flex items-center gap-4">
-                        {/* Notification Bell */}
-                        <button 
-                            className="relative p-2 text-gray-600 hover:text-blue-600 transition-colors"
-                            aria-label="View notifications"
-                        >
-                            <svg 
-                                className="w-6 h-6" 
-                                fill="none" 
-                                stroke="currentColor" 
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
-                            >
-                                <path 
-                                    strokeLinecap="round" 
-                                    strokeLinejoin="round" 
-                                    strokeWidth={2} 
-                                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" 
-                                />
-                            </svg>
-                            {/* Notification Indicator */}
-                            <span 
-                                className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
-                                aria-label="You have unread notifications"
-                            ></span>
-                        </button>
-
-                        {/* View Site Link */}
-                        <Link 
-                            to="/" 
-                            className="px-4 py-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
-                            aria-label="View public website"
-                        >
-                            View Site
-                        </Link>
-
-                        {/* User Profile Section */}
-                        <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
-                            {/* User Avatar */}
-                            <div 
-                                className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold"
-                                aria-label={`Avatar for ${userName}`}
-                            >
-                                {userInitial}
+                    <div className="flex items-center gap-3">
+                        <Link to="/" className="hidden rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-cyan-300 hover:text-cyan-700 sm:block">View Site</Link>
+                        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 text-sm font-bold text-white">{userInitial}</span>
+                            <div className="hidden text-left md:block">
+                                <p className="text-sm font-semibold text-slate-900">{userName}</p>
+                                <p className="text-xs text-slate-500">{userEmail}</p>
                             </div>
-
-                            {/* User Info */}
-                            <div>
-                                <div className="text-sm font-semibold text-gray-900">
-                                    {userName}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                    {userEmail}
-                                </div>
-                            </div>
-
-                            {/* Logout Button */}
                             <button
                                 onClick={handleLogout}
                                 disabled={isLoggingOut}
-                                className="p-2 text-gray-600 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
                                 title="Logout"
-                                aria-label="Logout from admin panel"
+                                aria-label="Logout"
                             >
-                                <svg 
-                                    className="w-5 h-5" 
-                                    fill="none" 
-                                    stroke="currentColor" 
-                                    viewBox="0 0 24 24"
-                                    aria-hidden="true"
-                                >
-                                    <path 
-                                        strokeLinecap="round" 
-                                        strokeLinejoin="round" 
-                                        strokeWidth={2} 
-                                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" 
-                                    />
-                                </svg>
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
                             </button>
                         </div>
                     </div>
                 </div>
             </header>
 
-            {/* ============================================================ */}
-            {/* MAIN CONTENT AREA                                            */}
-            {/* ============================================================ */}
             <div className="flex pt-16">
-                {/* ========================================================== */}
-                {/* SIDEBAR NAVIGATION                                         */}
-                {/* ========================================================== */}
                 <aside
-                    className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-white border-r border-gray-200 transition-all duration-300 z-20 ${
-                        isSidebarOpen ? UI_CONFIG.SIDEBAR_WIDTH : UI_CONFIG.SIDEBAR_COLLAPSED_WIDTH
-                    } overflow-hidden`}
+                    className={`fixed left-0 top-16 z-30 h-[calc(100vh-4rem)] overflow-hidden border-r border-slate-800/80 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 text-slate-200 shadow-2xl transition-all duration-300 ${
+                        isSidebarOpen ? UI_CONFIG.SIDEBAR_OPEN : UI_CONFIG.SIDEBAR_CLOSED
+                    }`}
                     aria-label="Main navigation"
                     aria-hidden={!isSidebarOpen}
                 >
-                    <nav className="p-4 space-y-1" role="navigation">
-                        {MENU_ITEMS.map((item) => {
-                            const isCurrentlyActive = isActive(item.path, item.exact);
-                            
-                            return (
-                                <Link
-                                    key={item.path}
-                                    to={item.path}
-                                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                                        isCurrentlyActive
-                                            ? 'bg-blue-50 text-blue-700 font-semibold'
-                                            : 'text-gray-700 hover:bg-gray-50'
-                                    }`}
-                                    aria-current={isCurrentlyActive ? 'page' : undefined}
-                                >
-                                    <span className="text-xl" aria-hidden="true">{item.icon}</span>
-                                    <span>{item.label}</span>
-                                </Link>
-                            );
-                        })}
-                    </nav>
+                    <div className="h-full overflow-y-auto px-4 py-5">
+                        <div className="mb-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+                            <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Navigation</p>
+                            <p className="mt-1 text-sm font-semibold text-cyan-100">Manage all modules from one place</p>
+                        </div>
+
+                        <nav className="space-y-2" role="navigation">
+                            {MENU_ITEMS.map((item) => {
+                                if (Array.isArray(item.children)) {
+                                    const isMenuActive = item.children.some((child) => isActive(child.path, true));
+                                    const isExpanded = expandedMenus[item.key] || isMenuActive;
+
+                                    return (
+                                        <div key={item.key} className="space-y-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleMenu(item.key)}
+                                                className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition ${
+                                                    isMenuActive
+                                                        ? 'border-cyan-400/40 bg-cyan-400/15 text-cyan-100'
+                                                        : 'border-slate-700 bg-slate-800/60 text-slate-200 hover:border-slate-500 hover:bg-slate-800'
+                                                }`}
+                                            >
+                                                <span className="flex items-center gap-2.5">
+                                                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-700/70 text-cyan-200">
+                                                        <NavGlyph name={item.key} />
+                                                    </span>
+                                                    <span className="font-semibold">{item.label}</span>
+                                                </span>
+                                                <span className="text-xs font-bold text-slate-300">{isExpanded ? 'v' : '>'}</span>
+                                            </button>
+
+                                            {isExpanded && (
+                                                <div className="space-y-1 rounded-xl border border-slate-700 bg-slate-800/60 p-2">
+                                                    {item.children.map((child) => {
+                                                        const isChildActive = isActive(child.path, true);
+                                                        return (
+                                                            <Link
+                                                                key={child.path}
+                                                                to={child.path}
+                                                                className={`block rounded-lg px-3 py-2 text-sm transition ${
+                                                                    isChildActive
+                                                                        ? 'bg-cyan-400/15 text-cyan-100'
+                                                                        : 'text-slate-300 hover:bg-slate-700/60 hover:text-white'
+                                                                }`}
+                                                            >
+                                                                {child.label}
+                                                            </Link>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                }
+
+                                const isCurrent = isActive(item.path, item.exact);
+                                return (
+                                    <Link
+                                        key={item.path}
+                                        to={item.path}
+                                        className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition ${
+                                            isCurrent
+                                                ? 'border-cyan-400/40 bg-cyan-400/15 text-cyan-100'
+                                                : 'border-slate-700 bg-slate-800/60 text-slate-200 hover:border-slate-500 hover:bg-slate-800'
+                                        }`}
+                                        aria-current={isCurrent ? 'page' : undefined}
+                                    >
+                                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-700/70 text-cyan-200">
+                                            <NavGlyph name={item.key} />
+                                        </span>
+                                        <span className="font-semibold">{item.label}</span>
+                                    </Link>
+                                );
+                            })}
+                        </nav>
+                    </div>
                 </aside>
 
-                {/* ========================================================== */}
-                {/* MAIN CONTENT                                               */}
-                {/* ========================================================== */}
-                <main 
-                    className={`flex-1 transition-all duration-300 ${
-                        isSidebarOpen ? 'ml-64' : 'ml-0'
-                    }`}
-                    role="main"
-                >
-                    <div className="p-6">
-                        {/* Nested Routes Rendered Here */}
+                <main className={`min-w-0 flex-1 transition-all duration-300 ${isSidebarOpen ? 'ml-72' : 'ml-0'}`} role="main">
+                    <div className="p-4 sm:p-6">
                         <Outlet />
                     </div>
                 </main>
@@ -367,12 +257,6 @@ const AdminLayout = () => {
     );
 };
 
-// ============================================================================
-// DISPLAY NAME (for React DevTools)
-// ============================================================================
 AdminLayout.displayName = 'AdminLayout';
 
-// ============================================================================
-// EXPORTS
-// ============================================================================
 export default AdminLayout;

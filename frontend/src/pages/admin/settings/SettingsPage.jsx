@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import notify from '../../../utils/notify';
 import settingsService from '../../../services/settingsService';
 import { API_CONFIG } from '../../../constants';
+import { clearFieldError, getFieldBorderClass, mapServerFieldErrors } from '../../../utils/formValidation';
 
 const defaultState = {
     siteName: '',
@@ -80,7 +81,7 @@ const SettingsPage = () => {
     const handleChange = (event) => {
         const { name, value, type, checked } = event.target;
         setFormData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-        if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
+        clearFieldError(setErrors, name);
     };
 
     const validate = () => {
@@ -131,14 +132,8 @@ const SettingsPage = () => {
             setErrors({});
             notify.success('Settings updated successfully');
         } catch (error) {
-            const serverErrors = error?.data?.errors;
-            if (Array.isArray(serverErrors)) {
-                const mapped = {};
-                serverErrors.forEach((item) => {
-                    if (item?.field && item?.message) mapped[item.field] = item.message;
-                });
-                setErrors((prev) => ({ ...prev, ...mapped }));
-            }
+            const mapped = mapServerFieldErrors(error?.data?.errors);
+            if (Object.keys(mapped).length > 0) setErrors((prev) => ({ ...prev, ...mapped }));
             notify.error(error, 'Failed to update settings');
         } finally {
             setIsSaving(false);
@@ -186,13 +181,13 @@ const SettingsPage = () => {
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} noValidate className="space-y-6">
                 <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                     <h2 className="mb-4 text-xl font-black text-slate-900">Branding</h2>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Site Name *</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${errors.siteName ? 'border-red-500' : 'border-slate-300'}`} name="siteName" value={formData.siteName || ''} onChange={handleChange} />
+                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'siteName')}`} name="siteName" value={formData.siteName || ''} onChange={handleChange} />
                             {errors.siteName && <p className="mt-1 text-sm text-red-600">{errors.siteName}</p>}
                         </div>
                         <div>
@@ -201,7 +196,7 @@ const SettingsPage = () => {
                         </div>
                         <div className="md:col-span-2">
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Website URL</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${errors.siteUrl ? 'border-red-500' : 'border-slate-300'}`} name="siteUrl" value={formData.siteUrl || ''} onChange={handleChange} />
+                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'siteUrl')}`} name="siteUrl" value={formData.siteUrl || ''} onChange={handleChange} />
                             {errors.siteUrl && <p className="mt-1 text-sm text-red-600">{errors.siteUrl}</p>}
                         </div>
                         <div>
@@ -222,17 +217,17 @@ const SettingsPage = () => {
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Website Email</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${errors.websiteEmail ? 'border-red-500' : 'border-slate-300'}`} name="websiteEmail" value={formData.websiteEmail || ''} onChange={handleChange} />
+                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'websiteEmail')}`} name="websiteEmail" value={formData.websiteEmail || ''} onChange={handleChange} />
                             {errors.websiteEmail && <p className="mt-1 text-sm text-red-600">{errors.websiteEmail}</p>}
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Support Email</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${errors.supportEmail ? 'border-red-500' : 'border-slate-300'}`} name="supportEmail" value={formData.supportEmail || ''} onChange={handleChange} />
+                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'supportEmail')}`} name="supportEmail" value={formData.supportEmail || ''} onChange={handleChange} />
                             {errors.supportEmail && <p className="mt-1 text-sm text-red-600">{errors.supportEmail}</p>}
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Mobile Number</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${errors.phone ? 'border-red-500' : 'border-slate-300'}`} name="phone" value={formData.phone || ''} onChange={handleChange} />
+                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'phone')}`} name="phone" value={formData.phone || ''} onChange={handleChange} />
                             {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
                         </div>
                         <div>
@@ -283,22 +278,22 @@ const SettingsPage = () => {
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Facebook URL</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${errors.facebook ? 'border-red-500' : 'border-slate-300'}`} name="facebook" value={formData.facebook || ''} onChange={handleChange} />
+                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'facebook')}`} name="facebook" value={formData.facebook || ''} onChange={handleChange} />
                             {errors.facebook && <p className="mt-1 text-sm text-red-600">{errors.facebook}</p>}
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Instagram URL</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${errors.instagram ? 'border-red-500' : 'border-slate-300'}`} name="instagram" value={formData.instagram || ''} onChange={handleChange} />
+                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'instagram')}`} name="instagram" value={formData.instagram || ''} onChange={handleChange} />
                             {errors.instagram && <p className="mt-1 text-sm text-red-600">{errors.instagram}</p>}
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Twitter URL</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${errors.twitter ? 'border-red-500' : 'border-slate-300'}`} name="twitter" value={formData.twitter || ''} onChange={handleChange} />
+                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'twitter')}`} name="twitter" value={formData.twitter || ''} onChange={handleChange} />
                             {errors.twitter && <p className="mt-1 text-sm text-red-600">{errors.twitter}</p>}
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">YouTube URL</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${errors.youtube ? 'border-red-500' : 'border-slate-300'}`} name="youtube" value={formData.youtube || ''} onChange={handleChange} />
+                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'youtube')}`} name="youtube" value={formData.youtube || ''} onChange={handleChange} />
                             {errors.youtube && <p className="mt-1 text-sm text-red-600">{errors.youtube}</p>}
                         </div>
                     </div>
@@ -309,12 +304,12 @@ const SettingsPage = () => {
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <input className="w-full rounded-xl border border-slate-300 px-4 py-3" name="smtpHost" value={formData.smtpHost || ''} onChange={handleChange} placeholder="SMTP Host" />
                         <div>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${errors.smtpPort ? 'border-red-500' : 'border-slate-300'}`} name="smtpPort" value={formData.smtpPort || ''} onChange={handleChange} placeholder="SMTP Port" />
+                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'smtpPort')}`} name="smtpPort" value={formData.smtpPort || ''} onChange={handleChange} placeholder="SMTP Port" />
                             {errors.smtpPort && <p className="mt-1 text-sm text-red-600">{errors.smtpPort}</p>}
                         </div>
                         <input className="w-full rounded-xl border border-slate-300 px-4 py-3" name="smtpUser" value={formData.smtpUser || ''} onChange={handleChange} placeholder="SMTP User" />
                         <div>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${errors.smtpFrom ? 'border-red-500' : 'border-slate-300'}`} name="smtpFrom" value={formData.smtpFrom || ''} onChange={handleChange} placeholder="SMTP From Email" />
+                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'smtpFrom')}`} name="smtpFrom" value={formData.smtpFrom || ''} onChange={handleChange} placeholder="SMTP From Email" />
                             {errors.smtpFrom && <p className="mt-1 text-sm text-red-600">{errors.smtpFrom}</p>}
                         </div>
                         <input type="password" className="w-full rounded-xl border border-slate-300 px-4 py-3" name="smtpPassword" value={formData.smtpPassword || ''} onChange={handleChange} placeholder="SMTP Password" />

@@ -257,7 +257,7 @@ CouponSchema.statics.findActive = function () {
     });
 };
 
-export const Coupon = mongoose.model('Coupon', CouponSchema);
+export const Coupon = mongoose.models.Coupon || mongoose.model('Coupon', CouponSchema);
 
 // ===========================
 // Discount Schema

@@ -63,7 +63,6 @@ const couponSchema = new Schema(
 );
 
 // Indexes
-couponSchema.index({ code: 1 });
 couponSchema.index({ status: 1 });
 couponSchema.index({ expiryDate: 1 });
 
@@ -117,4 +116,4 @@ couponSchema.methods.isValid = function () {
     return true;
 };
 
-export const Coupon = mongoose.model('Coupon', couponSchema);
+export const Coupon = mongoose.models.Coupon || mongoose.model('Coupon', couponSchema);

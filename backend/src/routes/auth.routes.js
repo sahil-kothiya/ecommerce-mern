@@ -1,63 +1,82 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers/AuthController.js';
-import { protect, authorize } from '../middleware/auth.js';
+import { protect } from '../middleware/auth.js';
 import { authRateLimiter } from '../middleware/rateLimiter.js';
-import { loginValidator, registerValidator, validate } from '../validators/index.js';
+import {
+    addressIdValidator,
+    createAddressValidator,
+    emailValidator,
+    loginValidator,
+    registerValidator,
+    resetPasswordValidator,
+    updateSearchPreferencesValidator,
+    updatePasswordValidator,
+    validate,
+} from '../validators/index.js';
 
 const router = Router();
 const authController = new AuthController();
 
-// ============================================================================
-// PUBLIC ROUTES - No authentication required
-// ============================================================================
+router.post('/register', authRateLimiter, registerValidator, validate, (req, res, next) =>
+    authController.register(req, res, next)
+);
 
-// User registration with validation
-router.post('/register', authRateLimiter, registerValidator, validate, (req, res, next) => authController.register(req, res, next));
+router.post('/login', authRateLimiter, loginValidator, validate, (req, res, next) =>
+    authController.login(req, res, next)
+);
 
-// User login with email/password validation
-router.post('/login', authRateLimiter, loginValidator, validate, (req, res, next) => authController.login(req, res, next));
-
-// User logout - requires authentication
 router.post('/logout', protect, (req, res, next) => authController.logout(req, res, next));
 
-// Refresh JWT access token
-router.post('/refresh-token', authRateLimiter, (req, res, next) => authController.refreshToken(req, res, next));
+router.post('/refresh-token', authRateLimiter, (req, res, next) =>
+    authController.refreshToken(req, res, next)
+);
 
-// Password reset request - sends reset email
-router.post('/forgot-password', authRateLimiter, (req, res) => {
-    res.status(501).json({ message: 'Forgot password endpoint - to be implemented' });
-});
+router.get('/me', protect, (req, res, next) => authController.getProfile(req, res, next));
 
-// Reset password with token
-router.post('/reset-password', authRateLimiter, (req, res) => {
-    res.status(501).json({ message: 'Reset password endpoint - to be implemented' });
-});
-// Update user profile information
+router.put('/profile', protect, (req, res, next) => authController.updateProfile(req, res, next));
 router.put('/update-profile', protect, (req, res, next) => authController.updateProfile(req, res, next));
 
-// Change user password (requires old password)
-router.put('/change-password', protect, (req, res, next) => authController.changePassword(req, res, next));
+router.put('/change-password', protect, updatePasswordValidator, validate, (req, res, next) =>
+    authController.changePassword(req, res, next)
+);
 
-// ============================================================================
-// OAUTH ROUTES - Third-party authentication (to be implemented)
-// ============================================================================
+router.get('/addresses', protect, (req, res, next) => authController.getAddresses(req, res, next));
+router.post('/addresses', protect, createAddressValidator, validate, (req, res, next) =>
+    authController.addAddress(req, res, next)
+);
+router.put('/addresses/:addressId', protect, addressIdValidator, validate, (req, res, next) =>
+    authController.updateAddress(req, res, next)
+);
+router.delete('/addresses/:addressId', protect, addressIdValidator, validate, (req, res, next) =>
+    authController.deleteAddress(req, res, next)
+);
+router.get('/preferences/product-discovery', protect, (req, res, next) =>
+    authController.getSearchPreferences(req, res, next)
+);
+router.put('/preferences/product-discovery', protect, updateSearchPreferencesValidator, validate, (req, res, next) =>
+    authController.updateSearchPreferences(req, res, next)
+);
 
-// Google OAuth login
+router.post('/forgot-password', authRateLimiter, emailValidator, validate, (req, res, next) =>
+    authController.forgotPassword(req, res, next)
+);
+
+router.post('/reset-password', authRateLimiter, resetPasswordValidator, validate, (req, res, next) =>
+    authController.resetPassword(req, res, next)
+);
+
 router.get('/google', (req, res) => {
-    res.status(501).json({ message: 'Google OAuth endpoint - to be implemented' });
-});
-
-// Facebook OAuth loginrouter.put('/update-profile', protect, (req, res, next) => authController.updateProfile(req, res, next));
-
-router.put('/change-password', protect, (req, res, next) => authController.changePassword(req, res, next));
-
-// OAuth routes
-router.get('/google', (req, res) => {
-    res.status(501).json({ message: 'Google OAuth endpoint - to be implemented' });
+    res.status(400).json({
+        success: false,
+        message: 'Google OAuth is not enabled in this environment',
+    });
 });
 
 router.get('/facebook', (req, res) => {
-    res.status(501).json({ message: 'Facebook OAuth endpoint - to be implemented' });
+    res.status(400).json({
+        success: false,
+        message: 'Facebook OAuth is not enabled in this environment',
+    });
 });
 
 export default router;

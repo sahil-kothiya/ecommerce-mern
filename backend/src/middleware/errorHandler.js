@@ -61,10 +61,12 @@ export const errorHandler = (
         error = new AppError(message, 401);
     }
 
-    res.status(error.statusCode || 500).json({
+    const statusCode = error.statusCode || 500;
+
+    res.status(statusCode).json({
         success: false,
         message: error.message || 'Server Error',
         ...(error.errors && { errors: error.errors }), // Include detailed validation errors
-        ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+        ...(process.env.NODE_ENV === 'development' && statusCode >= 500 && { stack: err.stack }),
     });
 };
