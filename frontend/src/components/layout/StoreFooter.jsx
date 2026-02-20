@@ -18,15 +18,6 @@ const QUICK_LINKS = [
     { label: 'Size Guide', href: '#' },
 ];
 
-const SERVICE_LINKS = [
-    { label: 'Help Center', href: '#' },
-    { label: 'Shipping Information', href: '#' },
-    { label: 'Return Policy', href: '#' },
-    { label: 'Privacy Policy', href: '#' },
-    { label: 'Terms of Service', href: '#' },
-    { label: 'Live Chat Support', href: '#' },
-];
-
 const StoreFooter = () => {
     const [categories, setCategories] = useState([]);
     const [email, setEmail] = useState('');

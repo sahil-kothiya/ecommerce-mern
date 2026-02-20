@@ -23,7 +23,8 @@ componentDidCatch(error, errorInfo) {
         });
 
                 if (process.env.NODE_ENV === 'production') {
-                    }
+                    // report to error tracking service
+                }
     }
 
 handleReset = () => {

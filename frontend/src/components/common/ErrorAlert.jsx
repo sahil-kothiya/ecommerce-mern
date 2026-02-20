@@ -4,7 +4,7 @@ const ErrorAlert = ({
     errors = [],
     className = '',
     onClose = null,
-        title,
+    _title,
 }) => {
         const validErrors = (errors || []).filter((e) => e && String(e).trim());
     if (!validErrors.length) return null;

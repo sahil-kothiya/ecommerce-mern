@@ -256,13 +256,13 @@ const HomePage = () => {
                 const data = await res.json();
                 const matched = (Array.isArray(data?.data?.items) ? data.data.items : []).find((i) => i.productId?._id === product._id || i.productId === product._id);
                 if (matched?._id) { await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${matched._id}`, { method: 'DELETE', headers: authService.getAuthHeaders() }); window.dispatchEvent(new Event('wishlist:changed')); }
-            } catch { }
+            } catch (_err) { /* ignore */ }
         } else {
             setWishlistItems((prev) => prev.some((i) => i._id === product._id) ? prev : [...prev, product]);
             try {
                 await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { method: 'POST', headers: authService.getAuthHeaders(), body: JSON.stringify({ productId: product._id }) });
                 window.dispatchEvent(new Event('wishlist:changed'));
-            } catch { }
+            } catch (_err) { /* ignore */ }
         }
     };
 

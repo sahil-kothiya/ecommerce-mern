@@ -93,8 +93,7 @@ const ProductsPage = () => {
                         recentSearches: nextRecentSearches,
                     }),
                 });
-            } catch {
-                            }
+            } catch (_err) { /* ignore — fall back to localStorage */ }
             return;
         }
 
