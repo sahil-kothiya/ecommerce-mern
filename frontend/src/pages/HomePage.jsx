@@ -285,9 +285,9 @@ const HomePage = () => {
         const imgs = product.images || [];
         if (!imgs.length) return getRandomProductImage();
         const raw = imgs[currentImageIndex[product._id] || 0] || imgs[0];
-        const path = raw?.path;
+        const path = raw?.path || raw?.url || (typeof raw === 'string' ? raw : null);
         if (!path) return getRandomProductImage();
-        return path.startsWith('http') ? path : path;
+        return path.startsWith('http') ? path : `${API_CONFIG.BASE_URL}/${path.replace(/^\//, '')}`;
     };
 
     const formatCurrency = (price) => formatPrice(price || 0, CURRENCY_CONFIG.DEFAULT, CURRENCY_CONFIG.LOCALE);
@@ -304,7 +304,7 @@ const HomePage = () => {
     const visibleCategoryProducts = sortProducts(selectedCategory === 'all' ? [] : (productsByCategory[selectedCategory] || []));
 
     const cardProps = (product) => ({
-        key: product._id, product,
+        product,
         currentImage: getProductImage(product),
         isHovered: hoveredProduct === product._id,
         inWishlist: wishlistItems.some((i) => i._id === product._id),
@@ -398,7 +398,7 @@ const HomePage = () => {
 
                 {isLoading ? (<LoadingScreen />) : selectedCategory === 'all' ? (
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                        {featuredGridProducts.map((p) => <ProductCard {...cardProps(p)} />)}
+                        {featuredGridProducts.map((p) => <ProductCard key={p._id} {...cardProps(p)} />)}
                     </div>
                 ) : !visibleCategoryProducts.length ? (
                     <div className="store-surface py-14 text-center">
@@ -409,7 +409,7 @@ const HomePage = () => {
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                        {visibleCategoryProducts.map((p) => <ProductCard {...cardProps(p)} />)}
+                        {visibleCategoryProducts.map((p) => <ProductCard key={p._id} {...cardProps(p)} />)}
                     </div>
                 )}
 

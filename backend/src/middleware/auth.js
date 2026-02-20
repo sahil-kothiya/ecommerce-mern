@@ -84,8 +84,9 @@ export const optionalAuth = async (req, res, next) => {
       if (user && user.status === "active") {
         req.user = user;
       }
-    } catch {
-          }
+    } catch (_err) {
+      // token invalid or expired — proceed without user (optional auth)
+    }
 
     return next();
   } catch (error) {
