@@ -35,7 +35,10 @@ class ApiClient {
       if (error.response?.status === 401) {
         const wasAuthenticated = localStorage.getItem("auth_user");
 
-                window.dispatchEvent(new Event("auth:logout"));
+        // Clear auth state directly so callers don't depend on authService listener
+        localStorage.removeItem("auth_user");
+        localStorage.removeItem("auth_token");
+        window.dispatchEvent(new Event("auth:logout"));
 
         if (wasAuthenticated) {
           sessionStorage.setItem("sessionExpired", "true");
@@ -203,7 +206,7 @@ class ApiClient {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
 
-            const timeoutId = setTimeout(() => xhr.abort(), this.timeout);
+      const timeoutId = setTimeout(() => xhr.abort(), this.timeout);
 
       if (onProgress) {
         xhr.upload.addEventListener("progress", (e) => {
@@ -223,7 +226,7 @@ class ApiClient {
             resolve(xhr.responseText);
           }
         } else {
-                    if (xhr.status === 401) {
+          if (xhr.status === 401) {
             window.dispatchEvent(new Event("auth:logout"));
           }
           try {
