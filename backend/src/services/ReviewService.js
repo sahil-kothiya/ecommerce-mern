@@ -12,8 +12,7 @@ export class ReviewService extends BaseService {
     async createReview(userId, reviewData) {
         const { productId, rating, comment, orderId } = reviewData;
 
-        // Check if user has purchased this product
-        if (orderId) {
+                if (orderId) {
             const order = await Order.findOne({
                 _id: orderId,
                 user: userId,
@@ -33,8 +32,7 @@ export class ReviewService extends BaseService {
             }
         }
 
-        // Check if user already reviewed this product
-        const existingReview = await this.model.findOne({
+                const existingReview = await this.model.findOne({
             userId,
             productId,
             status: { $ne: 'deleted' }
@@ -44,8 +42,7 @@ export class ReviewService extends BaseService {
             throw new AppError('You have already reviewed this product', 400);
         }
 
-        // Create review
-        const review = await this.create({
+                const review = await this.create({
             userId,
             productId,
             rating,
@@ -93,8 +90,7 @@ export class ReviewService extends BaseService {
     async approveReview(reviewId) {
         const review = await this.update(reviewId, { status: 'active' });
         
-        // Update product ratings (in production, use background job)
-        const product = await Product.findById(review.productId);
+                const product = await Product.findById(review.productId);
         if (product) {
             await product.updateRatings();
         }
@@ -142,8 +138,7 @@ export class ReviewService extends BaseService {
             throw new AppError('You have already upvoted this review', 400);
         }
 
-        // Remove from downvotes if present
-        const downvoteIndex = review.downvotedBy.indexOf(userId);
+                const downvoteIndex = review.downvotedBy.indexOf(userId);
         if (downvoteIndex > -1) {
             review.downvotedBy.splice(downvoteIndex, 1);
         }
@@ -161,8 +156,7 @@ export class ReviewService extends BaseService {
             throw new AppError('You have already downvoted this review', 400);
         }
 
-        // Remove from upvotes if present
-        const upvoteIndex = review.upvotedBy.indexOf(userId);
+                const upvoteIndex = review.upvotedBy.indexOf(userId);
         if (upvoteIndex > -1) {
             review.upvotedBy.splice(upvoteIndex, 1);
         }

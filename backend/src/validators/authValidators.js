@@ -1,89 +1,62 @@
 import { body, param } from 'express-validator';
 import mongoose from 'mongoose';
 
-// ============================================================================
-// REGISTRATION VALIDATOR
-// ============================================================================
-// Validates user registration data including name, email, password strength
 export const registerValidator = [
-    // Validate name: must be 2-100 characters, whitespace trimmed
-    body('name')
+        body('name')
         .trim()
         .isLength({ min: 2, max: 100 })
         .withMessage('Name must be between 2 and 100 characters'),
     
-    // Validate email: must be valid format, normalized (lowercase, remove dots in Gmail)
-    body('email')
+        body('email')
         .trim()
         .isEmail()
         .normalizeEmail()
         .withMessage('Please provide a valid email'),
     
-    // Validate password: minimum 8 characters, maximum 128 characters
-    body('password')
-        .trim() // Trim whitespace for consistency
+        body('password')
+        .trim()
         .isLength({ min: 8, max: 128 })
         .withMessage('Password must be between 8 and 128 characters'),
     
-    // Validate password confirmation: must match password field
-    body('confirmPassword')
-        .trim() // Trim whitespace for consistency
+        body('confirmPassword')
+        .trim()
         .custom((value, { req }) => value === req.body.password)
         .withMessage('Passwords do not match')
 ];
 
-// ============================================================================
-// LOGIN VALIDATOR
-// ============================================================================
-// Validates login credentials (email and password presence)
 export const loginValidator = [
-    // Validate email: must be valid format and normalized
-    body('email')
+        body('email')
         .trim()
         .isEmail()
         .normalizeEmail()
         .withMessage('Please provide a valid email'),
     
-    // Validate password: must not be empty (password strength checked on registration)
-    body('password')
+        body('password')
         .notEmpty()
         .withMessage('Password is required'),
     
-    // Validate rememberMe: optional boolean field for persistent login
-    body('rememberMe')
+        body('rememberMe')
         .optional()
         .isBoolean()
         .withMessage('Remember me must be a boolean value')
 ];
 
-// ============================================================================
-// PASSWORD UPDATE VALIDATOR
-// ============================================================================
-// Validates password change requests (requires current password for security)
 export const updatePasswordValidator = [
-    // Validate current password: required for authentication
-    body('currentPassword')
+        body('currentPassword')
         .notEmpty()
         .withMessage('Current password is required'),
     
-    // Validate new password: minimum 8 characters, maximum 128 characters
-    body('newPassword')
+        body('newPassword')
         .isLength({ min: 8, max: 128 })
         .withMessage('New password must be between 8 and 128 characters'),
     
-    // Validate password confirmation: must match new password
-    body('confirmPassword')
+        body('confirmPassword')
         .custom((value, { req }) => value === req.body.newPassword)
         .withMessage('Passwords do not match')
 ];
 
-// ============================================================================
-// EMAIL VALIDATOR (for forgot password, email changes, etc.)
-// ============================================================================
-// Validates standalone email input for various auth operations
 export const emailValidator = [
-    // Validate email: must be valid format and normalized
-    body('email')
+        body('email')
         .trim()
         .isEmail()
         .normalizeEmail()

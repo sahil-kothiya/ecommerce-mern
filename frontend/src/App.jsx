@@ -1,48 +1,53 @@
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import HomePage from './pages/HomePage.jsx';
-import ProductDetailPage from './pages/ProductDetailPage.jsx';
-import CartPage from './pages/CartPage.jsx';
-import CheckoutPage from './pages/CheckoutPage.jsx';
-import ProductsPage from './pages/ProductsPage.jsx';
-import CategoryPage from './pages/CategoryPage.jsx';
-import WishlistPage from './pages/WishlistPage.jsx';
-import LoginPage from './pages/auth/LoginPage.jsx';
-import RegisterPage from './pages/auth/RegisterPage.jsx';
-import UserDashboard from './pages/UserDashboard.jsx';
-import NotFound from './pages/NotFound.jsx';
 import ProtectedRoute from './components/common/ProtectedRoute.jsx';
 
-// Admin imports
-import AdminLayout from './layouts/AdminLayout.jsx';
-import Dashboard from './pages/admin/Dashboard.jsx';
-import ProductsList from './pages/admin/products/ProductsList.jsx';
-import ProductForm from './pages/admin/products/ProductForm.jsx';
-import CategoriesList from './pages/admin/categories/CategoriesList.jsx';
-import CategoryTreeManager from './pages/admin/categories/CategoryTreeManager.jsx';
-import CategoryEditorPage from './pages/admin/categories/CategoryEditorPage.jsx';
-import UsersList from './pages/admin/users/UsersList.jsx';
-import UserForm from './pages/admin/users/UserForm.jsx';
-import BannersList from './pages/admin/banners/BannersList.jsx';
-import BannerForm from './pages/admin/banners/BannerForm.jsx';
-import BrandsList from './pages/admin/brands/BrandsList.jsx';
-import BrandForm from './pages/admin/brands/BrandForm.jsx';
-import DiscountsList from './pages/admin/discounts/DiscountsList.jsx';
-import DiscountForm from './pages/admin/discounts/DiscountForm.jsx';
-import CouponsList from './pages/admin/coupons/CouponsList.jsx';
-import CouponForm from './pages/admin/coupons/CouponForm.jsx';
-import ReviewsList from './pages/admin/reviews/ReviewsList.jsx';
-import SettingsPage from './pages/admin/settings/SettingsPage.jsx';
-import VariantTypesList from './pages/admin/variants/VariantTypesList.jsx';
-import VariantTypeForm from './pages/admin/variants/VariantTypeForm.jsx';
-import VariantOptionsList from './pages/admin/variants/VariantOptionsList.jsx';
-import VariantOptionForm from './pages/admin/variants/VariantOptionForm.jsx';
-import OrdersList from './pages/admin/orders/OrdersList.jsx';
+const HomePage = lazy(() => import('./pages/HomePage.jsx'));
+const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage.jsx'));
+const CartPage = lazy(() => import('./pages/CartPage.jsx'));
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage.jsx'));
+const ProductsPage = lazy(() => import('./pages/ProductsPage.jsx'));
+const CategoryPage = lazy(() => import('./pages/CategoryPage.jsx'));
+const WishlistPage = lazy(() => import('./pages/WishlistPage.jsx'));
+const LoginPage = lazy(() => import('./pages/auth/LoginPage.jsx'));
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage.jsx'));
+const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage.jsx'));
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage.jsx'));
+const UserDashboard = lazy(() => import('./pages/UserDashboard.jsx'));
+const NotFound = lazy(() => import('./pages/NotFound.jsx'));
+
+const AdminLayout = lazy(() => import('./layouts/AdminLayout.jsx'));
+const PublicLayout = lazy(() => import('./layouts/PublicLayout.jsx'));
+const Dashboard = lazy(() => import('./pages/admin/Dashboard.jsx'));
+const ProductsList = lazy(() => import('./pages/admin/products/ProductsList.jsx'));
+const ProductForm = lazy(() => import('./pages/admin/products/ProductForm.jsx'));
+const CategoriesList = lazy(() => import('./pages/admin/categories/CategoriesList.jsx'));
+const CategoryTreeManager = lazy(() => import('./pages/admin/categories/CategoryTreeManager.jsx'));
+const CategoryEditorPage = lazy(() => import('./pages/admin/categories/CategoryEditorPage.jsx'));
+const UsersList = lazy(() => import('./pages/admin/users/UsersList.jsx'));
+const UserForm = lazy(() => import('./pages/admin/users/UserForm.jsx'));
+const BannersList = lazy(() => import('./pages/admin/banners/BannersList.jsx'));
+const BannerForm = lazy(() => import('./pages/admin/banners/BannerForm.jsx'));
+const BrandsList = lazy(() => import('./pages/admin/brands/BrandsList.jsx'));
+const BrandForm = lazy(() => import('./pages/admin/brands/BrandForm.jsx'));
+const DiscountsList = lazy(() => import('./pages/admin/discounts/DiscountsList.jsx'));
+const DiscountForm = lazy(() => import('./pages/admin/discounts/DiscountForm.jsx'));
+const CouponsList = lazy(() => import('./pages/admin/coupons/CouponsList.jsx'));
+const CouponForm = lazy(() => import('./pages/admin/coupons/CouponForm.jsx'));
+const ReviewsList = lazy(() => import('./pages/admin/reviews/ReviewsList.jsx'));
+const SettingsPage = lazy(() => import('./pages/admin/settings/SettingsPage.jsx'));
+const VariantTypesList = lazy(() => import('./pages/admin/variants/VariantTypesList.jsx'));
+const VariantTypeForm = lazy(() => import('./pages/admin/variants/VariantTypeForm.jsx'));
+const VariantOptionsList = lazy(() => import('./pages/admin/variants/VariantOptionsList.jsx'));
+const VariantOptionForm = lazy(() => import('./pages/admin/variants/VariantOptionForm.jsx'));
+const OrdersList = lazy(() => import('./pages/admin/orders/OrdersList.jsx'));
 
 function App() {
     return (
-        <Routes>
-            {/* Homepage with professional e-commerce design */}
-            <Route index element={<HomePage />} />
+        <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm text-slate-600">Loading page...</div>}>
+            <Routes>
+            <Route element={<PublicLayout />}>
+                        <Route index element={<HomePage />} />
             <Route path="/" element={<HomePage />} />
 
             <Route path="/products" element={<ProductsPage />} />
@@ -75,9 +80,11 @@ function App() {
             } />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            </Route>
 
-            {/* Admin Routes - Protected */}
-            <Route path="/admin" element={
+                        <Route path="/admin" element={
                 <ProtectedRoute requireAdmin={true}>
                     <AdminLayout />
                 </ProtectedRoute>
@@ -117,9 +124,9 @@ function App() {
                 <Route path="settings" element={<SettingsPage />} />
             </Route>
 
-            {/* 404 */}
-            <Route path="*" element={<NotFound />} />
-        </Routes>
+                        <Route path="*" element={<NotFound />} />
+            </Routes>
+        </Suspense>
     );
 }
 

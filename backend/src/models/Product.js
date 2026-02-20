@@ -3,10 +3,6 @@ import slugify from 'slugify';
 
 const { Schema } = mongoose;
 
-// ===========================
-// Sub-schemas for embedding
-// ===========================
-
 const VariantOptionSchema = new Schema({
     typeId: {
         type: Schema.Types.ObjectId,
@@ -113,7 +109,6 @@ const ProductVariantSchema = new Schema({
     }
 }, { timestamps: true });
 
-// Variant instance methods
 ProductVariantSchema.methods.isInStock = function () {
     return this.stock > 0;
 };
@@ -128,10 +123,6 @@ ProductVariantSchema.methods.calculateFinalPrice = function () {
     }
     return this.price;
 };
-
-// ===========================
-// Main Product Schema
-// ===========================
 
 const productSchema = new Schema({
     title: {
@@ -174,8 +165,7 @@ const productSchema = new Schema({
         default: false
     },
 
-    // Base product fields
-    basePrice: {
+        basePrice: {
         type: Number,
         min: 0,
         set: (v) => v ? Math.round(v * 100) / 100 : null
@@ -199,12 +189,10 @@ const productSchema = new Schema({
     },
     size: [String],
 
-    // Embedded data
-    variants: [ProductVariantSchema],
+        variants: [ProductVariantSchema],
     images: [ImageSchema],
 
-    // Denormalized category info
-    category: {
+        category: {
         id: {
             type: Schema.Types.ObjectId,
             ref: 'Category'
@@ -223,8 +211,7 @@ const productSchema = new Schema({
         slug: String
     },
 
-    // Denormalized brand info
-    brand: {
+        brand: {
         id: {
             type: Schema.Types.ObjectId,
             ref: 'Brand'
@@ -233,8 +220,7 @@ const productSchema = new Schema({
         slug: String
     },
 
-    // Cached ratings
-    ratings: {
+        ratings: {
         average: {
             type: Number,
             default: 0,
@@ -255,8 +241,7 @@ const productSchema = new Schema({
         }
     },
 
-    // Active discount
-    activeDiscount: {
+        activeDiscount: {
         id: {
             type: Schema.Types.ObjectId,
             ref: 'Discount'
@@ -269,12 +254,10 @@ const productSchema = new Schema({
         endsAt: Date
     },
 
-    // Search & tags
-    searchTerms: String,
+        searchTerms: String,
     tags: [String],
 
-    // Metadata
-    viewCount: {
+        viewCount: {
         type: Number,
         default: 0,
         min: 0
@@ -290,23 +273,16 @@ const productSchema = new Schema({
     toObject: { virtuals: true }
 });
 
-// ===========================
-// Optimized Indexes for 10M+ products
-// ===========================
-
-// Primary lookup indexes (covered queries)
 productSchema.index({ slug: 1 }, { unique: true });
 productSchema.index({ baseSku: 1 }, { unique: true, sparse: true });
 productSchema.index({ 'variants.sku': 1 }, { sparse: true });
 
-// Compound indexes for common queries (order matters for index efficiency)
 productSchema.index({ status: 1, isFeatured: -1, createdAt: -1 });
 productSchema.index({ status: 1, 'category.id': 1, basePrice: 1, createdAt: -1 });
 productSchema.index({ status: 1, 'brand.id': 1, createdAt: -1 });
 productSchema.index({ status: 1, condition: 1, createdAt: -1 });
 productSchema.index({ status: 1, 'ratings.average': -1, salesCount: -1 });
 
-// Text search index with weights for relevance
 productSchema.index(
     {
         title: 'text',
@@ -325,10 +301,8 @@ productSchema.index(
     }
 );
 
-// Price range queries
 productSchema.index({ status: 1, basePrice: 1, createdAt: -1 });
 
-// Partial indexes for hot paths (reduce index size)
 productSchema.index(
     { isFeatured: 1, 'ratings.average': -1, salesCount: -1 },
     {
@@ -345,12 +319,7 @@ productSchema.index(
     }
 );
 
-// Cursor-based pagination index
 productSchema.index({ _id: 1, createdAt: -1 });
-
-// ===========================
-// Virtuals
-// ===========================
 
 productSchema.virtual('finalPrice').get(function () {
     if (this.hasVariants) return null;
@@ -375,17 +344,12 @@ productSchema.virtual('inStock').get(function () {
     return this.baseStock > 0;
 });
 
-// ===========================
-// Pre-save Hooks
-// ===========================
-
 productSchema.pre('save', function (next) {
     if (!this.slug && this.title) {
         this.slug = slugify(this.title, { lower: true, strict: true });
     }
 
-    // Generate searchTerms
-    const terms = [
+        const terms = [
         this.title,
         this.summary,
         this.brand?.title,
@@ -394,8 +358,7 @@ productSchema.pre('save', function (next) {
     ].filter(Boolean).join(' ').toLowerCase();
     this.searchTerms = terms;
 
-    // Validate variant logic
-    if (this.hasVariants && this.variants.length === 0) {
+        if (this.hasVariants && this.variants.length === 0) {
         return next(new Error('Products with hasVariants=true must have variants'));
     }
 
@@ -405,10 +368,6 @@ productSchema.pre('save', function (next) {
 
     next();
 });
-
-// ===========================
-// Instance Methods
-// ===========================
 
 productSchema.methods.isAvailable = function () {
     return this.status === 'active' && this.inStock;
@@ -424,7 +383,6 @@ productSchema.methods.incrementSalesCount = async function (quantity = 1) {
     return this.save({ timestamps: false });
 };
 
-// For 10M products, use background jobs for rating updates
 productSchema.methods.updateRatings = async function (ratingsData) {
     if (ratingsData) {
         this.ratings = ratingsData;
@@ -463,10 +421,6 @@ productSchema.methods.getVariantBySku = function (sku) {
     return this.variants.find(v => v.sku === sku);
 };
 
-// ===========================
-// Static Methods
-// ===========================
-
 productSchema.statics.findBySlug = function (slug) {
     return this.findOne({ slug, status: 'active' });
 };
@@ -487,7 +441,6 @@ productSchema.statics.findByCategory = function (categoryId, options = {}) {
         .limit(limit);
 };
 
-// Optimized search with cursor-based pagination for 10M products
 productSchema.statics.searchProducts = async function (query, filters = {}) {
     const {
         minPrice,
@@ -498,7 +451,7 @@ productSchema.statics.searchProducts = async function (query, filters = {}) {
         sort = '-createdAt',
         page = 1,
         limit = 20,
-        cursor // For cursor-based pagination
+        cursor
     } = filters;
 
     const matchQuery = {
@@ -516,19 +469,17 @@ productSchema.statics.searchProducts = async function (query, filters = {}) {
     if (brandId) matchQuery['brand.id'] = brandId;
     if (condition) matchQuery.condition = condition;
 
-    // Cursor-based pagination for better performance on large datasets
-    if (cursor) {
+        if (cursor) {
         matchQuery._id = { $lt: cursor };
     }
 
-    // Use lean() for 10x faster queries (returns plain objects, not Mongoose documents)
-    const products = await this.find(matchQuery, {
+        const products = await this.find(matchQuery, {
         score: { $meta: 'textScore' },
         title: 1,
         slug: 1,
         basePrice: 1,
         baseDiscount: 1,
-        images: { $slice: 1 }, // Only first image
+        images: { $slice: 1 },
         'ratings.average': 1,
         'ratings.count': 1,
         'category.title': 1,
@@ -537,16 +488,14 @@ productSchema.statics.searchProducts = async function (query, filters = {}) {
         isFeatured: 1
     })
         .sort({ score: { $meta: 'textScore' }, ...JSON.parse(`{"${sort}": -1}`) })
-        .limit(limit + 1) // Fetch one extra to check if there are more
+        .limit(limit + 1)
         .lean();
 
     const hasMore = products.length > limit;
     const results = hasMore ? products.slice(0, limit) : products;
     const nextCursor = hasMore ? results[results.length - 1]._id : null;
 
-    // For total count, use estimatedDocumentCount for better performance
-    // Or cache the count in Redis
-    return {
+            return {
         products: results,
         hasMore,
         nextCursor,

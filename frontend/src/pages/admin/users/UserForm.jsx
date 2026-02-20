@@ -41,11 +41,6 @@ const UserForm = () => {
         }
     }, [photoPreview]);
 
-    const getAuthHeaders = () => {
-        const token = localStorage.getItem('auth_token');
-        return token ? { Authorization: `Bearer ${token}` } : {};
-    };
-
     const getImageUrl = (path) => {
         if (!path) return '';
         if (/^https?:\/\//i.test(path)) return path;
@@ -58,7 +53,7 @@ const UserForm = () => {
         try {
             setIsLoading(true);
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}/${id}`, {
-                headers: { ...getAuthHeaders() },
+                credentials: 'include',
             });
             const data = await response.json();
             if (!response.ok || !data?.success) {
@@ -154,9 +149,7 @@ const UserForm = () => {
                 : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}`;
             const response = await fetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
-                headers: {
-                    ...getAuthHeaders(),
-                },
+                credentials: 'include',
                 body: payload,
             });
             const data = await response.json();

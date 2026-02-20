@@ -20,23 +20,17 @@ export class CategoryBrandVariantBaseSeeder {
         logger.info('ðŸŒ± Starting Category, Brand & Variant Base Seeding...\n');
 
         try {
-            // Clear existing data
-            await this.clearExistingData();
+                        await this.clearExistingData();
 
-            // Create variant types and options first
-            await this.createVariantTypes();
+                        await this.createVariantTypes();
 
-            // Create brands
-            await this.createBrands();
+                        await this.createBrands();
 
-            // Create filters
-            await this.createFilters();
+                        await this.createFilters();
 
-            // Create categories with tree structure
-            await this.createCategories();
+                        await this.createCategories();
 
-            // Associate brands with categories
-            await this.associateBrandsWithCategories();
+                        await this.associateBrandsWithCategories();
             await this.associateFiltersWithCategories();
 
             logger.info('\nâœ… Category, Brand & Variant Base Seeding completed!');
@@ -140,8 +134,7 @@ export class CategoryBrandVariantBaseSeeder {
             await variantType.save();
             this.variantTypeCount++;
 
-            // Create options for this type
-            for (const optionData of options) {
+                        for (const optionData of options) {
                 const variantOption = new VariantOption({
                     ...optionData,
                     variantTypeId: variantType._id
@@ -158,8 +151,7 @@ export class CategoryBrandVariantBaseSeeder {
         logger.info('ðŸ·ï¸  Creating brands...');
 
         const brandsData = [
-            // Fashion Brands
-            { title: 'Nike', description: 'Athletic wear and sportswear', status: 'active' },
+                        { title: 'Nike', description: 'Athletic wear and sportswear', status: 'active' },
             { title: 'Adidas', description: 'Sports clothing and accessories', status: 'active' },
             { title: 'Zara', description: 'Fashion retail clothing', status: 'active' },
             { title: 'H&M', description: 'Fast fashion clothing', status: 'active' },
@@ -167,8 +159,7 @@ export class CategoryBrandVariantBaseSeeder {
             { title: 'Prada', description: 'Italian luxury fashion', status: 'active' },
             { title: 'Louis Vuitton', description: 'French luxury fashion house', status: 'active' },
 
-            // Electronics Brands
-            { title: 'Apple', description: 'Consumer electronics and software', status: 'active' },
+                        { title: 'Apple', description: 'Consumer electronics and software', status: 'active' },
             { title: 'Samsung', description: 'Electronics and appliances', status: 'active' },
             { title: 'Sony', description: 'Electronics and entertainment', status: 'active' },
             { title: 'LG', description: 'Home appliances and electronics', status: 'active' },
@@ -176,20 +167,17 @@ export class CategoryBrandVariantBaseSeeder {
             { title: 'Dell', description: 'Computer technology solutions', status: 'active' },
             { title: 'Microsoft', description: 'Software and hardware products', status: 'active' },
 
-            // Home & Garden Brands
-            { title: 'IKEA', description: 'Furniture and home accessories', status: 'active' },
+                        { title: 'IKEA', description: 'Furniture and home accessories', status: 'active' },
             { title: 'Home Depot', description: 'Home improvement retail', status: 'active' },
             { title: 'Wayfair', description: 'Online furniture and home goods', status: 'active' },
             { title: 'West Elm', description: 'Modern furniture and home decor', status: 'active' },
 
-            // Beauty & Personal Care
-            { title: 'L\'Oreal', description: 'Cosmetics and beauty products', status: 'active' },
+                        { title: 'L\'Oreal', description: 'Cosmetics and beauty products', status: 'active' },
             { title: 'MAC Cosmetics', description: 'Professional makeup and cosmetics', status: 'active' },
             { title: 'Sephora', description: 'Beauty retailer and cosmetics', status: 'active' },
             { title: 'Clinique', description: 'Skincare and cosmetics', status: 'active' },
 
-            // Sports & Outdoor
-            { title: 'Under Armour', description: 'Athletic clothing and accessories', status: 'active' },
+                        { title: 'Under Armour', description: 'Athletic clothing and accessories', status: 'active' },
             { title: 'The North Face', description: 'Outdoor recreation products', status: 'active' },
             { title: 'Patagonia', description: 'Outdoor clothing and gear', status: 'active' },
             { title: 'REI', description: 'Outdoor gear and sporting goods', status: 'active' }
@@ -202,8 +190,7 @@ export class CategoryBrandVariantBaseSeeder {
         logger.info(`âœ… Created ${this.brandCount} brands`);
     }
 
-
-    async createFilters() {
+async createFilters() {
         logger.info('Creating filters...');
 
         const filtersData = [
@@ -226,8 +213,7 @@ export class CategoryBrandVariantBaseSeeder {
     async createCategories() {
         logger.info('ðŸ“‚ Creating category tree structure...');
 
-        // Root categories
-        const rootCategories = [
+                const rootCategories = [
             {
                 title: 'Electronics',
                 summary: 'Electronic devices and gadgets',
@@ -426,8 +412,7 @@ export class CategoryBrandVariantBaseSeeder {
             }
         ];
 
-        // Create categories recursively
-        for (const rootCategoryData of rootCategories) {
+                for (const rootCategoryData of rootCategories) {
             await this.createCategoryTree(rootCategoryData, null, 0);
         }
 
@@ -437,22 +422,20 @@ export class CategoryBrandVariantBaseSeeder {
     async createCategoryTree(categoryData, parent = null, level = 0) {
         const { children, ...categoryInfo } = categoryData;
 
-        // Get next position for this level
-        const position = await Category.getNextPosition(parent?._id || null);
+                const position = await Category.getNextPosition(parent?._id || null);
 
         const category = new Category({
             ...categoryInfo,
             parentId: parent?._id || null,
             level,
             sortOrder: position,
-            isNavigationVisible: level <= 2 // Show in navigation for first 3 levels
+            isNavigationVisible: level <= 2
         });
 
         await category.save();
         this.categoryCount++;
 
-        // Create children if they exist
-        if (children && children.length > 0) {
+                if (children && children.length > 0) {
             for (const childData of children) {
                 await this.createCategoryTree(childData, category, level + 1);
             }

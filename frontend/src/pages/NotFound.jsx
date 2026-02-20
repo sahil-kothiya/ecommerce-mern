@@ -23,21 +23,20 @@ const NotFound = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex items-center justify-center px-4 py-16">
             <div className="max-w-4xl w-full">
-                {/* Main Content */}
+                
                 <div className="text-center">
-                    {/* Animated 404 */}
+                    
                     <div className="relative mb-8">
                         <h1 className="text-[200px] md:text-[300px] font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-blue-600 to-pink-600 leading-none animate-pulse">
                             404
                         </h1>
-                        {/* Floating Elements */}
+                        
                         <div className="absolute top-0 left-1/4 w-20 h-20 bg-purple-400 rounded-full opacity-20 animate-bounce"></div>
                         <div className="absolute top-1/2 right-1/4 w-16 h-16 bg-blue-400 rounded-full opacity-20 animate-bounce delay-100"></div>
                         <div className="absolute bottom-0 left-1/2 w-12 h-12 bg-pink-400 rounded-full opacity-20 animate-bounce delay-200"></div>
                     </div>
 
-                    {/* Error Message */}
-                    <div className="mb-12">
+<div className="mb-12">
                         <h2 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
                             Oops! Page Not Found
                         </h2>
@@ -49,10 +48,9 @@ const NotFound = () => {
                         </p>
                     </div>
 
-                    {/* Illustration */}
-                    <div className="mb-12 relative">
+<div className="mb-12 relative">
                         <div className="inline-block relative">
-                            {/* Shopping Cart Icon */}
+                            
                             <svg 
                                 className="w-48 h-48 md:w-64 md:h-64 mx-auto text-gray-300"
                                 fill="none" 
@@ -66,15 +64,14 @@ const NotFound = () => {
                                     d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" 
                                 />
                             </svg>
-                            {/* Sad Face Overlay */}
+                            
                             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-6xl">
                                 😢
                             </div>
                         </div>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
+<div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
                         <Link
                             to="/"
                             className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full font-bold text-lg shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
@@ -101,16 +98,14 @@ const NotFound = () => {
                         </button>
                     </div>
 
-                    {/* Auto-redirect countdown */}
-                    <div className="inline-flex items-center gap-2 px-6 py-3 bg-white rounded-full shadow-lg border-2 border-purple-100">
+<div className="inline-flex items-center gap-2 px-6 py-3 bg-white rounded-full shadow-lg border-2 border-purple-100">
                         <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
                         <p className="text-gray-600 font-medium">
                             Redirecting to home in <span className="font-bold text-purple-600">{countdown}</span> seconds
                         </p>
                     </div>
 
-                    {/* Helpful Links */}
-                    <div className="mt-16 pt-8 border-t border-gray-200">
+<div className="mt-16 pt-8 border-t border-gray-200">
                         <p className="text-gray-600 mb-4 font-semibold">Looking for something specific?</p>
                         <div className="flex flex-wrap gap-3 justify-center">
                             <Link
@@ -140,8 +135,7 @@ const NotFound = () => {
                         </div>
                     </div>
 
-                    {/* Fun Fact */}
-                    <div className="mt-12 p-6 bg-gradient-to-r from-purple-100 via-blue-100 to-pink-100 rounded-2xl">
+<div className="mt-12 p-6 bg-gradient-to-r from-purple-100 via-blue-100 to-pink-100 rounded-2xl">
                         <p className="text-gray-700 text-sm">
                             <span className="font-bold">💡 Fun Fact:</span> The first 404 error was at CERN in 1992, 
                             when a developer tried to access a page that didn't exist. Now you're part of internet history! 🎉
@@ -149,14 +143,12 @@ const NotFound = () => {
                     </div>
                 </div>
 
-                {/* Decorative Elements */}
-                <div className="absolute top-0 left-0 w-32 h-32 bg-purple-200 rounded-full filter blur-3xl opacity-30 -z-10"></div>
+<div className="absolute top-0 left-0 w-32 h-32 bg-purple-200 rounded-full filter blur-3xl opacity-30 -z-10"></div>
                 <div className="absolute bottom-0 right-0 w-40 h-40 bg-blue-200 rounded-full filter blur-3xl opacity-30 -z-10"></div>
                 <div className="absolute top-1/2 left-1/2 w-36 h-36 bg-pink-200 rounded-full filter blur-3xl opacity-20 -z-10"></div>
             </div>
 
-            {/* CSS for custom animations */}
-            <style>{`
+<style>{`
                 @keyframes bounce {
                     0%, 100% {
                         transform: translateY(0);

@@ -1,46 +1,21 @@
-/**
- * @fileoverview Validation Utilities
- * @description Common validation functions for data sanitization and validation
- * @author Enterprise E-Commerce Team
- * @version 1.0.0
- */
+
 
 import mongoose from 'mongoose';
 
-/**
- * Validate MongoDB ObjectId
- * @param {string} id - ID to validate
- * @returns {boolean} True if valid ObjectId
- */
 export const isValidObjectId = (id) => {
     return mongoose.Types.ObjectId.isValid(id);
 };
 
-/**
- * Validate email format
- * @param {string} email - Email to validate
- * @returns {boolean} True if valid email format
- */
 export const isValidEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 };
 
-/**
- * Validate phone number (international format)
- * @param {string} phone - Phone number to validate
- * @returns {boolean} True if valid phone format
- */
 export const isValidPhone = (phone) => {
     const phoneRegex = /^\+?[1-9]\d{1,14}$/;
     return phoneRegex.test(phone);
 };
 
-/**
- * Validate URL format
- * @param {string} url - URL to validate
- * @returns {boolean} True if valid URL
- */
 export const isValidUrl = (url) => {
     try {
         new URL(url);
@@ -50,26 +25,11 @@ export const isValidUrl = (url) => {
     }
 };
 
-/**
- * Sanitize string input (remove HTML tags and trim)
- * @param {string} input - Input string to sanitize
- * @returns {string} Sanitized string
- */
 export const sanitizeString = (input) => {
     if (typeof input !== 'string') return '';
     return input.replace(/<[^>]*>/g, '').trim();
 };
 
-/**
- * Validate password strength
- * @param {string} password - Password to validate
- * @param {Object} [options] - Validation options
- * @param {number} [options.minLength=6] - Minimum password length
- * @param {boolean} [options.requireNumber=true] - Require at least one number
- * @param {boolean} [options.requireLetter=true] - Require at least one letter
- * @param {boolean} [options.requireSpecialChar=false] - Require special character
- * @returns {Object} Validation result with isValid and message
- */
 export const validatePasswordStrength = (password, options = {}) => {
     const {
         minLength = 6,

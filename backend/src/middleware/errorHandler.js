@@ -6,7 +6,7 @@ export class AppError extends Error {
         this.statusCode = statusCode;
         this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
         this.isOperational = true;
-        this.errors = errors; // Detailed validation errors array
+        this.errors = errors;
 
         Error.captureStackTrace(this, this.constructor);
     }
@@ -26,32 +26,27 @@ export const errorHandler = (
     let error = { ...err };
     error.message = err.message;
 
-    // Log error
-    logger.error(err);
+        logger.error(err);
 
-    // Mongoose bad ObjectId
-    if (err.name === 'CastError') {
+        if (err.name === 'CastError') {
         const message = 'Resource not found';
         error = new AppError(message, 404);
     }
 
-    // Mongoose duplicate key
-    if (err.code === 11000) {
+        if (err.code === 11000) {
         const field = Object.keys(err.keyValue)[0];
         const message = `Duplicate field value: ${field}. Please use another value`;
         error = new AppError(message, 400);
     }
 
-    // Mongoose validation error
-    if (err.name === 'ValidationError') {
+        if (err.name === 'ValidationError') {
         const message = Object.values(err.errors)
             .map((val) => val.message)
             .join(', ');
         error = new AppError(message, 400);
     }
 
-    // JWT errors
-    if (err.name === 'JsonWebTokenError') {
+        if (err.name === 'JsonWebTokenError') {
         const message = 'Invalid token. Please log in again';
         error = new AppError(message, 401);
     }
@@ -66,7 +61,7 @@ export const errorHandler = (
     res.status(statusCode).json({
         success: false,
         message: error.message || 'Server Error',
-        ...(error.errors && { errors: error.errors }), // Include detailed validation errors
+        ...(error.errors && { errors: error.errors }),
         ...(process.env.NODE_ENV === 'development' && statusCode >= 500 && { stack: err.stack }),
     });
 };

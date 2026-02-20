@@ -2,10 +2,6 @@ import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
-// ===========================
-// Variant Type Schema
-// ===========================
-
 const VariantTypeSchema = new Schema({
     name: {
         type: String,
@@ -34,7 +30,6 @@ const VariantTypeSchema = new Schema({
 VariantTypeSchema.index({ name: 1 }, { unique: true });
 VariantTypeSchema.index({ status: 1, sortOrder: 1 });
 
-// Virtual populate options
 VariantTypeSchema.virtual('options', {
     ref: 'VariantOption',
     localField: '_id',
@@ -43,10 +38,6 @@ VariantTypeSchema.virtual('options', {
 });
 
 export const VariantType = mongoose.model('VariantType', VariantTypeSchema);
-
-// ===========================
-// Variant Option Schema
-// ===========================
 
 const VariantOptionSchema = new Schema({
     variantTypeId: {
@@ -90,7 +81,6 @@ const VariantOptionSchema = new Schema({
 VariantOptionSchema.index({ variantTypeId: 1, value: 1 }, { unique: true });
 VariantOptionSchema.index({ variantTypeId: 1, status: 1 });
 
-// Virtual populate type
 VariantOptionSchema.virtual('type', {
     ref: 'VariantType',
     localField: 'variantTypeId',
@@ -104,10 +94,6 @@ VariantOptionSchema.statics.findByType = function (variantTypeId) {
 };
 
 export const VariantOption = mongoose.model('VariantOption', VariantOptionSchema);
-
-// ===========================
-// Coupon Schema
-// ===========================
 
 const CouponSchema = new Schema({
     code: {
@@ -127,14 +113,13 @@ const CouponSchema = new Schema({
         min: 0
     },
 
-    // Restrictions
-    minOrderAmount: {
+        minOrderAmount: {
         type: Number,
         default: 0,
         min: 0
     },
     maxDiscount: {
-        type: Number, // For percent coupons
+        type: Number,
         min: 0
     },
     usageLimit: {
@@ -152,8 +137,7 @@ const CouponSchema = new Schema({
         min: 1
     },
 
-    // Validity period
-    validFrom: {
+        validFrom: {
         type: Date,
         default: Date.now
     },
@@ -167,8 +151,7 @@ const CouponSchema = new Schema({
         default: 'active'
     },
 
-    // Applicable entities
-    applicableProducts: [{
+        applicableProducts: [{
         type: Schema.Types.ObjectId,
         ref: 'Product'
     }],
@@ -177,8 +160,7 @@ const CouponSchema = new Schema({
         ref: 'Category'
     }],
 
-    // Metadata
-    description: {
+        description: {
         type: String,
         trim: true
     },
@@ -233,8 +215,7 @@ CouponSchema.methods.calculateDiscount = function (orderAmount) {
 CouponSchema.methods.incrementUsage = async function () {
     this.usageCount += 1;
 
-    // Check if reached usage limit
-    if (this.usageLimit && this.usageCount >= this.usageLimit) {
+        if (this.usageLimit && this.usageCount >= this.usageLimit) {
         this.status = 'expired';
     }
 
@@ -259,10 +240,6 @@ CouponSchema.statics.findActive = function () {
 
 export const Coupon = mongoose.models.Coupon || mongoose.model('Coupon', CouponSchema);
 
-// ===========================
-// Discount Schema
-// ===========================
-
 const DiscountSchema = new Schema({
     title: {
         type: String,
@@ -280,8 +257,7 @@ const DiscountSchema = new Schema({
         min: 0
     },
 
-    // Time-based activation
-    startsAt: {
+        startsAt: {
         type: Date,
         required: true
     },
@@ -294,8 +270,7 @@ const DiscountSchema = new Schema({
         default: true
     },
 
-    // Applicable entities
-    categories: [{
+        categories: [{
         type: Schema.Types.ObjectId,
         ref: 'Category'
     }],
@@ -304,8 +279,7 @@ const DiscountSchema = new Schema({
         ref: 'Product'
     }],
 
-    // Priority (for overlapping discounts)
-    priority: {
+        priority: {
         type: Number,
         default: 0
     }
@@ -407,10 +381,6 @@ DiscountSchema.statics.findByCategory = function (categoryId) {
 };
 
 export const Discount = mongoose.model('Discount', DiscountSchema);
-
-// ===========================
-// Shipping Schema
-// ===========================
 
 const ShippingSchema = new Schema({
     type: {

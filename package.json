@@ -23,6 +23,7 @@
         "test": "npm run test:backend && npm run test:frontend",
         "test:backend": "cd backend && npm run test",
         "test:frontend": "cd frontend && npm run test",
+        "audit:prod": "npm audit --omit=dev --audit-level=high",
         "clean": "rimraf node_modules backend/node_modules frontend/node_modules frontend/dist",
         "seed": "cd backend && node scripts/seed.js",
         "optimize": "cd backend && node scripts/optimize-production.js"

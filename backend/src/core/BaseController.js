@@ -3,23 +3,12 @@ import { AppError } from '../middleware/errorHandler.js';
 import { config } from '../config/index.js';
 
 export class BaseController {
-    /**
-     * Creates an instance of BaseController
-     * @param {Object} service - Service layer instance for business logic
-     */
+    
     constructor(service) {
         this.service = service;
     }
 
-    /**
-     * Send success response with consistent format
-     * @param {Object} res - Express response object
-     * @param {Object} data - Response data
-     * @param {number} [statusCode=200] - HTTP status code
-     * @param {string} [message] - Optional success message
-     * @returns {Object} JSON response
-     */
-    sendSuccess(res, data, statusCode = 200, message = null) {
+sendSuccess(res, data, statusCode = 200, message = null) {
         const response = {
             success: true,
             ...(message && { message }),
@@ -29,17 +18,7 @@ export class BaseController {
         return res.status(statusCode).json(response);
     }
 
-    /**
-     * Send paginated response with metadata
-     * @param {Object} res - Express response object
-     * @param {Array} items - Array of items to paginate
-     * @param {Object} pagination - Pagination metadata
-     * @param {number} pagination.page - Current page number
-     * @param {number} pagination.limit - Items per page
-     * @param {number} pagination.total - Total items count
-     * @returns {Object} JSON response with pagination
-     */
-    sendPaginatedResponse(res, items, pagination) {
+sendPaginatedResponse(res, items, pagination) {
         const { page, limit, total } = pagination;
         const pages = Math.ceil(total / limit);
 
@@ -56,24 +35,13 @@ export class BaseController {
         });
     }
 
-    /**
-     * Catch async errors and pass to error handler
-     * @param {Function} fn - Async function to wrap
-     * @returns {Function} Express middleware function
-     */
-    catchAsync(fn) {
+catchAsync(fn) {
         return (req, res, next) => {
             Promise.resolve(fn(req, res, next)).catch(next);
         };
     }
 
-    /**
-     * Validate required fields in request body
-     * @param {Object} body - Request body
-     * @param {Array<string>} requiredFields - Array of required field names
-     * @throws {AppError} If validation fails
-     */
-    validateRequiredFields(body, requiredFields) {
+validateRequiredFields(body, requiredFields) {
         const missingFields = requiredFields.filter((field) => {
             const value = body[field];
             return value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
@@ -87,12 +55,7 @@ export class BaseController {
         }
     }
 
-    /**
-     * Parse and validate pagination parameters
-     * @param {Object} query - Request query parameters
-     * @returns {Object} Validated pagination params
-     */
-    parsePaginationParams(query) {
+parsePaginationParams(query) {
         const page = Math.max(1, parseInt(query.page, 10) || 1);
         const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 20));
         const skip = (page - 1) * limit;
@@ -100,13 +63,7 @@ export class BaseController {
         return { page, limit, skip };
     }
 
-    /**
-     * Parse and validate sort parameters
-     * @param {string} sortQuery - Sort query string (e.g., '-createdAt,title')
-     * @param {Array<string>} allowedFields - Allowed fields for sorting
-     * @returns {Object} MongoDB sort object
-     */
-    parseSortParams(sortQuery, allowedFields = []) {
+parseSortParams(sortQuery, allowedFields = []) {
         if (!sortQuery) return { createdAt: -1 };
 
         const sortObj = {};
@@ -116,8 +73,7 @@ export class BaseController {
             const isDescending = field.startsWith('-');
             const fieldName = isDescending ? field.slice(1) : field;
 
-            // Validate field if allowedFields is provided
-            if (allowedFields.length > 0 && !allowedFields.includes(fieldName)) {
+                        if (allowedFields.length > 0 && !allowedFields.includes(fieldName)) {
                 return;
             }
 
@@ -127,13 +83,7 @@ export class BaseController {
         return Object.keys(sortObj).length > 0 ? sortObj : { createdAt: -1 };
     }
 
-    /**
-     * Build filter query from request parameters
-     * @param {Object} query - Request query parameters
-     * @param {Array<string>} allowedFilters - Allowed filter fields
-     * @returns {Object} MongoDB filter object
-     */
-    buildFilterQuery(query, allowedFilters = []) {
+buildFilterQuery(query, allowedFilters = []) {
         const filter = {};
 
         allowedFilters.forEach(field => {
@@ -145,46 +95,24 @@ export class BaseController {
         return filter;
     }
 
-    /**
-     * Log controller action
-     * @param {string} action - Action name
-     * @param {Object} metadata - Additional metadata to log
-     */
-    logAction(action, metadata = {}) {
+logAction(action, metadata = {}) {
         logger.info(`Controller Action: ${action}`, metadata);
     }
 
-    /**
-     * Extract user ID from request
-     * @param {Object} req - Express request object
-     * @returns {string|null} User ID or null
-     */
-    getUserId(req) {
+getUserId(req) {
         return req.user?._id || req.user?.id || null;
     }
 
-    /**
-     * Check if user is admin
-     * @param {Object} req - Express request object
-     * @returns {boolean} True if user is admin
-     */
-    isAdmin(req) {
+isAdmin(req) {
         return req.user?.role === 'admin';
     }
 
-    /**
-     * Set HTTP-only secure cookie for tokens
-     * @param {Object} res - Express response object
-     * @param {string} name - Cookie name
-     * @param {string} value - Cookie value
-     * @param {Object} options - Additional cookie options
-     */
-    setTokenCookie(res, name, value, options = {}) {
+setTokenCookie(res, name, value, options = {}) {
         const isProduction = config.nodeEnv === 'production';
         const isCrossOrigin = config.frontendUrl !== config.apiUrl;
         const cookieOptions = {
-            httpOnly: true, // Prevent XSS attacks
-            secure: isProduction, // HTTPS only in production
+            httpOnly: true,
+            secure: isProduction,
             sameSite: isProduction && isCrossOrigin ? 'none' : 'lax',
             path: '/',
             ...options
@@ -193,12 +121,7 @@ export class BaseController {
         res.cookie(name, value, cookieOptions);
     }
 
-    /**
-     * Clear HTTP-only cookie
-     * @param {Object} res - Express response object
-     * @param {string} name - Cookie name
-     */
-    clearTokenCookie(res, name) {
+clearTokenCookie(res, name) {
         const isProduction = config.nodeEnv === 'production';
         const isCrossOrigin = config.frontendUrl !== config.apiUrl;
         res.clearCookie(name, {

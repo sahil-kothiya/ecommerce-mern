@@ -46,7 +46,6 @@ const reviewSchema = new Schema(
     }
 );
 
-// Indexes
 reviewSchema.index({ productId: 1 });
 reviewSchema.index({ userId: 1 });
 reviewSchema.index({ productId: 1, userId: 1 }, { unique: true });
@@ -54,7 +53,6 @@ reviewSchema.index({ productId: 1, status: 1, createdAt: -1 });
 reviewSchema.index({ status: 1 });
 reviewSchema.index({ rating: 1 });
 
-// Virtual populate user
 reviewSchema.virtual('user', {
     ref: 'User',
     localField: 'userId',
@@ -62,7 +60,6 @@ reviewSchema.virtual('user', {
     justOne: true,
 });
 
-// Virtual populate product
 reviewSchema.virtual('product', {
     ref: 'Product',
     localField: 'productId',
@@ -70,24 +67,20 @@ reviewSchema.virtual('product', {
     justOne: true,
 });
 
-// Update product rating after save
 reviewSchema.post('save', async function () {
     await updateProductRating(this.productId);
 });
 
-// Update product rating after document deletion
 reviewSchema.post('deleteOne', { document: true, query: false }, async function () {
     await updateProductRating(this.productId);
 });
 
-// Update product rating after query-based deletion.
 reviewSchema.post('findOneAndDelete', async function (doc) {
     if (doc?.productId) {
         await updateProductRating(doc.productId);
     }
 });
 
-// Helper function to update product rating
 async function updateProductRating(productId) {
     const stats = await mongoose.models.Review.aggregate([
         { $match: { productId, status: 'active' } },

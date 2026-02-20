@@ -13,11 +13,6 @@ const BannersList = () => {
     const [bannerToDelete, setBannerToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const getAuthHeader = () => {
-        const token = localStorage.getItem('auth_token');
-        return token ? { Authorization: `Bearer ${token}` } : {};
-    };
-
     const getImageUrl = (path) => {
         if (!path) return '';
         if (/^https?:\/\//i.test(path)) return path;
@@ -32,7 +27,9 @@ const BannersList = () => {
     const loadBanners = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}`);
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}`, {
+                credentials: 'include',
+            });
             const data = await response.json();
 
             if (!response.ok || !data.success) {
@@ -63,9 +60,7 @@ const BannersList = () => {
             setIsDeleting(true);
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}/${bannerToDelete._id}`, {
                 method: 'DELETE',
-                headers: {
-                    ...getAuthHeader(),
-                },
+                credentials: 'include',
             });
             const data = await response.json();
 

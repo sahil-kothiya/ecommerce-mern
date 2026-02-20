@@ -13,11 +13,6 @@ const VariantTypesList = () => {
     const [typeToDelete, setTypeToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const getAuthHeader = () => {
-        const token = localStorage.getItem('auth_token');
-        return token ? { Authorization: `Bearer ${token}` } : {};
-    };
-
     const loadItems = async () => {
         try {
             setIsLoading(true);
@@ -27,7 +22,9 @@ const VariantTypesList = () => {
                 status: statusFilter || 'all',
                 search: searchTerm.trim(),
             });
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}?${query.toString()}`);
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}?${query.toString()}`, {
+                credentials: 'include',
+            });
             const data = await response.json();
             if (!response.ok || !data?.success) {
                 notify.error(data, 'Failed to load variant types');
@@ -66,7 +63,7 @@ const VariantTypesList = () => {
             setIsDeleting(true);
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}/${typeToDelete._id}`, {
                 method: 'DELETE',
-                headers: { ...getAuthHeader() },
+                credentials: 'include',
             });
             const data = await response.json();
             if (!response.ok || !data?.success) {

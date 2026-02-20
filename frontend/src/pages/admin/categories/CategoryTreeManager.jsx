@@ -83,8 +83,7 @@ const CategoryTreeManager = () => {
             logger.info('Built tree:', tree);
             setCategories(tree);
             
-            // Auto-expand all categories that have children
-            const allParentIds = new Set();
+                        const allParentIds = new Set();
             const collectParentIds = (items) => {
                 items.forEach(item => {
                     if (item.children && item.children.length > 0) {
@@ -130,14 +129,12 @@ const CategoryTreeManager = () => {
 
     const flattenTree = (tree, depth = 0, parentId = null) => {
         return tree.reduce((acc, item) => {
-            // Preserve the original parentId from the item
-            const flatItem = { 
+                        const flatItem = { 
                 ...item, 
                 depth,
                 parentId: item.parentId || parentId
             };
-            // Remove children from flat representation to avoid circular refs
-            delete flatItem.children;
+                        delete flatItem.children;
             acc.push(flatItem);
             
             if (item.children && item.children.length > 0) {
@@ -196,8 +193,7 @@ const CategoryTreeManager = () => {
 
         if (!over || active.id === over.id) return;
 
-        // Drop into explicit child-drop area
-        if (typeof over.id === 'string' && over.id.startsWith('child-drop-')) {
+                if (typeof over.id === 'string' && over.id.startsWith('child-drop-')) {
             const targetParentId = over.id.replace('child-drop-', '');
             const activeItem = findCategoryById(categories, active.id);
             const targetParent = findCategoryById(categories, targetParentId);
@@ -232,14 +228,12 @@ const CategoryTreeManager = () => {
 
         if (!activeItem || !overItem) return;
 
-        // Prevent moving a parent into its own child
-        if (isDescendant(activeItem, overItem._id)) {
+                if (isDescendant(activeItem, overItem._id)) {
             showToast('Cannot move a category into its own descendant', 'warning');
             return;
         }
 
-        // Update the tree structure
-        const updatedTree = moveCategory(categories, active.id, over.id);
+                const updatedTree = moveCategory(categories, active.id, over.id);
         setCategories(updatedTree);
         setHasChanges(true);
         showToast('Category moved. Click "Save Changes" to apply.', 'info');
@@ -254,8 +248,7 @@ const CategoryTreeManager = () => {
     };
 
     const moveCategory = (tree, activeId, overId) => {
-        // Find the active category and remove it from its current position
-        let activeCategory = null;
+                let activeCategory = null;
         const removeFromTree = (items) => {
             return items.filter(item => {
                 if (item._id === activeId) {
@@ -417,8 +410,7 @@ const CategoryTreeManager = () => {
         }
     };
 
-
-    const toggleStatus = async (categoryId, currentStatus) => {
+const toggleStatus = async (categoryId, currentStatus) => {
         try {
             const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryId}`, {

@@ -1,7 +1,6 @@
 import { IMAGE_CONFIG } from '../constants/index.js';
 import { getRandomItems } from '../utils/index.js';
 
-// Available product images (copied from Laravel project)
 const AVAILABLE_PRODUCT_IMAGES = [
     'product_68e8d79a74aad_0.webp',
     'product_68e8d66387660_0.webp',
@@ -60,7 +59,6 @@ const AVAILABLE_PRODUCT_IMAGES = [
     'product_6893012f70d3d_2.webp'
 ];
 
-// Available variant images (copied from Laravel project)
 const AVAILABLE_VARIANT_IMAGES = [
     'variant_68e8c67d53c28_0.webp',
     'variant_68e8c73e05444_0.webp',
@@ -99,41 +97,27 @@ const AVAILABLE_VARIANT_IMAGES = [
     'variant_6901f4c87e9c8_4.webp'
 ];
 
-/**
- * Image Service Class
- * Centralized image management with professional error handling
- */
 class ImageService {
     constructor() {
         this.cache = new Map();
         this.preloadedImages = new Set();
     }
 
-    /**
-     * Get product image URL with local path
-     * @param {string|null} filename - Image filename
-     * @param {boolean} thumbnail - Whether to get thumbnail version
-     * @returns {string} Complete image URL
-     */
-    getProductImageUrl(filename, _thumbnail = false) {
+getProductImageUrl(filename, _thumbnail = false) {
         try {
             if (!filename || typeof filename !== 'string') {
                 return this.getDefaultProductImage();
             }
 
-            // Clean filename
-            const cleanFilename = this.sanitizeFilename(filename);
+                        const cleanFilename = this.sanitizeFilename(filename);
 
-            // If it's already a complete URL, return as is
-            if (cleanFilename.startsWith('http')) {
+                        if (cleanFilename.startsWith('http')) {
                 return cleanFilename;
             }
 
-            // Build local path
-            const imagePath = `${IMAGE_CONFIG.PRODUCT_PATH}/${cleanFilename}`;
+                        const imagePath = `${IMAGE_CONFIG.PRODUCT_PATH}/${cleanFilename}`;
 
-            // Cache the URL
-            this.cache.set(filename, imagePath);
+                        this.cache.set(filename, imagePath);
 
             return imagePath;
         } catch (error) {
@@ -142,13 +126,7 @@ class ImageService {
         }
     }
 
-    /**
-     * Get variant image URL with local path
-     * @param {string|null} filename - Image filename
-     * @param {boolean} thumbnail - Whether to get thumbnail version
-     * @returns {string} Complete image URL
-     */
-    getVariantImageUrl(filename, _thumbnail = false) {
+getVariantImageUrl(filename, _thumbnail = false) {
         try {
             if (!filename || typeof filename !== 'string') {
                 return this.getDefaultVariantImage();
@@ -171,30 +149,17 @@ class ImageService {
         }
     }
 
-    /**
-     * Get random product image
-     * @returns {string} Random product image URL
-     */
-    getRandomProductImage() {
+getRandomProductImage() {
         const randomImages = getRandomItems(AVAILABLE_PRODUCT_IMAGES, 1);
         return this.getProductImageUrl(randomImages[0]);
     }
 
-    /**
-     * Get random variant image
-     * @returns {string} Random variant image URL
-     */
-    getRandomVariantImage() {
+getRandomVariantImage() {
         const randomImages = getRandomItems(AVAILABLE_VARIANT_IMAGES, 1);
         return this.getVariantImageUrl(randomImages[0]);
     }
 
-    /**
-     * Get multiple random product images
-     * @param {number} count - Number of images to get
-     * @returns {string[]} Array of image URLs
-     */
-    getRandomProductImages(count = 1) {
+getRandomProductImages(count = 1) {
         try {
             const randomImages = getRandomItems(AVAILABLE_PRODUCT_IMAGES, count);
             return randomImages.map(filename => this.getProductImageUrl(filename));
@@ -204,12 +169,7 @@ class ImageService {
         }
     }
 
-    /**
-     * Get multiple random variant images
-     * @param {number} count - Number of images to get
-     * @returns {string[]} Array of image URLs
-     */
-    getRandomVariantImages(count = 1) {
+getRandomVariantImages(count = 1) {
         try {
             const randomImages = getRandomItems(AVAILABLE_VARIANT_IMAGES, count);
             return randomImages.map(filename => this.getVariantImageUrl(filename));
@@ -219,28 +179,15 @@ class ImageService {
         }
     }
 
-    /**
-     * Get default product image
-     * @returns {string} Default product image URL
-     */
-    getDefaultProductImage() {
+getDefaultProductImage() {
         return this.getProductImageUrl(AVAILABLE_PRODUCT_IMAGES[0]);
     }
 
-    /**
-     * Get default variant image
-     * @returns {string} Default variant image URL
-     */
-    getDefaultVariantImage() {
+getDefaultVariantImage() {
         return this.getVariantImageUrl(AVAILABLE_VARIANT_IMAGES[0]);
     }
 
-    /**
-     * Handle image loading errors with fallback
-     * @param {Event} event - Image error event
-     * @param {string} type - Image type ('product' or 'variant')
-     */
-    handleImageError(event, type = 'product') {
+handleImageError(event, type = 'product') {
         const img = event.target;
 
         if (!img || img.hasAttribute('data-fallback-used')) {
@@ -260,11 +207,7 @@ class ImageService {
         }
     }
 
-    /**
-     * Preload images for better performance
-     * @param {string[]} imageUrls - Array of image URLs to preload
-     */
-    preloadImages(imageUrls) {
+preloadImages(imageUrls) {
         if (!Array.isArray(imageUrls)) return;
 
         imageUrls.forEach(url => {
@@ -281,29 +224,19 @@ class ImageService {
         });
     }
 
-    /**
-     * Validate image format
-     * @param {string} filename - Image filename
-     * @returns {boolean} True if valid format
-     */
-    isValidImageFormat(filename) {
+isValidImageFormat(filename) {
         if (typeof filename !== 'string') return false;
 
         const extension = filename.split('.').pop()?.toLowerCase();
         return IMAGE_CONFIG.SUPPORTED_FORMATS.includes(extension);
     }
 
-    /**
-     * Sanitize filename for security
-     * @param {string} filename - Raw filename
-     * @returns {string} Sanitized filename
-     */
-    sanitizeFilename(filename) {
+sanitizeFilename(filename) {
         if (typeof filename !== 'string') return '';
 
         return filename
-            .replace(/^\/+/, '') // Remove leading slashes
-            .replace(/\.\./g, '') // Remove directory traversal
+            .replace(/^\/+/, '')
+            .replace(/\.\./g, '')
             .replace(/[<>:"|?*]/g, '') // Remove invalid characters
             .trim();
     }

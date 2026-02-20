@@ -1,17 +1,7 @@
-/**
- * Utility Functions
- * Following international coding standards and best practices
- */
+
 
 import { CURRENCY_CONFIG, ERROR_MESSAGES, VALIDATION_RULES } from '../constants/index.js';
 
-/**
- * Format price according to locale and currency configuration
- * @param {number} price - Price value
- * @param {string} currency - Currency code
- * @param {string} locale - Locale string
- * @returns {string} Formatted price string
- */
 export const formatPrice = (price, currency = CURRENCY_CONFIG.DEFAULT, locale = CURRENCY_CONFIG.LOCALE) => {
     if (typeof price !== 'number' || isNaN(price)) {
         return `${CURRENCY_CONFIG.SYMBOL}0.00`;
@@ -30,12 +20,6 @@ export const formatPrice = (price, currency = CURRENCY_CONFIG.DEFAULT, locale = 
     }
 };
 
-/**
- * Calculate discounted price
- * @param {number} originalPrice - Original price
- * @param {number} discountPercent - Discount percentage
- * @returns {number} Discounted price
- */
 export const calculateDiscountPrice = (originalPrice, discountPercent) => {
     if (typeof originalPrice !== 'number' || typeof discountPercent !== 'number') {
         return originalPrice || 0;
@@ -48,12 +32,6 @@ export const calculateDiscountPrice = (originalPrice, discountPercent) => {
     return originalPrice * (1 - discountPercent / 100);
 };
 
-/**
- * Calculate savings amount
- * @param {number} originalPrice - Original price
- * @param {number} discountedPrice - Discounted price
- * @returns {number} Savings amount
- */
 export const calculateSavings = (originalPrice, discountedPrice) => {
     if (typeof originalPrice !== 'number' || typeof discountedPrice !== 'number') {
         return 0;
@@ -62,31 +40,16 @@ export const calculateSavings = (originalPrice, discountedPrice) => {
     return Math.max(0, originalPrice - discountedPrice);
 };
 
-/**
- * Validate email address
- * @param {string} email - Email to validate
- * @returns {boolean} Validation result
- */
 export const isValidEmail = (email) => {
     if (typeof email !== 'string') return false;
     return VALIDATION_RULES.EMAIL.test(email.trim());
 };
 
-/**
- * Validate phone number
- * @param {string} phone - Phone number to validate
- * @returns {boolean} Validation result
- */
 export const isValidPhone = (phone) => {
     if (typeof phone !== 'string') return false;
     return VALIDATION_RULES.PHONE.test(phone.trim());
 };
 
-/**
- * Validate password strength
- * @param {string} password - Password to validate
- * @returns {object} Validation result with strength info
- */
 export const validatePassword = (password) => {
     if (typeof password !== 'string') {
         return { isValid: false, strength: 'invalid', message: 'Password must be a string' };

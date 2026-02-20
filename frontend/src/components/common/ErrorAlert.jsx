@@ -1,67 +1,61 @@
 import React from 'react';
 
-// ============================================================================
-// ERROR ALERT COMPONENT
-// ============================================================================
-// Reusable component for displaying validation errors in a consistent format
-const ErrorAlert = ({ 
-    errors = [], 
-    title = "Validation Errors:", 
-    className = "", 
-    onClose = null 
+const ErrorAlert = ({
+    errors = [],
+    className = '',
+    onClose = null,
+        title,
 }) => {
-    // Don't render if no errors
-    if (!errors || errors.length === 0) return null;
+        const validErrors = (errors || []).filter((e) => e && String(e).trim());
+    if (!validErrors.length) return null;
 
     return (
-        <div className={`mb-6 p-4 bg-red-50 border border-red-200 rounded-lg ${className}`}>
-            <div className="flex items-start gap-2">
-                {/* Error Icon */}
-                <svg 
-                    className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" 
-                    fill="currentColor" 
-                    viewBox="0 0 20 20"
-                >
-                    <path 
-                        fillRule="evenodd" 
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" 
-                        clipRule="evenodd" 
-                    />
-                </svg>
-                
-                <div className="flex-1">
-                    {/* Error Title */}
-                    <p className="text-red-600 text-sm font-semibold mb-1">
-                        {title}
-                    </p>
-                    
-                    {/* Error List */}
-                    <div className="text-red-600 text-sm">
-                        {errors.map((error, index) => (
-                            <div key={index} className="mb-1">
-                                • {error}
-                            </div>
-                        ))}
-                    </div>
-                </div>
+        <div
+            role="alert"
+            className={`flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm ${className}`}
+        >
+            
+            <svg
+                className="mt-0.5 h-4 w-4 shrink-0 text-red-500"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                aria-hidden="true"
+            >
+                <path
+                    fillRule="evenodd"
+                    d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+                    clipRule="evenodd"
+                />
+            </svg>
 
-                {/* Close Button (Optional) */}
-                {onClose && (
-                    <button 
-                        onClick={onClose}
-                        className="text-red-600 hover:text-red-700 flex-shrink-0"
-                        type="button"
-                    >
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path 
-                                fillRule="evenodd" 
-                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" 
-                                clipRule="evenodd" 
-                            />
-                        </svg>
-                    </button>
+<div className="flex-1 leading-relaxed text-red-700">
+                {validErrors.length === 1 ? (
+                    <span>{validErrors[0]}</span>
+                ) : (
+                    <ul className="space-y-0.5">
+                        {validErrors.map((err, i) => (
+                            <li key={i}>{err}</li>
+                        ))}
+                    </ul>
                 )}
             </div>
+
+{onClose && (
+                <button
+                    type="button"
+                    onClick={onClose}
+                    aria-label="Dismiss"
+                    className="shrink-0 text-red-400 transition-colors hover:text-red-600"
+                >
+                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                            fillRule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                            clipRule="evenodd"
+                        />
+                    </svg>
+                </button>
+            )}
         </div>
     );
 };

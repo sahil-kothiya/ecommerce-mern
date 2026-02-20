@@ -2,26 +2,12 @@ import { AppError } from '../middleware/errorHandler.js';
 import { logger } from '../utils/logger.js';
 
 export class BaseService {
-    /**
-     * Creates an instance of BaseService
-     * @param {Object} model - Mongoose model instance
-     */
+    
     constructor(model) {
         this.model = model;
     }
 
-    /**
-     * Find all documents with optional filtering, sorting, and pagination
-     * @param {Object} options - Query options
-     * @param {Object} [options.filter={}] - MongoDB filter object
-     * @param {Object} [options.sort={ createdAt: -1 }] - Sort object
-     * @param {number} [options.page=1] - Page number
-     * @param {number} [options.limit=20] - Items per page
-     * @param {string} [options.populate=''] - Fields to populate
-     * @param {string} [options.select=''] - Fields to select
-     * @returns {Promise<Object>} Paginated results with metadata
-     */
-    async findAll(options = {}) {
+async findAll(options = {}) {
         try {
             const {
                 filter = {},
@@ -34,15 +20,13 @@ export class BaseService {
 
             const skip = (page - 1) * limit;
 
-            // Build query
-            let query = this.model.find(filter);
+                        let query = this.model.find(filter);
 
             if (select) query = query.select(select);
             if (populate) query = query.populate(populate);
             if (sort) query = query.sort(sort);
 
-            // Execute query with pagination
-            const [items, total] = await Promise.all([
+                        const [items, total] = await Promise.all([
                 query.skip(skip).limit(limit).lean(),
                 this.model.countDocuments(filter)
             ]);
@@ -62,15 +46,7 @@ export class BaseService {
         }
     }
 
-    /**
-     * Find single document by ID
-     * @param {string} id - Document ID
-     * @param {Object} [options={}] - Query options
-     * @param {string} [options.populate=''] - Fields to populate
-     * @param {string} [options.select=''] - Fields to select
-     * @returns {Promise<Object|null>} Document or null
-     */
-    async findById(id, options = {}) {
+async findById(id, options = {}) {
         try {
             const { populate = '', select = '' } = options;
 
@@ -87,14 +63,7 @@ export class BaseService {
         }
     }
 
-    /**
-     * Find single document by ID or throw error
-     * @param {string} id - Document ID
-     * @param {Object} [options={}] - Query options
-     * @returns {Promise<Object>} Document
-     * @throws {AppError} If document not found
-     */
-    async findByIdOrFail(id, options = {}) {
+async findByIdOrFail(id, options = {}) {
         const document = await this.findById(id, options);
         
         if (!document) {
@@ -104,13 +73,7 @@ export class BaseService {
         return document;
     }
 
-    /**
-     * Find one document by filter
-     * @param {Object} filter - MongoDB filter object
-     * @param {Object} [options={}] - Query options
-     * @returns {Promise<Object|null>} Document or null
-     */
-    async findOne(filter, options = {}) {
+async findOne(filter, options = {}) {
         try {
             const { populate = '', select = '' } = options;
 
@@ -126,12 +89,7 @@ export class BaseService {
         }
     }
 
-    /**
-     * Create new document
-     * @param {Object} data - Document data
-     * @returns {Promise<Object>} Created document
-     */
-    async create(data) {
+async create(data) {
         try {
             const document = await this.model.create(data);
             logger.info(`${this.model.modelName} created:`, document._id);
@@ -142,14 +100,7 @@ export class BaseService {
         }
     }
 
-    /**
-     * Update document by ID
-     * @param {string} id - Document ID
-     * @param {Object} data - Update data
-     * @param {Object} [options={ new: true, runValidators: true }] - Update options
-     * @returns {Promise<Object|null>} Updated document
-     */
-    async update(id, data, options = { new: true, runValidators: true }) {
+async update(id, data, options = { new: true, runValidators: true }) {
         try {
             const document = await this.model.findByIdAndUpdate(
                 id,
@@ -168,14 +119,7 @@ export class BaseService {
         }
     }
 
-    /**
-     * Update document by ID or throw error
-     * @param {string} id - Document ID
-     * @param {Object} data - Update data
-     * @returns {Promise<Object>} Updated document
-     * @throws {AppError} If document not found
-     */
-    async updateOrFail(id, data) {
+async updateOrFail(id, data) {
         const document = await this.update(id, data);
         
         if (!document) {
@@ -185,12 +129,7 @@ export class BaseService {
         return document;
     }
 
-    /**
-     * Delete document by ID
-     * @param {string} id - Document ID
-     * @returns {Promise<Object|null>} Deleted document
-     */
-    async delete(id) {
+async delete(id) {
         try {
             const document = await this.model.findByIdAndDelete(id);
             
@@ -205,13 +144,7 @@ export class BaseService {
         }
     }
 
-    /**
-     * Delete document by ID or throw error
-     * @param {string} id - Document ID
-     * @returns {Promise<Object>} Deleted document
-     * @throws {AppError} If document not found
-     */
-    async deleteOrFail(id) {
+async deleteOrFail(id) {
         const document = await this.delete(id);
         
         if (!document) {
@@ -221,12 +154,7 @@ export class BaseService {
         return document;
     }
 
-    /**
-     * Check if document exists by ID
-     * @param {string} id - Document ID
-     * @returns {Promise<boolean>} True if exists
-     */
-    async exists(id) {
+async exists(id) {
         try {
             const count = await this.model.countDocuments({ _id: id });
             return count > 0;
@@ -236,12 +164,7 @@ export class BaseService {
         }
     }
 
-    /**
-     * Count documents matching filter
-     * @param {Object} [filter={}] - MongoDB filter object
-     * @returns {Promise<number>} Count
-     */
-    async count(filter = {}) {
+async count(filter = {}) {
         try {
             return await this.model.countDocuments(filter);
         } catch (error) {
@@ -250,21 +173,11 @@ export class BaseService {
         }
     }
 
-    /**
-     * Soft delete document (sets status to inactive)
-     * @param {string} id - Document ID
-     * @returns {Promise<Object|null>} Updated document
-     */
-    async softDelete(id) {
+async softDelete(id) {
         return await this.update(id, { status: 'inactive' });
     }
 
-    /**
-     * Bulk create documents
-     * @param {Array<Object>} dataArray - Array of document data
-     * @returns {Promise<Array>} Created documents
-     */
-    async bulkCreate(dataArray) {
+async bulkCreate(dataArray) {
         try {
             const documents = await this.model.insertMany(dataArray);
             logger.info(`${this.model.modelName} bulk created: ${documents.length} items`);
@@ -275,12 +188,7 @@ export class BaseService {
         }
     }
 
-    /**
-     * Transaction wrapper for multiple operations
-     * @param {Function} operations - Async function containing operations
-     * @returns {Promise<any>} Result of operations
-     */
-    async transaction(operations) {
+async transaction(operations) {
         const session = await this.model.db.startSession();
         session.startTransaction();
 

@@ -4,10 +4,8 @@ import { couponController } from '../controllers/CouponController.js';
 
 const router = Router();
 
-// Public routes
 router.post('/validate', couponController.validate.bind(couponController));
 
-// Protected routes (Admin only)
 router.get('/', protect, authorize('admin'), couponController.index.bind(couponController));
 router.get('/:id', protect, authorize('admin'), couponController.show.bind(couponController));
 

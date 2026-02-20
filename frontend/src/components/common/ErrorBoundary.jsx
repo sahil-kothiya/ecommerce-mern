@@ -10,40 +10,23 @@ class ErrorBoundary extends React.Component {
         };
     }
 
-    /**
-     * Update state when error is caught
-     * @param {Error} error - The error that was thrown
-     * @returns {Object} New state
-     */
-    static getDerivedStateFromError(_error) {
+static getDerivedStateFromError(_error) {
         return { hasError: true };
     }
 
-    /**
-     * Log error details
-     * @param {Error} error - The error that was thrown
-     * @param {Object} errorInfo - Component stack trace
-     */
-    componentDidCatch(error, errorInfo) {
-        // Log error to console in development
-        console.error('ErrorBoundary caught an error:', error, errorInfo);
+componentDidCatch(error, errorInfo) {
+                console.error('ErrorBoundary caught an error:', error, errorInfo);
 
-        // Update state with error details
-        this.setState({
+                this.setState({
             error,
             errorInfo
         });
 
-        // In production, send to error tracking service (e.g., Sentry)
-        if (process.env.NODE_ENV === 'production') {
-            // Example: logErrorToService(error, errorInfo);
-        }
+                if (process.env.NODE_ENV === 'production') {
+                    }
     }
 
-    /**
-     * Reset error state
-     */
-    handleReset = () => {
+handleReset = () => {
         this.setState({
             hasError: false,
             error: null,
@@ -53,13 +36,11 @@ class ErrorBoundary extends React.Component {
 
     render() {
         if (this.state.hasError) {
-            // Custom fallback UI
-            if (this.props.fallback) {
+                        if (this.props.fallback) {
                 return this.props.fallback(this.state.error, this.handleReset);
             }
 
-            // Default fallback UI
-            return (
+                        return (
                 <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
                     <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
                         <div className="text-center">

@@ -26,6 +26,7 @@ export const AdminPageHeader = ({
         <div className="admin-hero rounded-3xl p-6 text-white sm:p-8">
             <div className="absolute -right-10 -top-20 h-48 w-48 rounded-full bg-[#ffa336]/30 blur-3xl" />
             <div className="absolute -bottom-16 -left-8 h-44 w-44 rounded-full bg-[#a5bbfc]/30 blur-3xl" />
+            <div className="absolute bottom-4 right-28 h-24 w-24 rounded-full bg-pink-400/20 blur-2xl" />
             <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <p className="admin-hero-eyebrow text-xs uppercase">{eyebrow}</p>

@@ -1,291 +1,235 @@
-// ============================================================================
-// AUTHENTICATION CONTROLLER
-// ============================================================================
-// Handles user authentication operations: registration, login, logout, profile management
-// All business logic delegated to AuthService, this controller focuses on HTTP handling
 
-import { BaseController } from '../core/BaseController.js';
-import { AuthService } from '../services/AuthService.js';
-import { logger } from '../utils/logger.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { BaseController } from "../core/BaseController.js";
+import { AuthService } from "../services/AuthService.js";
+import { logger } from "../utils/logger.js";
+import { AppError } from "../middleware/errorHandler.js";
 
-/**
- * Authentication Controller Class
- * 
- * Manages HTTP endpoints for user authentication and account operations
- * Extends BaseController for consistent error handling and response formatting
- */
 export class AuthController extends BaseController {
-    constructor() {
-        // Initialize with AuthService for business logic delegation
+  constructor() {
         const authService = new AuthService();
-        super(authService);
-    }
+    super(authService);
+  }
 
-    // ========================================================================
-    // USER REGISTRATION
-    // ========================================================================
-    /**
-     * Register new user account
-     * 
-     * Validates input, creates user account, and returns JWT token
-     * Password is automatically hashed in the User model pre-save hook
-     * 
-     * @route POST /api/auth/register
-     * @access Public
-     */
-    register = this.catchAsync(async (req, res) => {
-        const { name, email, password } = req.body;
+register = this.catchAsync(async (req, res) => {
+    const { name, email, password } = req.body;
 
-        // Validate required fields (throws 400 error if missing)
-        this.validateRequiredFields(req.body, ['name', 'email', 'password']);
+        this.validateRequiredFields(req.body, ["name", "email", "password"]);
 
-        // Delegate user creation to service layer
-        const { user, token } = await this.service.register({
-            name,
-            email,
-            password
-        });
-
-        // Log registration for audit trail
-        this.logAction('User Registration', { email, userId: user._id });
-
-        // Send 201 Created response with user data and JWT token
-        this.sendSuccess(
-            res,
-            { user, token },
-            201,
-            'User registered successfully'
-        );
+        const { user, accessToken, expiresIn } = await this.service.register({
+      name,
+      email,
+      password,
     });
 
-    // ========================================================================
-    // USER LOGIN
-    // ========================================================================
-    /**
-     * Authenticate user with email and password
-     * 
-     * Validates credentials, generates JWT tokens (access + refresh if remember me)
-     * Sets HTTP-only cookies for secure token storage
-     * 
-     * @route POST /api/auth/login
-     * @access Public
-     */
-    login = this.catchAsync(async (req, res) => {
-        const { email, password, rememberMe: rememberMeRaw } = req.body;
+    this.setTokenCookie(res, "accessToken", accessToken, {
+      maxAge: 15 * 60 * 1000,
+    });
 
-        // Validate required credentials
-        this.validateRequiredFields(req.body, ['email', 'password']);
+        this.logAction("User Registration", { email, userId: user._id });
 
-        // Parse rememberMe as boolean - handles multiple formats from different clients
-        // Accepts: true, "true", 1 (all evaluate to true)
-        // Accepts: false, "false", 0, undefined, null (all evaluate to false)
-        const rememberMe = Boolean(rememberMeRaw === true || rememberMeRaw === 'true' || rememberMeRaw === 1);
+        this.sendSuccess(
+      res,
+      { user, expiresIn },
+      201,
+      "User registered successfully",
+    );
+  });
 
-        // Authenticate user and generate tokens with service layer
+login = this.catchAsync(async (req, res) => {
+    const { email, password, rememberMe: rememberMeRaw } = req.body;
+
+        this.validateRequiredFields(req.body, ["email", "password"]);
+
+                const rememberMe = Boolean(
+      rememberMeRaw === true || rememberMeRaw === "true" || rememberMeRaw === 1,
+    );
+
         const result = await this.service.login(email, password, rememberMe);
 
-        // Log successful login for security audit
-        this.logAction('User Login', { 
-            email, 
-            userId: result.user._id,
-            rememberMe,
-            hasRefreshToken: !!result.refreshToken
-        });
-
-        // Set access token cookie (short-lived for security)
-        this.setTokenCookie(res, 'accessToken', result.accessToken, {
-            maxAge: 15 * 60 * 1000 // 15 minutes in milliseconds
-        });
-
-        // Set refresh token cookie only if remember me is enabled (long-lived)
-        if (rememberMe && result.refreshToken) {
-            this.setTokenCookie(res, 'refreshToken', result.refreshToken, {
-                maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days in milliseconds
-            });
-        }
-
-        // Send success response with user data and tokens
-        this.sendSuccess(
-            res,
-            {
-                user: result.user,
-                token: result.token,
-                accessToken: result.accessToken,
-                expiresIn: result.expiresIn,
-                // Include refresh token data only if present
-                ...(result.refreshToken && {
-                    refreshToken: result.refreshToken,
-                    refreshExpiresIn: result.refreshExpiresIn
-                })
-            },
-            200,
-            rememberMe ? 'Login successful - Remember me enabled' : 'Login successful'
-        );
+        this.logAction("User Login", {
+      email,
+      userId: result.user._id,
+      rememberMe,
+      hasRefreshToken: !!result.refreshToken,
     });
 
-    // ========================================================================
-    // GET USER PROFILE
-    // ========================================================================
-    /**
-     * Get authenticated user's profile data
-     * 
-     * Returns current user's information based on JWT token
-     * Requires authentication via protect middleware
-     * 
-     * @route GET /api/auth/me
-     * @access Private
-     */
-    getProfile = this.catchAsync(async (req, res) => {
-        // Extract user ID from authenticated request (set by protect middleware)
+        this.setTokenCookie(res, "accessToken", result.accessToken, {
+      maxAge: 15 * 60 * 1000,
+    });
+
+        if (rememberMe && result.refreshToken) {
+      this.setTokenCookie(res, "refreshToken", result.refreshToken, {
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+    }
+
+        this.sendSuccess(
+      res,
+      {
+        user: result.user,
+        expiresIn: result.expiresIn,
+                ...(result.refreshToken && {
+          refreshExpiresIn: result.refreshExpiresIn,
+        }),
+      },
+      200,
+      rememberMe
+        ? "Login successful - Remember me enabled"
+        : "Login successful",
+    );
+  });
+
+getProfile = this.catchAsync(async (req, res) => {
         const userId = this.getUserId(req);
 
-        // Fetch user profile from service layer
         const user = await this.service.getProfile(userId);
 
-        this.sendSuccess(res, { user });
-    });
+    this.sendSuccess(res, { user });
+  });
 
-    /** Update user profile */
-    updateProfile = this.catchAsync(async (req, res) => {
-        const userId = this.getUserId(req);
-        const updateData = req.body;
+updateProfile = this.catchAsync(async (req, res) => {
+    const userId = this.getUserId(req);
+    const updateData = req.body;
 
-        // Update profile via service layer
         const user = await this.service.updateProfile(userId, updateData);
 
-        this.logAction('Profile Updated', { userId });
+    this.logAction("Profile Updated", { userId });
 
-        this.sendSuccess(
-            res,
-            { user },
-            200,
-            'Profile updated successfully'
-        );
-    });
+    this.sendSuccess(res, { user }, 200, "Profile updated successfully");
+  });
 
-    /** Change user password */
-    changePassword = this.catchAsync(async (req, res) => {
-        const userId = this.getUserId(req);
-        const { currentPassword, newPassword } = req.body;
+changePassword = this.catchAsync(async (req, res) => {
+    const userId = this.getUserId(req);
+    const { currentPassword, newPassword } = req.body;
 
-        // Validate required fields
-        this.validateRequiredFields(req.body, ['currentPassword', 'newPassword']);
+        this.validateRequiredFields(req.body, ["currentPassword", "newPassword"]);
 
-        // Change password via service layer
         const result = await this.service.changePassword(
-            userId,
-            currentPassword,
-            newPassword
-        );
+      userId,
+      currentPassword,
+      newPassword,
+    );
 
-        this.logAction('Password Changed', { userId });
+    this.logAction("Password Changed", { userId });
 
-        this.sendSuccess(res, result, 200);
-    });
+    this.sendSuccess(res, result, 200);
+  });
 
-    /** Logout user */
-    logout = this.catchAsync(async (req, res) => {
-        const userId = this.getUserId(req);
+logout = this.catchAsync(async (req, res) => {
+    const userId = this.getUserId(req);
 
-        // Revoke refresh token if exists
         await this.service.revokeRefreshToken(userId);
 
-        // Clear cookies
-        this.clearTokenCookie(res, 'accessToken');
-        this.clearTokenCookie(res, 'refreshToken');
+        this.clearTokenCookie(res, "accessToken");
+    this.clearTokenCookie(res, "refreshToken");
 
-        this.logAction('User Logout', { userId });
+    this.logAction("User Logout", { userId });
 
-        this.sendSuccess(
-            res,
-            { message: 'Logged out successfully' },
-            200
-        );
-    });
+    this.sendSuccess(res, { message: "Logged out successfully" }, 200);
+  });
 
-    /** Refresh access token using refresh token */
-    refreshToken = this.catchAsync(async (req, res) => {
-        // Try to get refresh token from body, cookie, or authorization header
-        const refreshToken = req.body.refreshToken || req.cookies?.refreshToken;
+refreshToken = this.catchAsync(async (req, res) => {
+        const refreshToken = req.cookies?.refreshToken;
 
-        if (!refreshToken) {
-            throw new AppError('Refresh token is required', 401);
-        }
+    if (!refreshToken) {
+      throw new AppError("Refresh token is required", 401);
+    }
 
-        // Get new access token using refresh token
         const result = await this.service.refreshAccessToken(refreshToken);
 
-        // Set new access token cookie
-        this.setTokenCookie(res, 'accessToken', result.accessToken, {
-            maxAge: 15 * 60 * 1000 // 15 minutes
-        });
-
-        this.logAction('Token Refreshed', { userId: result.user._id });
-
-        this.sendSuccess(
-            res,
-            result,
-            200,
-            'Token refreshed successfully'
-        );
+        this.setTokenCookie(res, "accessToken", result.accessToken, {
+      maxAge: 15 * 60 * 1000,
     });
 
-    forgotPassword = this.catchAsync(async (req, res) => {
-        const { email } = req.body;
-        this.validateRequiredFields(req.body, ['email']);
+    if (result.refreshToken) {
+      this.setTokenCookie(res, "refreshToken", result.refreshToken, {
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+    }
 
-        const result = await this.service.requestPasswordReset(email);
-        this.logAction('Password Reset Requested', { email });
+    this.logAction("Token Refreshed", { userId: result.user._id });
 
-        this.sendSuccess(res, result, 200);
-    });
+    this.sendSuccess(
+      res,
+      {
+        user: result.user,
+        expiresIn: result.expiresIn,
+        ...(result.refreshExpiresIn && {
+          refreshExpiresIn: result.refreshExpiresIn,
+        }),
+      },
+      200,
+      "Token refreshed successfully",
+    );
+  });
 
-    resetPassword = this.catchAsync(async (req, res) => {
-        const { token, newPassword } = req.body;
-        this.validateRequiredFields(req.body, ['token', 'newPassword']);
+  forgotPassword = this.catchAsync(async (req, res) => {
+    const { email } = req.body;
+    this.validateRequiredFields(req.body, ["email"]);
 
-        const result = await this.service.resetPassword(token, newPassword);
-        this.logAction('Password Reset Completed');
+    const result = await this.service.requestPasswordReset(email);
+    this.logAction("Password Reset Requested", { email });
 
-        this.sendSuccess(res, result, 200);
-    });
+    this.sendSuccess(res, result, 200);
+  });
 
-    getAddresses = this.catchAsync(async (req, res) => {
-        const userId = this.getUserId(req);
-        const addresses = await this.service.getAddresses(userId);
-        this.sendSuccess(res, { addresses }, 200);
-    });
+  resetPassword = this.catchAsync(async (req, res) => {
+    const { token, newPassword } = req.body;
+    this.validateRequiredFields(req.body, ["token", "newPassword"]);
 
-    addAddress = this.catchAsync(async (req, res) => {
-        const userId = this.getUserId(req);
-        const addresses = await this.service.addAddress(userId, req.body);
-        this.sendSuccess(res, { addresses }, 201, 'Address added successfully');
-    });
+    const result = await this.service.resetPassword(token, newPassword);
+    this.logAction("Password Reset Completed");
 
-    updateAddress = this.catchAsync(async (req, res) => {
-        const userId = this.getUserId(req);
-        const { addressId } = req.params;
-        const addresses = await this.service.updateAddress(userId, addressId, req.body);
-        this.sendSuccess(res, { addresses }, 200, 'Address updated successfully');
-    });
+    this.sendSuccess(res, result, 200);
+  });
 
-    deleteAddress = this.catchAsync(async (req, res) => {
-        const userId = this.getUserId(req);
-        const { addressId } = req.params;
-        const addresses = await this.service.deleteAddress(userId, addressId);
-        this.sendSuccess(res, { addresses }, 200, 'Address deleted successfully');
-    });
+  getAddresses = this.catchAsync(async (req, res) => {
+    const userId = this.getUserId(req);
+    const addresses = await this.service.getAddresses(userId);
+    this.sendSuccess(res, { addresses }, 200);
+  });
 
-    getSearchPreferences = this.catchAsync(async (req, res) => {
-        const userId = this.getUserId(req);
-        const productDiscovery = await this.service.getSearchPreferences(userId);
-        this.sendSuccess(res, { productDiscovery }, 200);
-    });
+  addAddress = this.catchAsync(async (req, res) => {
+    const userId = this.getUserId(req);
+    const addresses = await this.service.addAddress(userId, req.body);
+    this.sendSuccess(res, { addresses }, 201, "Address added successfully");
+  });
 
-    updateSearchPreferences = this.catchAsync(async (req, res) => {
-        const userId = this.getUserId(req);
-        const productDiscovery = await this.service.updateSearchPreferences(userId, req.body || {});
-        this.sendSuccess(res, { productDiscovery }, 200, 'Search preferences updated');
-    });
+  updateAddress = this.catchAsync(async (req, res) => {
+    const userId = this.getUserId(req);
+    const { addressId } = req.params;
+    const addresses = await this.service.updateAddress(
+      userId,
+      addressId,
+      req.body,
+    );
+    this.sendSuccess(res, { addresses }, 200, "Address updated successfully");
+  });
+
+  deleteAddress = this.catchAsync(async (req, res) => {
+    const userId = this.getUserId(req);
+    const { addressId } = req.params;
+    const addresses = await this.service.deleteAddress(userId, addressId);
+    this.sendSuccess(res, { addresses }, 200, "Address deleted successfully");
+  });
+
+  getSearchPreferences = this.catchAsync(async (req, res) => {
+    const userId = this.getUserId(req);
+    const productDiscovery = await this.service.getSearchPreferences(userId);
+    this.sendSuccess(res, { productDiscovery }, 200);
+  });
+
+  updateSearchPreferences = this.catchAsync(async (req, res) => {
+    const userId = this.getUserId(req);
+    const productDiscovery = await this.service.updateSearchPreferences(
+      userId,
+      req.body || {},
+    );
+    this.sendSuccess(
+      res,
+      { productDiscovery },
+      200,
+      "Search preferences updated",
+    );
+  });
 }

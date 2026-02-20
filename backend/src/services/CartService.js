@@ -30,8 +30,7 @@ export class CartService extends BaseService {
             throw new AppError('Product is not available', 400);
         }
 
-        // Check stock
-        let availableStock = product.stock;
+                let availableStock = product.stock;
         if (product.hasVariants && variantId) {
             const variant = product.variants.find(v => v._id.toString() === variantId);
             if (!variant) {

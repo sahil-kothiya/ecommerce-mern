@@ -40,12 +40,10 @@ const cartSchema = new Schema(
     }
 );
 
-// Indexes
 cartSchema.index({ userId: 1 });
 cartSchema.index({ productId: 1 });
 cartSchema.index({ userId: 1, productId: 1, variantId: 1 }, { unique: true });
 
-// Virtual populate product
 cartSchema.virtual('product', {
     ref: 'Product',
     localField: 'productId',
@@ -53,7 +51,6 @@ cartSchema.virtual('product', {
     justOne: true,
 });
 
-// Calculate amount before saving
 cartSchema.pre('save', function (next) {
     this.amount = this.price * this.quantity;
     next();

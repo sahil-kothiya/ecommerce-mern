@@ -94,8 +94,7 @@ const ProductsPage = () => {
                     }),
                 });
             } catch {
-                // Keep UI state even if persistence fails.
-            }
+                            }
             return;
         }
 

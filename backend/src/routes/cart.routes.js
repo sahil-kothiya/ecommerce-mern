@@ -65,7 +65,6 @@ const buildCartPayload = (items) => {
     return { items: normalized, summary };
 };
 
-// All cart routes require authentication
 router.use(protect);
 
 router.get('/', async (req, res, next) => {

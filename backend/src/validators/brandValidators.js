@@ -1,18 +1,5 @@
 import { body, param } from "express-validator";
 
-// ============================================================================
-// BRAND VALIDATION RULES
-// ============================================================================
-// Comprehensive validation for all brand API endpoints
-// Follows dual validation pattern: client (React Hook Form) + server (Express Validator)
-
-/**
- * Validation rules for creating a brand
- * POST /api/brands
- *
- * Required fields: title
- * Optional fields: description, status, logo (file), banners (files)
- */
 export const createBrandValidator = [
   body("title")
     .trim()
@@ -85,13 +72,8 @@ export const updateBrandValidator = [
     .isIn(["active", "inactive"])
     .withMessage('Status must be either "active" or "inactive"'),
 
-  // Logo and banners - file validation handled by multer middleware
-];
+  ];
 
-/**
- * Validation rules for deleting a brand
- * DELETE /api/brands/:id
- */
 export const deleteBrandValidator = [
   param("id")
     .trim()
@@ -101,10 +83,6 @@ export const deleteBrandValidator = [
     .withMessage("Invalid brand ID format"),
 ];
 
-/**
- * Validation rules for getting a brand by slug
- * GET /api/brands/:slug
- */
 export const getBrandValidator = [
   param("slug")
     .trim()

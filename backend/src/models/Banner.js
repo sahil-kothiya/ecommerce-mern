@@ -1,11 +1,4 @@
-/**
- * @fileoverview Banner Model
- * @description Mongoose schema for managing promotional banners and advertisements
- * @module models/Banner
- * @requires mongoose
- * @author Enterprise E-Commerce Team
- * @version 1.0.0
- */
+
 
 import mongoose from 'mongoose';
 
@@ -21,22 +14,6 @@ const toSlug = (value = '') =>
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '');
 
-/**
- * Banner Schema Definition
- * @description Defines the structure for promotional banners
- * @property {string} title - Banner title (required, max 200 characters)
- * @property {string} description - Optional banner description (max 500 characters)
- * @property {string} image - Image path/URL (required)
- * @property {string} link - URL to navigate when banner is clicked
- * @property {string} linkTarget - Link target (_blank or _self)
- * @property {number} sortOrder - Display order (lower numbers appear first)
- * @property {string} status - Banner status (active, inactive, scheduled)
- * @property {Date} startDate - Banner start date for scheduled banners
- * @property {Date} endDate - Banner end date for scheduled banners
- * @property {number} clickCount - Number of times banner was clicked
- * @property {number} viewCount - Number of times banner was viewed
- * @property {Object} metadata - Additional custom data
- */
 const bannerSchema = new Schema(
     {
         title: {
@@ -123,41 +100,18 @@ const bannerSchema = new Schema(
     }
 );
 
-// ===========================
-// Indexes for Performance
-// ===========================
-
-/**
- * Compound index for fetching active banners by status and order
- */
 bannerSchema.index({ status: 1, sortOrder: 1 });
 
-/**
- * Index for scheduled banner queries
- * Used by cron jobs to activate/deactivate scheduled banners
- */
 bannerSchema.index({ status: 1, startDate: 1, endDate: 1 });
 
-/**
- * Index for analytics queries
- */
 bannerSchema.index({ createdAt: -1, clickCount: -1, viewCount: -1 });
 bannerSchema.index({ title: 1 });
 
-// ===========================
-// Virtual Properties
-// ===========================
-
-/**
- * Check if banner is currently active based on schedule
- * @returns {boolean} True if banner should be displayed
- */
 bannerSchema.virtual('isActive').get(function () {
     if (this.status === 'inactive') return false;
     if (this.status === 'active') return true;
     
-    // For scheduled banners
-    if (this.status === 'scheduled') {
+        if (this.status === 'scheduled') {
         const now = new Date();
         const isAfterStart = !this.startDate || now >= this.startDate;
         const isBeforeEnd = !this.endDate || now <= this.endDate;
@@ -167,19 +121,11 @@ bannerSchema.virtual('isActive').get(function () {
     return false;
 });
 
-/**
- * Calculate click-through rate (CTR)
- * @returns {number} CTR percentage
- */
 bannerSchema.virtual('ctr').get(function () {
     if (this.viewCount === 0) return 0;
     return ((this.clickCount / this.viewCount) * 100).toFixed(2);
 });
 
-/**
- * Laravel compatibility virtuals
- * photo <-> image, link_type <-> linkType, discounts <-> discountIds
- */
 bannerSchema.virtual('photo')
     .get(function () {
         return this.image;
@@ -204,26 +150,16 @@ bannerSchema.virtual('discounts')
         this.discountIds = value;
     });
 
-// ===========================
-// Pre-save Hooks
-// ===========================
-
-/**
- * Validate date ranges before saving
- */
 bannerSchema.pre('save', function (next) {
-    // Keep slug generated and stable when title changes unless slug is manually provided.
-    if (!this.slug && this.title) {
+        if (!this.slug && this.title) {
         this.slug = toSlug(this.title);
     }
 
-    // Legacy compatibility: if only link_type is set through raw update payload.
-    if (!this.linkType && this.link_type) {
+        if (!this.linkType && this.link_type) {
         this.linkType = this.link_type;
     }
 
-    // Validate scheduled banner dates
-    if (this.status === 'scheduled') {
+        if (this.status === 'scheduled') {
         if (!this.startDate && !this.endDate) {
             return next(new Error('Scheduled banners must have start or end date'));
         }
@@ -243,59 +179,26 @@ bannerSchema.pre('validate', function (next) {
     next();
 });
 
-// ===========================
-// Instance Methods
-// ===========================
-
-/**
- * Increment view count
- * @description Updates view count without triggering full validation
- * @returns {Promise<Banner>} Updated banner
- */
 bannerSchema.methods.incrementViewCount = async function () {
     this.viewCount += 1;
     return this.save({ timestamps: false, validateBeforeSave: false });
 };
 
-/**
- * Increment click count
- * @description Updates click count without triggering full validation
- * @returns {Promise<Banner>} Updated banner
- */
 bannerSchema.methods.incrementClickCount = async function () {
     this.clickCount += 1;
     return this.save({ timestamps: false, validateBeforeSave: false });
 };
 
-/**
- * Activate banner
- * @description Sets banner status to active
- * @returns {Promise<Banner>} Updated banner
- */
 bannerSchema.methods.activate = async function () {
     this.status = 'active';
     return this.save();
 };
 
-/**
- * Deactivate banner
- * @description Sets banner status to inactive
- * @returns {Promise<Banner>} Updated banner
- */
 bannerSchema.methods.deactivate = async function () {
     this.status = 'inactive';
     return this.save();
 };
 
-// ===========================
-// Static Methods
-// ===========================
-
-/**
- * Get active banners
- * @param {number} [limit] - Optional limit
- * @returns {Promise<Array<Banner>>} Array of active banners
- */
 bannerSchema.statics.getActiveBanners = async function (limit = null) {
     const now = new Date();
     
@@ -322,12 +225,6 @@ bannerSchema.statics.getActiveBanners = async function (limit = null) {
     return queryBuilder.lean();
 };
 
-/**
- * Get banner analytics
- * @param {Date} startDate - Start date for analytics
- * @param {Date} endDate - End date for analytics
- * @returns {Promise<Object>} Analytics data
- */
 bannerSchema.statics.getAnalytics = async function (startDate, endDate) {
     const query = {
         createdAt: {
@@ -360,11 +257,6 @@ bannerSchema.statics.getAnalytics = async function (startDate, endDate) {
     };
 };
 
-/**
- * Activate scheduled banners
- * @description Cron job helper to activate banners based on schedule
- * @returns {Promise<Object>} Result of activation
- */
 bannerSchema.statics.activateScheduled = async function () {
     const now = new Date();
     
@@ -380,11 +272,6 @@ bannerSchema.statics.activateScheduled = async function () {
     return result;
 };
 
-/**
- * Deactivate expired banners
- * @description Cron job helper to deactivate expired scheduled banners
- * @returns {Promise<Object>} Result of deactivation
- */
 bannerSchema.statics.deactivateExpired = async function () {
     const now = new Date();
     
@@ -399,7 +286,4 @@ bannerSchema.statics.deactivateExpired = async function () {
     return result;
 };
 
-/**
- * Export Banner Model
- */
 export const Banner = mongoose.model('Banner', bannerSchema);

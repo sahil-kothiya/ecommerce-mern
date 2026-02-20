@@ -17,8 +17,7 @@ export const validateRequest = (validationType) => {
                 break;
 
             case 'updateProduct':
-                // Optional validation for updates
-                if (req.body.hasVariants && req.body.variants && req.body.variants.length === 0) {
+                                if (req.body.hasVariants && req.body.variants && req.body.variants.length === 0) {
                     errors.push('At least one variant is required for variant products');
                 }
                 break;
@@ -28,8 +27,7 @@ export const validateRequest = (validationType) => {
                 break;
 
             case 'updateCategory':
-                // Optional validation for updates
-                break;
+                                break;
 
             case 'addToCart':
                 if (!req.body.productId) errors.push('Product ID is required');
@@ -52,8 +50,7 @@ export const validateRequest = (validationType) => {
                 if (!req.body.shippingAddress) errors.push('Shipping address is required');
                 if (!req.body.paymentMethod) errors.push('Payment method is required');
 
-                // Validate shipping address
-                if (req.body.shippingAddress) {
+                                if (req.body.shippingAddress) {
                     const addr = req.body.shippingAddress;
                     if (!addr.firstName) errors.push('Shipping first name is required');
                     if (!addr.lastName) errors.push('Shipping last name is required');
@@ -66,8 +63,7 @@ export const validateRequest = (validationType) => {
                 break;
 
             case 'cancelOrder':
-                // Optional reason validation
-                break;
+                                break;
 
             case 'updateOrderStatus':
                 if (!req.body.status) errors.push('Status is required');
@@ -84,8 +80,7 @@ export const validateRequest = (validationType) => {
                 break;
 
             default:
-                // No validation defined
-                break;
+                                break;
         }
 
         if (errors.length > 0) {

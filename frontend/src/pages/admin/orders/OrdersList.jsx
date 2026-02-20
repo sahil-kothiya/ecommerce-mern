@@ -30,14 +30,9 @@ const OrdersList = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const getAuthHeaders = () => {
-        const token = localStorage.getItem('auth_token');
-        return token ? { Authorization: `Bearer ${token}` } : {};
-    };
-
     const fetchSummary = async () => {
         const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}/admin/summary`, {
-            headers: { ...getAuthHeaders() },
+            credentials: 'include',
         });
         const data = await response.json();
 
@@ -60,7 +55,7 @@ const OrdersList = () => {
         if (searchTerm.trim()) params.set('search', searchTerm.trim());
 
         const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}/admin/all?${params}`, {
-            headers: { ...getAuthHeaders() },
+            credentials: 'include',
         });
         const data = await response.json();
 
@@ -117,8 +112,8 @@ const OrdersList = () => {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...getAuthHeaders(),
                 },
+                credentials: 'include',
                 body: JSON.stringify({ status: nextStatus }),
             });
             const data = await response.json();

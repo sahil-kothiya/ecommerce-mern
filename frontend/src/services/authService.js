@@ -1,298 +1,390 @@
-import { logger } from '../utils/logger.js';
+import { logger } from "../utils/logger.js";
 
+import apiClient from "./apiClient";
+import { API_CONFIG } from "../constants";
 
-
-import apiClient from './apiClient';
-import { API_CONFIG } from '../constants';
-
-/**
- * Authentication Service Class
- * @description Manages user authentication state and API calls
- */
 class AuthService {
-    constructor() {
-        // Storage keys for consistent access
-        this.TOKEN_KEY = 'auth_token';
-        this.USER_KEY = 'auth_user';
+  constructor() {
+    this.USER_KEY = "auth_user";
+    this._userCache = null;
+    this._pendingUserFetch = null;
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("auth:logout", () => this.reset());
+    }
+  }
+
+  async login(email, password, rememberMe = false) {
+    const trimmedEmail = email?.trim();
+    if (!trimmedEmail || !password) {
+      throw new Error("Email and password are required");
     }
 
-    /**
-     * Authenticate user with email and password
-     * @param {string} email - User's email address
-     * @param {string} password - User's password
-     * @param {boolean} rememberMe - Whether to remember the user (long-lived refresh token)
-     * @returns {Promise<Object>} User data and token
-     * @throws {Error} If login fails
-     */
-    async login(email, password, rememberMe = false) {
-        try {
-            logger.info('AuthService.login called with:', { email, rememberMe, type: typeof rememberMe });
-            
-            const response = await apiClient.post(`${API_CONFIG.ENDPOINTS.AUTH}/login`, {
-                email,
-                password,
-                rememberMe
-            });
-            
-            logger.info('Login response:', response.data);
+    try {
+      logger.info("AuthService.login called", {
+        email: trimmedEmail,
+        rememberMe: Boolean(rememberMe),
+      });
 
-            // Extract data from standardized API response
-            const { user, token } = response.data;
+      const response = await apiClient.post(
+        `${API_CONFIG.ENDPOINTS.AUTH}/login`,
+        {
+          email: trimmedEmail,
+          password,
+          rememberMe: Boolean(rememberMe),
+        },
+      );
 
-            // Persist authentication data
-            this.setToken(token);
-            this.setUser(user);
+      const user = response?.data?.user ?? response?.user;
 
-            return response;
-        } catch (error) {
-            console.error('Login failed:', error);
-            throw new Error(error.message || 'Login failed. Please try again.');
-        }
+      this.setUser(user);
+      this._emitAuthEvent("auth:login", { user });
+
+      logger.info("Login successful", { userId: user?._id, role: user?.role });
+
+      return response;
+    } catch (error) {
+      logger.error("Login failed", {
+        error: error.message,
+        status: error.status,
+      });
+      throw error;
+    }
+  }
+
+  async register(userData) {
+    const trimmedEmail = userData?.email?.trim();
+    const trimmedName = userData?.name?.trim();
+
+    if (!trimmedEmail || !trimmedName || !userData?.password) {
+      throw new Error("Name, email, and password are required");
     }
 
-    /**
-     * Register new user account
-     * @param {Object} userData - User registration data
-     * @param {string} userData.name - User's full name
-     * @param {string} userData.email - User's email address
-     * @param {string} userData.password - User's password
-     * @returns {Promise<Object>} User data and token
-     * @throws {Error} If registration fails
-     */
-    async register(userData) {
-        try {
-            const response = await apiClient.post(`${API_CONFIG.ENDPOINTS.AUTH}/register`, userData);
+    try {
+      const sanitizedData = {
+        ...userData,
+        email: trimmedEmail,
+        name: trimmedName,
+      };
 
-            // Extract data from standardized API response
-            const { user, token } = response.data;
+      const response = await apiClient.post(
+        `${API_CONFIG.ENDPOINTS.AUTH}/register`,
+        sanitizedData,
+      );
 
-            // Persist authentication data
-            this.setToken(token);
-            this.setUser(user);
+      const user = response?.data?.user ?? response?.user;
 
-            return response;
-        } catch (error) {
-            console.error('Registration failed:', error);
-            throw error;
-        }
+      this.setUser(user);
+      this._emitAuthEvent("auth:login", { user });
+
+      logger.info("Registration successful", { userId: user?._id });
+
+      return response;
+    } catch (error) {
+      logger.error("Registration failed", {
+        error: error.message,
+        status: error.status,
+      });
+      throw error;
+    }
+  }
+
+  async logout() {
+    try {
+      await apiClient.post(`${API_CONFIG.ENDPOINTS.AUTH}/logout`);
+      logger.info("Logout API call successful");
+    } catch (error) {
+      logger.warn("Logout API call failed, clearing local data anyway", {
+        error: error.message,
+      });
+    } finally {
+      this.reset();
+    }
+  }
+
+  async getCurrentUser() {
+    if (this._pendingUserFetch) {
+      logger.debug("getCurrentUser: returning pending request");
+      return this._pendingUserFetch;
     }
 
-    /**
-     * Logout user and clear session data
-     * @returns {Promise<void>}
-     */
-    async logout() {
-        try {
-            // Attempt to notify backend (optional - JWT is stateless)
-            const token = this.getToken();
-            
-            if (token) {
-                try {
-                    await apiClient.post(`${API_CONFIG.ENDPOINTS.AUTH}/logout`);
-                } catch (error) {
-                    // Continue with logout even if API call fails
-                    console.warn('Logout API call failed:', error);
-                }
-            }
-        } finally {
-            // Always clear local authentication data
-            this.clearAuth();
-        }
+    this._pendingUserFetch = this._fetchCurrentUser();
+
+    try {
+      return await this._pendingUserFetch;
+    } finally {
+      this._pendingUserFetch = null;
+    }
+  }
+
+  async _fetchCurrentUser() {
+    try {
+      const response = await apiClient.get(`${API_CONFIG.ENDPOINTS.AUTH}/me`);
+      const user = response.user;
+
+      this.setUser(user);
+
+      logger.info("Current user fetched successfully", { userId: user?._id });
+
+      return this.getUser();
+    } catch (error) {
+      logger.error("Failed to fetch current user", {
+        error: error.message,
+        status: error.status,
+      });
+
+      if (error.status === 401) {
+        this.reset();
+      }
+
+      throw error;
+    }
+  }
+
+  async updateProfile(profileData) {
+    if (!profileData || typeof profileData !== "object") {
+      throw new Error("Profile data is required");
     }
 
-    /**
-     * Get current user profile from API
-     * @returns {Promise<Object>} Current user profile
-     * @throws {Error} If request fails or user not authenticated
-     */
-    async getCurrentUser() {
-        try {
-            const response = await apiClient.get(`${API_CONFIG.ENDPOINTS.AUTH}/me`);
-            const user = response.data.user;
-            
-            // Update stored user data
-            this.setUser(user);
-            
-            return user;
-        } catch (error) {
-            console.error('Failed to fetch current user:', error);
-            this.clearAuth();
-            throw error;
-        }
+    try {
+      const sanitizedData = { ...profileData };
+      if (sanitizedData.name) sanitizedData.name = sanitizedData.name.trim();
+      if (sanitizedData.email) sanitizedData.email = sanitizedData.email.trim();
+
+      const response = await apiClient.put(
+        `${API_CONFIG.ENDPOINTS.AUTH}/profile`,
+        sanitizedData,
+      );
+      const user = response.user;
+
+      this.setUser(user);
+
+      logger.info("Profile updated successfully", { userId: user?._id });
+
+      return this.getUser();
+    } catch (error) {
+      logger.error("Profile update failed", {
+        error: error.message,
+        status: error.status,
+      });
+      throw error;
+    }
+  }
+
+  async changePassword(currentPassword, newPassword) {
+    if (!currentPassword || !newPassword) {
+      throw new Error("Current password and new password are required");
     }
 
-    /**
-     * Update user profile
-     * @param {Object} profileData - Profile data to update
-     * @returns {Promise<Object>} Updated user profile
-     */
-    async updateProfile(profileData) {
-        try {
-            const response = await apiClient.put(`${API_CONFIG.ENDPOINTS.AUTH}/profile`, profileData);
-            const user = response.data.user;
-            
-            // Update stored user data
-            this.setUser(user);
-            
-            return user;
-        } catch (error) {
-            console.error('Profile update failed:', error);
-            throw new Error(error.message || 'Failed to update profile');
-        }
+    if (newPassword.length < 8) {
+      throw new Error("New password must be at least 8 characters");
     }
 
-    /**
-     * Change user password
-     * @param {string} currentPassword - Current password
-     * @param {string} newPassword - New password
-     * @returns {Promise<Object>} Success response
-     */
-    async changePassword(currentPassword, newPassword) {
-        try {
-            const response = await apiClient.put(`${API_CONFIG.ENDPOINTS.AUTH}/change-password`, {
-                currentPassword,
-                newPassword
-            });
-            
-            return response;
-        } catch (error) {
-            console.error('Password change failed:', error);
-            throw new Error(error.message || 'Failed to change password');
-        }
+    try {
+      const response = await apiClient.put(
+        `${API_CONFIG.ENDPOINTS.AUTH}/change-password`,
+        {
+          currentPassword,
+          newPassword,
+        },
+      );
+
+      logger.info("Password changed successfully");
+
+      return response;
+    } catch (error) {
+      logger.error("Password change failed", {
+        error: error.message,
+        status: error.status,
+      });
+      throw error;
     }
+  }
 
-    /**
-     * Get stored authentication token
-     * @returns {string|null} Authentication token or null
-     */
-    getToken() {
-        return localStorage.getItem(this.TOKEN_KEY);
-    }
+  getUser() {
+    if (this._userCache) return this._userCache;
 
-    /**
-     * Store authentication token
-     * @param {string} token - JWT token
-     */
-    setToken(token) {
-        if (token) {
-            localStorage.setItem(this.TOKEN_KEY, token);
-        }
-    }
+    try {
+      const raw = localStorage.getItem(this.USER_KEY);
+      if (!raw) return null;
 
-    /**
-     * Get stored user data
-     * @returns {Object|null} User object or null
-     */
-    getUser() {
-        try {
-            const user = localStorage.getItem(this.USER_KEY);
-            return user ? JSON.parse(user) : null;
-        } catch (error) {
-            console.error('Error parsing stored user data:', error);
-            return null;
-        }
-    }
+      const parsed = JSON.parse(raw);
 
-    /**
-     * Store user data
-     * @param {Object} user - User object
-     */
-    setUser(user) {
-        if (user) {
-            localStorage.setItem(this.USER_KEY, JSON.stringify(user));
-        }
-    }
-
-    /**
-     * Build authorization headers for fetch calls.
-     * @param {Object} [extraHeaders={}] - Additional headers to merge.
-     * @param {boolean} [includeJson=true] - Include JSON content type by default.
-     * @returns {Object} Headers object.
-     */
-    getAuthHeaders(extraHeaders = {}, includeJson = true) {
-        const headers = includeJson ? { 'Content-Type': 'application/json' } : {};
-        const token = this.getToken();
-
-        if (token) {
-            headers.Authorization = `Bearer ${token}`;
-        }
-
-        return { ...headers, ...extraHeaders };
-    }
-
-    /**
-     * Handle unauthorized responses from direct fetch calls.
-     * @param {Response} response - Fetch response object.
-     * @returns {boolean} True if response was unauthorized and handled.
-     */
-    handleUnauthorizedResponse(response) {
-        if (response?.status !== 401) {
-            return false;
-        }
-
-        this.clearAuth();
-        localStorage.removeItem('token');
-
-        sessionStorage.setItem('sessionExpired', 'true');
-
-        if (!window.location.pathname.startsWith('/login')) {
-            window.location.href = '/login';
-        }
-
-        return true;
-    }
-
-    /**
-     * Check if user is authenticated
-     * @returns {boolean} True if user has valid token
-     */
-    isAuthenticated() {
-        const token = this.getToken();
-        const user = this.getUser();
-        return !!(token && user);
-    }
-
-    /**
-     * Check if user has admin role
-     * @returns {boolean} True if user is admin
-     */
-    isAdmin() {
-        const user = this.getUser();
-        return user?.role === 'admin';
-    }
-
-    /**
-     * Check if user has specific role
-     * @param {string} role - Role to check
-     * @returns {boolean} True if user has the role
-     */
-    hasRole(role) {
-        const user = this.getUser();
-        return user?.role === role;
-    }
-
-    /**
-     * Clear all authentication data
-     * @private
-     */
-    clearAuth() {
-        localStorage.removeItem(this.TOKEN_KEY);
-        localStorage.removeItem(this.USER_KEY);
-        localStorage.removeItem('token');
-    }
-
-    /**
-     * Initialize auth state from storage
-     * @returns {Object|null} User object if authenticated, null otherwise
-     */
-    initAuth() {
-        if (this.isAuthenticated()) {
-            return this.getUser();
-        }
+      if (!this._isValidUserObject(parsed)) {
+        logger.warn("Invalid user object in localStorage, clearing auth");
+        this.reset();
         return null;
+      }
+
+      this._userCache = parsed;
+      return this._userCache;
+    } catch (error) {
+      logger.error("Error parsing stored user data", { error: error.message });
+      this.reset();
+      return null;
     }
+  }
+
+  setUser(user) {
+    if (!user) {
+      this.reset();
+      return;
+    }
+
+    const sanitizedUser = {
+      _id: user._id,
+      role: user.role,
+      name: user.name,
+    };
+
+    this._userCache = sanitizedUser;
+    localStorage.setItem(this.USER_KEY, JSON.stringify(sanitizedUser));
+  }
+
+  _isValidUserObject(obj) {
+    return (
+      obj &&
+      typeof obj === "object" &&
+      typeof obj._id === "string" &&
+      obj._id.length > 0 &&
+      typeof obj.role === "string" &&
+      ["user", "customer", "admin", "vendor"].includes(obj.role)
+    );
+  }
+
+  handleUnauthorizedResponse(response) {
+    if (response?.status !== 401) {
+      return false;
+    }
+
+    logger.warn("Unauthorized response detected, clearing auth");
+
+    this.reset();
+    sessionStorage.setItem("sessionExpired", "true");
+
+    this._emitAuthEvent("auth:unauthorized");
+
+    if (
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/login")
+    ) {
+      setTimeout(() => {
+        if (!window.location.pathname.startsWith("/login")) {
+          window.location.href = "/login";
+        }
+      }, 100);
+    }
+
+    return true;
+  }
+
+  isAuthenticated() {
+    const user = this.getUser();
+    return !!user;
+  }
+
+  isAdmin() {
+    const user = this.getUser();
+    return user?.role === "admin";
+  }
+
+  hasRole(role) {
+    const user = this.getUser();
+    return user?.role === role;
+  }
+
+  getAuthHeaders(customHeaders = {}, includeContentType = true) {
+    const headers = {
+      ...(includeContentType ? { "Content-Type": "application/json" } : {}),
+      ...customHeaders,
+    };
+
+    const token =
+      localStorage.getItem("auth_token") || localStorage.getItem("token");
+
+    if (token && !headers.Authorization) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return headers;
+  }
+
+  reset() {
+    this._userCache = null;
+    this._pendingUserFetch = null;
+    localStorage.removeItem(this.USER_KEY);
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("token");
+
+    logger.info("Auth state cleared");
+  }
+
+  clearAuth() {
+    this.reset();
+  }
+
+  async forgotPassword(email) {
+    const trimmedEmail = email?.trim();
+    if (!trimmedEmail) {
+      throw new Error("Email is required");
+    }
+
+    try {
+      const response = await apiClient.post(
+        `${API_CONFIG.ENDPOINTS.AUTH}/forgot-password`,
+        { email: trimmedEmail },
+      );
+
+      logger.info("Password reset email sent", { email: trimmedEmail });
+
+      return response;
+    } catch (error) {
+      logger.error("Forgot password request failed", {
+        error: error.message,
+        status: error.status,
+      });
+      throw error;
+    }
+  }
+
+  async resetPassword(token, newPassword) {
+    if (!token || !newPassword) {
+      throw new Error("Token and new password are required");
+    }
+
+    if (newPassword.length < 8) {
+      throw new Error("Password must be at least 8 characters");
+    }
+
+    try {
+      const response = await apiClient.post(
+        `${API_CONFIG.ENDPOINTS.AUTH}/reset-password`,
+        { token, newPassword },
+      );
+
+      logger.info("Password reset successful");
+
+      return response;
+    } catch (error) {
+      logger.error("Reset password failed", {
+        error: error.message,
+        status: error.status,
+      });
+      throw error;
+    }
+  }
+
+  _emitAuthEvent(eventName, detail = {}) {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(eventName, { detail }));
+    }
+  }
+
+  _resetForTesting() {
+    this._userCache = null;
+    this._pendingUserFetch = null;
+  }
 }
 
-// Export singleton instance
 const authService = new AuthService();
 export default authService;

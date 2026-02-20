@@ -1,10 +1,4 @@
-/**
- * @fileoverview Brand Form Component with Multiple Image Support
- * @description Create/Edit brands with logo and banner images
- * @component BrandForm
- * @author Enterprise E-Commerce Team
- * @version 1.0.0
- */
+
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -24,8 +18,7 @@ const BrandForm = () => {
         status: 'active'
     });
 
-    // Multiple images: logo + banners
-    const [logo, setLogo] = useState(null);
+        const [logo, setLogo] = useState(null);
     const [logoPreview, setLogoPreview] = useState(null);
     const [existingLogo, setExistingLogo] = useState(null);
 
@@ -178,16 +171,10 @@ const BrandForm = () => {
         clearFieldError(setErrors, 'banners');
     };
 
-    /**
-     * Validate form inputs before submission
-     * CLIENT-SIDE VALIDATION - First line of defense
-     * Server will also validate to ensure data integrity
-     */
-    const validateForm = () => {
+const validateForm = () => {
         const newErrors = {};
 
-        // Title validation (required, 2-100 chars)
-        if (!formData.title.trim()) {
+                if (!formData.title.trim()) {
             newErrors.title = 'Title is required';
         } else if (formData.title.trim().length < 2) {
             newErrors.title = 'Title must be at least 2 characters';

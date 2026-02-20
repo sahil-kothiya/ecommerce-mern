@@ -35,8 +35,7 @@ export class CouponService extends BaseService {
 
         const now = new Date();
 
-        // Check validity period
-        if (coupon.validFrom && new Date(coupon.validFrom) > now) {
+                if (coupon.validFrom && new Date(coupon.validFrom) > now) {
             throw new AppError('Coupon is not yet valid', 400);
         }
 
@@ -44,8 +43,7 @@ export class CouponService extends BaseService {
             throw new AppError('Coupon has expired', 400);
         }
 
-        // Check usage limits
-        if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+                if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
             throw new AppError('Coupon usage limit reached', 400);
         }
 
@@ -59,8 +57,7 @@ export class CouponService extends BaseService {
             }
         }
 
-        // Check minimum order amount
-        if (coupon.minOrderAmount && orderAmount < coupon.minOrderAmount) {
+                if (coupon.minOrderAmount && orderAmount < coupon.minOrderAmount) {
             throw new AppError(
                 `Minimum order amount of $${coupon.minOrderAmount} required`,
                 400

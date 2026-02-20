@@ -5,7 +5,6 @@ import { handleUploadError, uploadUserAvatar } from '../middleware/uploadEnhance
 
 const router = Router();
 
-// Protected routes (Admin only)
 router.use(protect);
 router.use(authorize('admin'));
 

@@ -9,33 +9,12 @@ import { logger } from '../utils/logger.js';
 import slugify from 'slugify';
 import mongoose from 'mongoose';
 
-/**
- * Product Service Class
- * @extends BaseService
- * @description Manages product business logic and database operations
- */
 export class ProductService extends BaseService {
     constructor() {
         super(Product);
     }
 
-    /**
-     * Get products with advanced filtering and pagination
-     * @param {Object} options - Query options
-     * @param {number} [options.page=1] - Page number
-     * @param {number} [options.limit=20] - Items per page
-     * @param {string} [options.search] - Search term
-     * @param {string} [options.categoryId] - Filter by category
-     * @param {string} [options.brandId] - Filter by brand
-     * @param {number} [options.minPrice] - Minimum price filter
-     * @param {number} [options.maxPrice] - Maximum price filter
-     * @param {string} [options.condition] - Product condition filter
-     * @param {boolean} [options.isFeatured] - Filter featured products
-     * @param {string} [options.status='active'] - Product status filter
-     * @param {string} [options.sort='-createdAt'] - Sort order
-     * @returns {Promise<Object>} Paginated products with metadata
-     */
-    async getProducts(options = {}) {
+async getProducts(options = {}) {
         const {
             page = 1,
             limit = 20,
@@ -50,47 +29,38 @@ export class ProductService extends BaseService {
             sort = '-createdAt'
         } = options;
 
-        // Build filter query
-        const filter = { status };
+                const filter = { status };
 
-        // Full-text search
-        if (search) {
+                if (search) {
             filter.$text = { $search: search };
         }
 
-        // Category filter
-        if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
+                if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
             filter['category.id'] = new mongoose.Types.ObjectId(categoryId);
         }
 
-        // Brand filter
-        if (brandId && mongoose.Types.ObjectId.isValid(brandId)) {
+                if (brandId && mongoose.Types.ObjectId.isValid(brandId)) {
             filter['brand.id'] = new mongoose.Types.ObjectId(brandId);
         }
 
-        // Price range filter
-        if (minPrice || maxPrice) {
+                if (minPrice || maxPrice) {
             filter.basePrice = {};
             if (minPrice) filter.basePrice.$gte = parseFloat(minPrice);
             if (maxPrice) filter.basePrice.$lte = parseFloat(maxPrice);
         }
 
-        // Condition filter
-        if (condition) {
+                if (condition) {
             filter.condition = condition;
         }
 
-        // Featured filter
-        if (isFeatured !== undefined) {
+                if (isFeatured !== undefined) {
             filter.isFeatured = isFeatured === 'true' || isFeatured === true;
         }
 
-        // Calculate pagination
-        const skip = (page - 1) * limit;
+                const skip = (page - 1) * limit;
 
         try {
-            // Execute query
-            const [products, total] = await Promise.all([
+                        const [products, total] = await Promise.all([
                 this.model
                     .find(filter)
                     .sort(sort)
@@ -115,12 +85,7 @@ export class ProductService extends BaseService {
         }
     }
 
-    /**
-     * Get featured products
-     * @param {number} [limit=10] - Number of products to return
-     * @returns {Promise<Array>} Array of featured products
-     */
-    async getFeaturedProducts(limit = 10) {
+async getFeaturedProducts(limit = 10) {
         try {
             return await this.model
                 .find({
@@ -136,13 +101,7 @@ export class ProductService extends BaseService {
         }
     }
 
-    /**
-     * Search products with advanced text search
-     * @param {string} query - Search query
-     * @param {Object} filters - Additional filters
-     * @returns {Promise<Array>} Search results
-     */
-    async searchProducts(query, filters = {}) {
+async searchProducts(query, filters = {}) {
         if (!query) {
             throw new AppError('Search query is required', 400);
         }
@@ -167,23 +126,15 @@ export class ProductService extends BaseService {
         }
     }
 
-    /**
-     * Get product by slug or ID
-     * @param {string} identifier - Product slug or ID
-     * @returns {Promise<Object>} Product data
-     * @throws {AppError} If product not found
-     */
-    async getProductBySlugOrId(identifier) {
+async getProductBySlugOrId(identifier) {
         try {
             let product;
 
-            // Try finding by ID first
-            if (mongoose.Types.ObjectId.isValid(identifier)) {
+                        if (mongoose.Types.ObjectId.isValid(identifier)) {
                 product = await this.model.findById(identifier).lean();
             }
 
-            // If not found by ID, try slug
-            if (!product) {
+                        if (!product) {
                 product = await this.model.findOne({ slug: identifier }).lean();
             }
 
@@ -191,8 +142,7 @@ export class ProductService extends BaseService {
                 throw new AppError('Product not found', 404);
             }
 
-            // Increment view count asynchronously (don't wait)
-            this.model.findByIdAndUpdate(product._id, {
+                        this.model.findByIdAndUpdate(product._id, {
                 $inc: { viewCount: 1 }
             }).exec();
 
@@ -204,21 +154,13 @@ export class ProductService extends BaseService {
         }
     }
 
-    /**
-     * Create new product with validation
-     * @param {Object} productData - Product data
-     * @returns {Promise<Object>} Created product
-     * @throws {AppError} If validation fails
-     */
-    async createProduct(productData) {
+async createProduct(productData) {
         try {
-            // Generate slug if not provided
-            if (!productData.slug && productData.title) {
+                        if (!productData.slug && productData.title) {
                 productData.slug = slugify(productData.title, { lower: true, strict: true });
             }
 
-            // Validate and populate category reference
-            if (productData.categoryId) {
+                        if (productData.categoryId) {
                 const category = await Category.findById(productData.categoryId);
                 if (!category) {
                     throw new AppError('Category not found', 404);
@@ -230,8 +172,7 @@ export class ProductService extends BaseService {
                 };
             }
 
-            // Validate and populate brand reference
-            if (productData.brandId) {
+                        if (productData.brandId) {
                 const brand = await Brand.findById(productData.brandId);
                 if (!brand) {
                     throw new AppError('Brand not found', 404);
@@ -243,8 +184,7 @@ export class ProductService extends BaseService {
                 };
             }
 
-            // Create product
-            const product = await this.create(productData);
+                        const product = await this.create(productData);
 
             logger.info('Product created successfully:', product._id);
 
@@ -256,22 +196,13 @@ export class ProductService extends BaseService {
         }
     }
 
-    /**
-     * Update product with validation
-     * @param {string} id - Product ID
-     * @param {Object} updateData - Update data
-     * @returns {Promise<Object>} Updated product
-     * @throws {AppError} If product not found or validation fails
-     */
-    async updateProduct(id, updateData) {
+async updateProduct(id, updateData) {
         try {
-            // Regenerate slug if title changed
-            if (updateData.title && !updateData.slug) {
+                        if (updateData.title && !updateData.slug) {
                 updateData.slug = slugify(updateData.title, { lower: true, strict: true });
             }
 
-            // Update category reference if categoryId provided
-            if (updateData.categoryId) {
+                        if (updateData.categoryId) {
                 const category = await Category.findById(updateData.categoryId);
                 if (!category) {
                     throw new AppError('Category not found', 404);
@@ -284,8 +215,7 @@ export class ProductService extends BaseService {
                 delete updateData.categoryId;
             }
 
-            // Update brand reference if brandId provided
-            if (updateData.brandId) {
+                        if (updateData.brandId) {
                 const brand = await Brand.findById(updateData.brandId);
                 if (!brand) {
                     throw new AppError('Brand not found', 404);
@@ -298,8 +228,7 @@ export class ProductService extends BaseService {
                 delete updateData.brandId;
             }
 
-            // Update product
-            const product = await this.updateOrFail(id, updateData);
+                        const product = await this.updateOrFail(id, updateData);
 
             logger.info('Product updated successfully:', id);
 
@@ -311,13 +240,7 @@ export class ProductService extends BaseService {
         }
     }
 
-    /**
-     * Get products by category
-     * @param {string} categoryId - Category ID
-     * @param {Object} options - Query options
-     * @returns {Promise<Object>} Paginated products
-     */
-    async getProductsByCategory(categoryId, options = {}) {
+async getProductsByCategory(categoryId, options = {}) {
         if (!mongoose.Types.ObjectId.isValid(categoryId)) {
             throw new AppError('Invalid category ID', 400);
         }
@@ -328,13 +251,7 @@ export class ProductService extends BaseService {
         });
     }
 
-    /**
-     * Get products by brand
-     * @param {string} brandId - Brand ID
-     * @param {Object} options - Query options
-     * @returns {Promise<Object>} Paginated products
-     */
-    async getProductsByBrand(brandId, options = {}) {
+async getProductsByBrand(brandId, options = {}) {
         if (!mongoose.Types.ObjectId.isValid(brandId)) {
             throw new AppError('Invalid brand ID', 400);
         }
@@ -345,13 +262,7 @@ export class ProductService extends BaseService {
         });
     }
 
-    /**
-     * Get related products based on category and tags
-     * @param {string} productId - Product ID
-     * @param {number} [limit=6] - Number of related products
-     * @returns {Promise<Array>} Related products
-     */
-    async getRelatedProducts(productId, limit = 6) {
+async getRelatedProducts(productId, limit = 6) {
         try {
             const product = await this.findByIdOrFail(productId);
 
@@ -375,13 +286,7 @@ export class ProductService extends BaseService {
         }
     }
 
-    /**
-     * Get low stock products (admin)
-     * @param {number} [threshold=10] - Stock threshold
-     * @param {number} [limit=50] - Result limit
-     * @returns {Promise<Array>} Low stock products
-     */
-    async getLowStockProducts(threshold = 10, limit = 50) {
+async getLowStockProducts(threshold = 10, limit = 50) {
         try {
             return await this.model
                 .find({
@@ -398,13 +303,7 @@ export class ProductService extends BaseService {
         }
     }
 
-    /**
-     * Update product stock
-     * @param {string} id - Product ID
-     * @param {number} quantity - Quantity to add (positive) or remove (negative)
-     * @returns {Promise<Object>} Updated product
-     */
-    async updateStock(id, quantity) {
+async updateStock(id, quantity) {
         try {
             const product = await this.model.findByIdAndUpdate(
                 id,

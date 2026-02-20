@@ -20,22 +20,19 @@ export class CartController extends BaseController {
             let cart;
 
             if (userId) {
-                // Get user's cart
-                cart = await Cart.findOne({
+                                cart = await Cart.findOne({
                     user: userId,
                     status: 'active'
                 }).populate('items.product');
             } else {
-                // Get session cart
-                cart = await Cart.findOne({
+                                cart = await Cart.findOne({
                     sessionId,
                     status: 'active'
                 }).populate('items.product');
             }
 
             if (!cart) {
-                // Create empty cart
-                cart = new Cart({
+                                cart = new Cart({
                     user: userId || null,
                     sessionId: userId ? null : sessionId,
                     items: [],
@@ -66,8 +63,7 @@ export class CartController extends BaseController {
         }
     }
 
-    // POST /api/cart/add - Add item to cart
-    async addItem(req, res) {
+        async addItem(req, res) {
         try {
             const { productId, variantId = null, quantity = 1 } = req.body;
             const userId = req.user?.id;
@@ -87,8 +83,7 @@ export class CartController extends BaseController {
                 });
             }
 
-            // Verify product exists and is available
-            const product = await Product.findById(productId);
+                        const product = await Product.findById(productId);
 
             if (!product || product.status !== 'active') {
                 return res.status(404).json({
@@ -97,8 +92,7 @@ export class CartController extends BaseController {
                 });
             }
 
-            // Verify variant if specified
-            let variant = null;
+                        let variant = null;
             if (variantId) {
                 if (!product.hasVariants) {
                     return res.status(400).json({
@@ -115,16 +109,14 @@ export class CartController extends BaseController {
                     });
                 }
 
-                // Check variant stock
-                if (variant.stock < quantity) {
+                                if (variant.stock < quantity) {
                     return res.status(400).json({
                         success: false,
                         message: `Only ${variant.stock} items available in stock`
                     });
                 }
             } else {
-                // Check base product stock for non-variant products
-                if (product.hasVariants) {
+                                if (product.hasVariants) {
                     return res.status(400).json({
                         success: false,
                         message: 'Variant ID is required for variant products'
@@ -139,8 +131,7 @@ export class CartController extends BaseController {
                 }
             }
 
-            // Get or create cart
-            let cart = await Cart.findOne({
+                        let cart = await Cart.findOne({
                 $or: [
                     { user: userId, status: 'active' },
                     { sessionId: sessionId, status: 'active' }
@@ -155,8 +146,7 @@ export class CartController extends BaseController {
                 });
             }
 
-            // Add item to cart
-            const result = await cart.addItem(productId, variantId, quantity);
+                        const result = await cart.addItem(productId, variantId, quantity);
 
             res.json({
                 success: true,
@@ -172,8 +162,7 @@ export class CartController extends BaseController {
         }
     }
 
-    // PUT /api/cart/update/:itemId - Update cart item quantity
-    async updateItem(req, res) {
+        async updateItem(req, res) {
         try {
             const { itemId } = req.params;
             const { quantity } = req.body;
@@ -187,8 +176,7 @@ export class CartController extends BaseController {
                 });
             }
 
-            // Get cart
-            const cart = await Cart.findOne({
+                        const cart = await Cart.findOne({
                 $or: [
                     { user: userId, status: 'active' },
                     { sessionId: sessionId, status: 'active' }
@@ -218,15 +206,13 @@ export class CartController extends BaseController {
         }
     }
 
-    // DELETE /api/cart/remove/:itemId - Remove item from cart
-    async removeItem(req, res) {
+        async removeItem(req, res) {
         try {
             const { itemId } = req.params;
             const userId = req.user?.id;
             const sessionId = req.sessionID || req.headers['session-id'];
 
-            // Get cart
-            const cart = await Cart.findOne({
+                        const cart = await Cart.findOne({
                 $or: [
                     { user: userId, status: 'active' },
                     { sessionId: sessionId, status: 'active' }
@@ -256,14 +242,12 @@ export class CartController extends BaseController {
         }
     }
 
-    // DELETE /api/cart/clear - Clear entire cart
-    async clear(req, res) {
+        async clear(req, res) {
         try {
             const userId = req.user?.id;
             const sessionId = req.sessionID || req.headers['session-id'];
 
-            // Get cart
-            const cart = await Cart.findOne({
+                        const cart = await Cart.findOne({
                 $or: [
                     { user: userId, status: 'active' },
                     { sessionId: sessionId, status: 'active' }
@@ -293,8 +277,7 @@ export class CartController extends BaseController {
         }
     }
 
-    // POST /api/cart/merge - Merge session cart with user cart
-    async mergeSessionCart(req, res) {
+        async mergeSessionCart(req, res) {
         try {
             const userId = req.user?.id;
             const sessionId = req.sessionID || req.headers['session-id'];
@@ -306,8 +289,7 @@ export class CartController extends BaseController {
                 });
             }
 
-            // Get session cart
-            const sessionCart = await Cart.findOne({
+                        const sessionCart = await Cart.findOne({
                 sessionId,
                 status: 'active'
             });
@@ -320,21 +302,18 @@ export class CartController extends BaseController {
                 });
             }
 
-            // Get or create user cart
-            let userCart = await Cart.findOne({
+                        let userCart = await Cart.findOne({
                 user: userId,
                 status: 'active'
             });
 
             if (!userCart) {
-                // Convert session cart to user cart
-                sessionCart.user = userId;
+                                sessionCart.user = userId;
                 sessionCart.sessionId = null;
                 await sessionCart.save();
                 userCart = sessionCart;
             } else {
-                // Merge session cart items into user cart
-                for (const sessionItem of sessionCart.items) {
+                                for (const sessionItem of sessionCart.items) {
                     await userCart.addItem(
                         sessionItem.product,
                         sessionItem.variant,
@@ -342,8 +321,7 @@ export class CartController extends BaseController {
                     );
                 }
 
-                // Remove session cart
-                await sessionCart.deleteOne();
+                                await sessionCart.deleteOne();
             }
 
             await userCart.calculateTotals();
@@ -362,8 +340,7 @@ export class CartController extends BaseController {
         }
     }
 
-    // GET /api/cart/count - Get cart item count
-    async count(req, res) {
+        async count(req, res) {
         try {
             const userId = req.user?.id;
             const sessionId = req.sessionID || req.headers['session-id'];
@@ -390,8 +367,7 @@ export class CartController extends BaseController {
         }
     }
 
-    // POST /api/cart/validate - Validate cart items
-    async validate(req, res) {
+        async validate(req, res) {
         try {
             const userId = req.user?.id;
             const sessionId = req.sessionID || req.headers['session-id'];
@@ -425,8 +401,7 @@ export class CartController extends BaseController {
         }
     }
 
-    // GET /api/cart/shipping-estimate - Get shipping estimate
-    async shippingEstimate(req, res) {
+        async shippingEstimate(req, res) {
         try {
             const { zipCode, country = 'US' } = req.query;
             const userId = req.user?.id;
@@ -453,8 +428,7 @@ export class CartController extends BaseController {
                 });
             }
 
-            // Simple shipping calculation (replace with actual shipping service)
-            const estimate = await cart.calculateShipping(zipCode, country);
+                        const estimate = await cart.calculateShipping(zipCode, country);
 
             res.json({
                 success: true,
@@ -469,8 +443,7 @@ export class CartController extends BaseController {
         }
     }
 
-    // POST /api/cart/apply-coupon - Apply coupon code
-    async applyCoupon(req, res) {
+        async applyCoupon(req, res) {
         try {
             const { couponCode } = req.body;
             const userId = req.user?.id;
@@ -513,8 +486,7 @@ export class CartController extends BaseController {
         }
     }
 
-    // DELETE /api/cart/remove-coupon - Remove applied coupon
-    async removeCoupon(req, res) {
+        async removeCoupon(req, res) {
         try {
             const userId = req.user?.id;
             const sessionId = req.sessionID || req.headers['session-id'];

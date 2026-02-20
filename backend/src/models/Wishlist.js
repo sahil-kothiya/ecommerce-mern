@@ -20,12 +20,10 @@ const wishlistSchema = new Schema(
     }
 );
 
-// Indexes
 wishlistSchema.index({ userId: 1 });
 wishlistSchema.index({ productId: 1 });
 wishlistSchema.index({ userId: 1, productId: 1 }, { unique: true });
 
-// Virtual populate product
 wishlistSchema.virtual('product', {
     ref: 'Product',
     localField: 'productId',

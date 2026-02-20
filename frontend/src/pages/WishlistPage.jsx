@@ -3,91 +3,94 @@ import { Link } from 'react-router-dom';
 import authService from '../services/authService';
 import { API_CONFIG } from '../constants';
 import { formatPrice } from '../utils/productUtils';
-import StoreNav from '../components/common/StoreNav';
 
 const WishlistPage = () => {
     const [items, setItems] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isBusy, setIsBusy] = useState(false);
 
     const loadWishlist = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, {
-                headers: authService.getAuthHeaders(),
-            });
-
-            if (!response.ok) {
-                setItems([]);
-                return;
-            }
-
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { headers: authService.getAuthHeaders(), credentials: 'include' });
+            if (!response.ok) { setItems([]); return; }
             const data = await response.json();
             setItems(data?.data?.items || []);
-        } catch {
-            setItems([]);
-        } finally {
-            setIsLoading(false);
-        }
+        } catch { setItems([]); } finally { setIsLoading(false); }
     };
 
     const removeItem = async (id) => {
-        await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${id}`, {
-            method: 'DELETE',
-            headers: authService.getAuthHeaders(),
-        });
-        window.dispatchEvent(new Event('wishlist:changed'));
-        loadWishlist();
+        try {
+            setIsBusy(true);
+            await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${id}`, { method: 'DELETE', headers: authService.getAuthHeaders(), credentials: 'include' });
+            window.dispatchEvent(new Event('wishlist:changed'));
+            loadWishlist();
+        } finally { setIsBusy(false); }
     };
 
     const moveToCart = async (id) => {
-        await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${id}/move-to-cart`, {
-            method: 'POST',
-            headers: authService.getAuthHeaders(),
-        });
-        window.dispatchEvent(new Event('wishlist:changed'));
-        loadWishlist();
+        try {
+            setIsBusy(true);
+            await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${id}/move-to-cart`, { method: 'POST', headers: authService.getAuthHeaders(), credentials: 'include' });
+            window.dispatchEvent(new Event('wishlist:changed'));
+            window.dispatchEvent(new Event('cart:changed'));
+            loadWishlist();
+        } finally { setIsBusy(false); }
     };
 
-    useEffect(() => {
-        loadWishlist();
-    }, []);
+    useEffect(() => { loadWishlist(); }, []);
 
     return (
-        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-            <h1 className="text-2xl font-bold text-slate-900">Wishlist</h1>
-            <StoreNav />
+        <div className="mx-auto max-w-5xl px-4 pb-16 sm:px-6 lg:px-8">
+            <div className="mb-8">
+                <p className="store-eyebrow mb-1">My Account</p>
+                <h1 className="store-display text-2xl text-[#131313] sm:text-3xl">
+                    My Wishlist <span className="text-base font-normal text-[#666]">({items.length} items)</span>
+                </h1>
+            </div>
 
             {isLoading ? (
-                <p className="mt-4 text-slate-500">Loading wishlist...</p>
+                <div className="flex min-h-[300px] items-center justify-center">
+                    <div className="store-surface p-10 text-center">
+                        <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-[3px] border-[#d2dff9] border-t-[#f9730c]" />
+                        <p className="store-display text-base text-[#212191]">Loading wishlist...</p>
+                    </div>
+                </div>
             ) : items.length === 0 ? (
-                <p className="mt-4 text-slate-500">Your wishlist is empty.</p>
+                <div className="store-surface py-16 text-center">
+                    <div className="mb-3 text-5xl">💝</div>
+                    <h2 className="store-display mb-2 text-xl text-[#212191]">Your wishlist is empty</h2>
+                    <p className="mb-6 text-sm text-[#666]">Save items you love and shop them later.</p>
+                    <Link to="/" className="store-btn-primary tap-bounce inline-block rounded-2xl px-8 py-3 text-sm font-bold">Browse Products</Link>
+                </div>
             ) : (
-                <div className="mt-6 space-y-3">
+                <div className="space-y-3">
                     {items.map((item) => {
                         const product = item.productId;
                         if (!product) return null;
-
+                        const imgPath = product.images?.[0]?.path;
+                        const imgUrl = imgPath ? imgPath : '/images/placeholder.webp';
                         return (
-                            <div key={item._id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4">
-                                <div>
-                                    <Link to={`/products/${product.slug || product._id}`} className="font-semibold text-slate-900 hover:text-cyan-700">
-                                        {product.title}
-                                    </Link>
-                                    <p className="text-sm text-slate-600">{formatPrice(product.basePrice || 0)}</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => moveToCart(item._id)}
-                                        className="rounded-lg bg-cyan-50 px-3 py-2 text-sm font-medium text-cyan-700 hover:bg-cyan-100"
-                                    >
-                                        Move to Cart
-                                    </button>
-                                    <button
-                                        onClick={() => removeItem(item._id)}
-                                        className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100"
-                                    >
-                                        Remove
-                                    </button>
+                            <div key={item._id} className="store-surface p-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 to-blue-50">
+                                        <img src={imgUrl} alt={product.title} className="h-full w-full object-cover" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <Link to={`/products/${product.slug || product._id}`} className="font-semibold text-[#1f1f1f] hover:text-[#212191] line-clamp-1 transition">{product.title}</Link>
+                                        <p className="mt-1 text-sm font-bold text-[#4250d5]">{formatPrice(product.basePrice || 0)}</p>
+                                        {product.brand?.title && <p className="text-xs text-[#999]">{product.brand.title}</p>}
+                                    </div>
+                                    <div className="flex flex-shrink-0 items-center gap-2">
+                                        <button onClick={() => moveToCart(item._id)} disabled={isBusy}
+                                            className="store-btn-primary tap-bounce rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-40 whitespace-nowrap">
+                                            Move to Cart
+                                        </button>
+                                        <button onClick={() => removeItem(item._id)} disabled={isBusy}
+                                            className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:opacity-40 transition">
+                                            Remove
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         );

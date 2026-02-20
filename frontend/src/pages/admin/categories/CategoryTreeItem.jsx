@@ -91,8 +91,7 @@ const CategoryTreeItem = ({
 
     return (
         <div ref={setNodeRef} style={style} className="relative">
-            {/* Main Category Item */}
-            <div
+                        <div
                 className={`border-2 rounded-xl transition-all ${getLevelColor(depth)} ${
                     isDragging ? 'shadow-2xl scale-[1.01]' : 'hover:shadow-lg'
                 }`}
@@ -100,7 +99,7 @@ const CategoryTreeItem = ({
             >
                 <div className="p-4 sm:p-5">
                     <div className="flex items-center gap-3">
-                        {/* Drag Handle */}
+                        
                         <button
                             {...attributes}
                             {...listeners}
@@ -112,8 +111,7 @@ const CategoryTreeItem = ({
                             </svg>
                         </button>
 
-                        {/* Expand/Collapse Button */}
-                        {hasChildren ? (
+{hasChildren ? (
                             <button
                                 onClick={() => onToggleExpand(category._id)}
                                 className="text-slate-600 transition-transform hover:text-slate-800"
@@ -130,8 +128,7 @@ const CategoryTreeItem = ({
                             <div className="w-5"></div>
                         )}
 
-                        {/* Category Icon */}
-                        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-white shadow-sm">
+<div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-white shadow-sm">
                             {category.photo ? (
                                 <img
                                     src={`${API_CONFIG.BASE_URL}${category.photo}`}
@@ -149,8 +146,7 @@ const CategoryTreeItem = ({
                             )}
                         </div>
 
-                        {/* Category Info */}
-                        <div className="min-w-0 flex-1">
+<div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 mb-1">
                                 <h3 className="truncate text-lg font-black text-slate-900">{category.title}</h3>
                                 <span className={`px-2 py-0.5 text-xs font-bold text-white rounded ${badge.color}`}>
@@ -175,9 +171,8 @@ const CategoryTreeItem = ({
                             </div>
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex flex-wrap items-center gap-2">
-                            {/* Status Toggle */}
+<div className="flex flex-wrap items-center gap-2">
+                            
                             <button
                                 onClick={() => onToggleStatus(category._id, category.status)}
                                 className={`rounded-full px-3 py-1 text-xs font-bold ${
@@ -190,8 +185,7 @@ const CategoryTreeItem = ({
                                 {category.status === 'active' ? 'active' : 'inactive'}
                             </button>
 
-                            {/* Add Child */}
-                            <button
+<button
                                 onClick={() => onAddChild(category._id)}
                                 className="rounded-lg bg-emerald-500 p-2 text-white transition-colors hover:bg-emerald-400"
                                 title="Add child category"
@@ -201,8 +195,7 @@ const CategoryTreeItem = ({
                                 </svg>
                             </button>
 
-                            {/* Move */}
-                            <button
+                                                        <button
                                 onClick={() => onToggleChildDrop(category._id)}
                                 className="rounded-lg bg-indigo-500 p-2 text-white transition-colors hover:bg-indigo-400"
                                 title="Toggle child drop area"
@@ -216,8 +209,7 @@ const CategoryTreeItem = ({
                                 </svg>
                             </button>
 
-                            {/* Edit */}
-                            <button
+                                                        <button
                                 onClick={() => onEdit(category)}
                                 className="rounded-lg bg-slate-900 p-2 text-white transition-colors hover:bg-slate-700"
                                 title="Edit category"
@@ -227,8 +219,7 @@ const CategoryTreeItem = ({
                                 </svg>
                             </button>
 
-                            {/* Copy */}
-                            <button
+<button
                                 onClick={() => {
                                     navigator.clipboard.writeText(category._id);
                                     notify.success('Category ID copied');
@@ -241,8 +232,7 @@ const CategoryTreeItem = ({
                                 </svg>
                             </button>
 
-                            {/* Star (Featured) */}
-                            <button
+                                                        <button
                                 onClick={() => onToggleFeatured(category._id, category.isFeatured)}
                                 className={`p-2 rounded-lg transition-colors ${
                                     category.isFeatured
@@ -256,8 +246,7 @@ const CategoryTreeItem = ({
                                 </svg>
                             </button>
 
-                            {/* Delete */}
-                            <button
+<button
                                 onClick={() => onDelete(category._id)}
                                 className="rounded-lg bg-rose-500 p-2 text-white transition-colors hover:bg-rose-400"
                                 title="Delete category"
@@ -267,8 +256,7 @@ const CategoryTreeItem = ({
                                 </svg>
                             </button>
 
-                            {/* Number Badge */}
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-white">
+<div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-white">
                                 {directChildrenCount}
                             </div>
                         </div>
@@ -281,8 +269,7 @@ const CategoryTreeItem = ({
                 <ChildDropSection categoryId={category._id} depth={depth} />
             )}
 
-            {/* Render Children */}
-            {hasChildren && isExpanded && (
+                        {hasChildren && isExpanded && (
                 <div className="mt-2 space-y-2">
                     {category.children.map((child) => (
                         <CategoryTreeItem

@@ -1,18 +1,7 @@
-/**
- * @fileoverview Custom React Hooks Collection
- * @description Reusable hooks for common patterns and state management
- * @author Enterprise E-Commerce Team
- * @version 1.0.0
- */
+
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-/**
- * Hook for debouncing values
- * @param {any} value - Value to debounce
- * @param {number} delay - Delay in milliseconds
- * @returns {any} Debounced value
- */
 export const useDebounce = (value, delay = 500) => {
     const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -29,12 +18,6 @@ export const useDebounce = (value, delay = 500) => {
     return debouncedValue;
 };
 
-/**
- * Hook for async data fetching with loading and error states
- * @param {Function} asyncFunction - Async function to execute
- * @param {boolean} immediate - Execute immediately on mount
- * @returns {Object} { data, loading, error, execute, reset }
- */
 export const useAsync = (asyncFunction, immediate = true) => {
     const [status, setStatus] = useState('idle');
     const [data, setData] = useState(null);
@@ -82,12 +65,6 @@ export const useAsync = (asyncFunction, immediate = true) => {
     };
 };
 
-/**
- * Hook for managing local storage with state
- * @param {string} key - Local storage key
- * @param {any} initialValue - Initial value
- * @returns {Array} [storedValue, setValue, removeValue]
- */
 export const useLocalStorage = (key, initialValue) => {
     const [storedValue, setStoredValue] = useState(() => {
         try {
@@ -124,11 +101,6 @@ export const useLocalStorage = (key, initialValue) => {
     return [storedValue, setValue, removeValue];
 };
 
-/**
- * Hook for detecting click outside element
- * @param {Function} handler - Function to call when clicked outside
- * @returns {Object} ref - Ref to attach to element
- */
 export const useClickOutside = (handler) => {
     const ref = useRef();
 
@@ -152,10 +124,6 @@ export const useClickOutside = (handler) => {
     return ref;
 };
 
-/**
- * Hook for window resize event
- * @returns {Object} { width, height }
- */
 export const useWindowSize = () => {
     const [windowSize, setWindowSize] = useState({
         width: window.innerWidth,
@@ -177,11 +145,6 @@ export const useWindowSize = () => {
     return windowSize;
 };
 
-/**
- * Hook for media query matching
- * @param {string} query - Media query string
- * @returns {boolean} Whether query matches
- */
 export const useMediaQuery = (query) => {
     const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
 
@@ -196,11 +159,6 @@ export const useMediaQuery = (query) => {
     return matches;
 };
 
-/**
- * Hook for tracking previous value
- * @param {any} value - Current value
- * @returns {any} Previous value
- */
 export const usePrevious = (value) => {
     const ref = useRef();
 
@@ -211,11 +169,6 @@ export const usePrevious = (value) => {
     return ref.current;
 };
 
-/**
- * Hook for interval with cleanup
- * @param {Function} callback - Function to execute
- * @param {number} delay - Delay in milliseconds (null to pause)
- */
 export const useInterval = (callback, delay) => {
     const savedCallback = useRef();
 
@@ -233,11 +186,6 @@ export const useInterval = (callback, delay) => {
     }, [delay]);
 };
 
-/**
- * Hook for form input handling
- * @param {Object} initialValues - Initial form values
- * @returns {Object} { values, handleChange, handleSubmit, reset, setValues }
- */
 export const useForm = (initialValues = {}) => {
     const [values, setValues] = useState(initialValues);
 
@@ -261,12 +209,6 @@ export const useForm = (initialValues = {}) => {
     };
 };
 
-/**
- * Hook for pagination logic
- * @param {Array} items - Array of items to paginate
- * @param {number} itemsPerPage - Number of items per page
- * @returns {Object} Pagination state and methods
- */
 export const usePagination = (items, itemsPerPage = 10) => {
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -300,11 +242,6 @@ export const usePagination = (items, itemsPerPage = 10) => {
     };
 };
 
-/**
- * Hook for toggle state
- * @param {boolean} initialState - Initial state
- * @returns {Array} [state, toggle, setTrue, setFalse]
- */
 export const useToggle = (initialState = false) => {
     const [state, setState] = useState(initialState);
 
@@ -315,10 +252,6 @@ export const useToggle = (initialState = false) => {
     return [state, toggle, setTrue, setFalse];
 };
 
-/**
- * Hook for scroll position
- * @returns {Object} { x, y }
- */
 export const useScrollPosition = () => {
     const [scrollPosition, setScrollPosition] = useState({
         x: window.pageXOffset,

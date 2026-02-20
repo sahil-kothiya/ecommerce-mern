@@ -145,8 +145,7 @@ const orderSchema = new Schema(
             min: 1,
         },
 
-        // Customer Info
-        firstName: {
+                firstName: {
             type: String,
             required: true,
             trim: true,
@@ -188,8 +187,7 @@ const orderSchema = new Schema(
             required: true,
         },
 
-        // Payment
-        paymentMethod: {
+                paymentMethod: {
             type: String,
             enum: ['cod', 'stripe', 'paypal'],
             required: true,
@@ -203,15 +201,13 @@ const orderSchema = new Schema(
             type: String,
         },
 
-        // Order Status
-        status: {
+                status: {
             type: String,
             enum: ['new', 'process', 'delivered', 'cancelled'],
             default: 'new',
         },
 
-        // Other
-        couponCode: {
+                couponCode: {
             type: String,
         },
         notes: {
@@ -233,7 +229,6 @@ const orderSchema = new Schema(
     }
 );
 
-// Indexes
 orderSchema.index({ userId: 1 });
 orderSchema.index({ status: 1 });
 orderSchema.index({ paymentStatus: 1 });
@@ -242,7 +237,6 @@ orderSchema.index({ email: 1 });
 orderSchema.index({ userId: 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 
-// Virtual populate user
 orderSchema.virtual('user', {
     ref: 'User',
     localField: 'userId',
@@ -250,7 +244,6 @@ orderSchema.virtual('user', {
     justOne: true,
 });
 
-// Generate order number before saving
 orderSchema.pre('save', function (next) {
     if (!this.orderNumber) {
         this.orderNumber = `ORD-${uuidv4().slice(0, 8).toUpperCase()}`;
@@ -258,12 +251,10 @@ orderSchema.pre('save', function (next) {
     next();
 });
 
-// Virtual for full name
 orderSchema.virtual('fullName').get(function () {
     return `${this.firstName} ${this.lastName}`;
 });
 
-// Virtual for full address
 orderSchema.virtual('fullAddress').get(function () {
     const parts = [
         this.address1,

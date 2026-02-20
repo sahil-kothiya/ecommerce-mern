@@ -123,16 +123,16 @@ const AdminLayout = () => {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={toggleSidebar}
-                            className="admin-button-secondary rounded-2xl px-3 py-2 text-slate-700 transition"
+                            className="admin-button-secondary tap-bounce rounded-2xl px-3 py-2 text-slate-700 transition"
                             aria-label="Toggle sidebar"
                             aria-expanded={isSidebarOpen}
                         >
                             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                         </button>
                         <Link to="/admin" className="flex items-center gap-3">
-                            <span className="admin-brand-mark flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black text-white">EC</span>
+                            <span className="admin-brand-mark animate-floatBob flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black text-white">EC</span>
                             <span className="hidden sm:block">
-                                <span className="block text-[11px] font-bold uppercase tracking-[0.24em] text-[#4250d5]">Sovereign Console</span>
+                                <span className="block text-[11px] font-bold uppercase tracking-[0.24em] text-[#4250d5]">Creator Console</span>
                                 <span className="admin-display block text-base text-[#131313]">{UI_CONFIG.BRAND_NAME}</span>
                             </span>
                         </Link>
@@ -140,7 +140,7 @@ const AdminLayout = () => {
 
                     <div className="flex items-center gap-3">
                         <Link to="/" className="admin-button-secondary hidden rounded-full px-4 py-2 text-sm font-semibold sm:block">View Site</Link>
-                        <div className="admin-surface flex items-center gap-2 rounded-2xl px-3 py-2">
+                        <div className="admin-surface interactive-card hover-glow flex items-center gap-2 rounded-2xl px-3 py-2">
                             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#4250d5] via-[#6a88e2] to-[#ffa336] text-sm font-bold text-white">{userInitial}</span>
                             <div className="hidden text-left md:block">
                                 <p className="text-sm font-semibold text-[#131313]">{userName}</p>
@@ -169,9 +169,9 @@ const AdminLayout = () => {
                     aria-hidden={!isSidebarOpen}
                 >
                     <div className="h-full overflow-y-auto px-4 py-5">
-                        <div className="admin-nav-panel mb-4 rounded-2xl p-4">
+                        <div className="admin-nav-panel interactive-card hover-glow mb-4 rounded-2xl p-4">
                             <p className="text-[11px] uppercase tracking-[0.22em] text-[#d5e2ff]">Navigation</p>
-                            <p className="mt-1 text-sm font-semibold text-[#fafcff]">Manage all modules from one place</p>
+                            <p className="mt-1 text-sm font-semibold text-[#fafcff]">Run ops faster, ship updates smarter</p>
                         </div>
 
                         <nav className="space-y-2" role="navigation">
@@ -185,7 +185,7 @@ const AdminLayout = () => {
                                             <button
                                                 type="button"
                                                 onClick={() => toggleMenu(item.key)}
-                                                className={`admin-nav-item flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm transition ${
+                                                className={`admin-nav-item tap-bounce flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm transition ${
                                                     isMenuActive ? 'admin-nav-item-active' : ''
                                                 }`}
                                             >
@@ -206,7 +206,7 @@ const AdminLayout = () => {
                                                             <Link
                                                                 key={child.path}
                                                                 to={child.path}
-                                                                className={`block rounded-lg px-3 py-2 text-sm transition ${
+                                                                className={`tap-bounce block rounded-lg px-3 py-2 text-sm transition ${
                                                                     isChildActive
                                                                         ? 'bg-white/15 text-white'
                                                                         : 'text-slate-300 hover:bg-white/10 hover:text-white'
@@ -227,7 +227,7 @@ const AdminLayout = () => {
                                     <Link
                                         key={item.path}
                                         to={item.path}
-                                        className={`admin-nav-item flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm transition ${
+                                        className={`admin-nav-item tap-bounce flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm transition ${
                                             isCurrent ? 'admin-nav-item-active' : ''
                                         }`}
                                         aria-current={isCurrent ? 'page' : undefined}
@@ -244,7 +244,7 @@ const AdminLayout = () => {
                 </aside>
 
                 <main className={`min-w-0 flex-1 transition-all duration-300 ${isSidebarOpen ? 'ml-72' : 'ml-0'}`} role="main">
-                    <div className="p-4 sm:p-6">
+                    <div className="p-4 sm:p-6 lg:p-7">
                         <Outlet />
                     </div>
                 </main>

@@ -213,13 +213,9 @@ const ProductForm = () => {
                 ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/${id}`
                 : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}`;
 
-            const token = localStorage.getItem('auth_token');
-
             const response = await fetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                credentials: 'include',
                 body: formDataToSend,
             });
 

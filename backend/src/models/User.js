@@ -110,7 +110,7 @@ const userSchema = new Schema(
         password: {
             type: String,
             required: function () {
-                return !this.provider; // Password not required for OAuth users
+                return !this.provider;
             },
             minlength: [6, 'Password must be at least 6 characters'],
             select: false,
@@ -187,12 +187,10 @@ const userSchema = new Schema(
     }
 );
 
-// Indexes (email index is created by unique: true, so removed here)
 userSchema.index({ role: 1 });
 userSchema.index({ status: 1 });
 userSchema.index({ provider: 1, providerId: 1 });
 
-// Hash password before saving
 userSchema.pre('save', async function (next) {
     if (!this.isModified('password')) return next();
 
@@ -205,7 +203,6 @@ userSchema.pre('save', async function (next) {
     }
 });
 
-// Compare password method
 userSchema.methods.comparePassword = async function (candidatePassword) {
     return bcrypt.compare(candidatePassword, this.password);
 };

@@ -40,11 +40,9 @@ const brandSchema = new Schema(
   },
 );
 
-// Indexes
 brandSchema.index({ slug: 1 });
 brandSchema.index({ status: 1 });
 
-// Virtual populate products (Product model stores brand ref as brand.id)
 brandSchema.virtual("products", {
   ref: "Product",
   localField: "_id",
@@ -52,13 +50,11 @@ brandSchema.virtual("products", {
   match: { status: "active" },
 });
 
-// Generate slug before saving
 brandSchema.pre("save", async function (next) {
   if (this.isModified("title")) {
     this.slug = slugify(this.title, { lower: true, strict: true });
 
-    // Ensure unique slug
-    const existingBrand = await mongoose.models.Brand.findOne({
+        const existingBrand = await mongoose.models.Brand.findOne({
       slug: this.slug,
       _id: { $ne: this._id },
     });

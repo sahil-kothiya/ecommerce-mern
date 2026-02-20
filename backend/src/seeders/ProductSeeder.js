@@ -6,83 +6,21 @@ import { Category } from '../models/Category.js';
 import { Brand } from '../models/Brand.js';
 import { VariantType, VariantOption } from '../models/Supporting.models.js';
 
-/**
- * â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
- * PRODUCT SEEDER CONFIGURATION
- * â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
- * 
- * HOW TO RUN THIS SEEDER:
- * ----------------------
- * 
- * Method 1: Run specific seeder file
- *   npm run seed:products
- * 
- * Method 2: Run from the main seed file
- *   npm run seed
- * 
- * Method 3: Run programmatically
- *   node backend/runSeeder.js products
- * 
- * Method 4: Custom count
- *   node backend/runSeeder.js products --count=50000
- * 
- * CONFIGURATION OPTIONS:
- * ---------------------
- * - Total Products: 100,000 (1 Lakh) - Change DEFAULT_PRODUCT_COUNT below
- * - Variant Products: 98% (98,000 products with variants)
- * - Non-Variant Products: 2% (2,000 simple products)
- * - Batch Size: 1000 products per batch (adjustable)
- * - Variants Per Product: 2-9 variants (random)
- * 
- * WHAT THIS SEEDER DOES:
- * ---------------------
- * 1. Loads reference data (Categories, Brands, Variant Types)
- * 2. Clears existing products (TRUNCATE)
- * 3. Creates 100,000 products in batches
- * 4. Generates realistic product data with images
- * 5. Creates variants for 98% of products
- * 
- * RELATED TABLES:
- * --------------
- * This seeder REQUIRES the following data to exist first:
- * - Categories (run CategorySeeder first)
- * - Brands (run BrandSeeder first)
- * - Variant Types & Options (run VariantSeeder first)
- * 
- * AUTO-TRUNCATE OPTIONS:
- * ---------------------
- * Set truncateRelatedTables = true to auto-clear related data
- * 
- * â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
- */
-
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// CONFIGURATION SECTION - ADJUST THESE VALUES
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
 const CONFIG = {
-    // Total number of products to create (1 Lakh = 100,000)
-    DEFAULT_PRODUCT_COUNT: 100000,
+        DEFAULT_PRODUCT_COUNT: 100000,
 
-    // Percentage of products with variants (98%)
-    VARIANT_PRODUCT_PERCENTAGE: 0.98,
+        VARIANT_PRODUCT_PERCENTAGE: 0.98,
 
-    // Batch size for bulk insertion (higher = faster but more memory)
-    BATCH_SIZE: 1000,
+        BATCH_SIZE: 1000,
 
-    // Auto-truncate related tables before seeding
-    TRUNCATE_RELATED_TABLES: false, // Set to true to clear all related data
+        TRUNCATE_RELATED_TABLES: false,
 
-    // Variant configuration
-    MIN_VARIANTS_PER_PRODUCT: 2,
+        MIN_VARIANTS_PER_PRODUCT: 2,
     MAX_VARIANTS_PER_PRODUCT: 9,
 
-    // Product status distribution
-    ACTIVE_PRODUCT_PERCENTAGE: 0.95, // 95% active, 5% inactive
-    FEATURED_PRODUCT_PERCENTAGE: 0.10, // 10% featured products
+        ACTIVE_PRODUCT_PERCENTAGE: 0.95,
+    FEATURED_PRODUCT_PERCENTAGE: 0.10,
 };
-
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export class ProductSeeder {
     constructor() {
@@ -93,11 +31,7 @@ export class ProductSeeder {
         this.config = CONFIG;
     }
 
-    /**
-     * Main seeding method
-     * @param {number} totalProducts - Total number of products to create (default: 100,000)
-     */
-    async run(totalProducts = CONFIG.DEFAULT_PRODUCT_COUNT) {
+async run(totalProducts = CONFIG.DEFAULT_PRODUCT_COUNT) {
         logger.info('\nâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•');
         logger.info('ðŸ›ï¸  PRODUCT SEEDER - LARGE SCALE DATA GENERATION');
         logger.info('â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n');
@@ -109,22 +43,17 @@ export class ProductSeeder {
         logger.info(`   - Truncate Related Tables: ${CONFIG.TRUNCATE_RELATED_TABLES ? 'YES' : 'NO'}\n`);
 
         try {
-            // Step 1: Optionally truncate related tables
-            if (CONFIG.TRUNCATE_RELATED_TABLES) {
+                        if (CONFIG.TRUNCATE_RELATED_TABLES) {
                 await this.truncateRelatedTables();
             }
 
-            // Step 2: Load reference data
-            await this.loadReferenceData();
+                        await this.loadReferenceData();
 
-            // Step 3: Clear existing products
-            await this.clearExistingProducts();
+                        await this.clearExistingProducts();
 
-            // Step 4: Create products in batches
-            await this.createProductsBatch(totalProducts);
+                        await this.createProductsBatch(totalProducts);
 
-            // Step 5: Display summary
-            logger.info('\nâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•');
+                        logger.info('\nâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•');
             logger.info('âœ… PRODUCT SEEDING COMPLETED SUCCESSFULLY!');
             logger.info('â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n');
             logger.info(`ðŸ“Š Final Summary:`);
@@ -140,39 +69,25 @@ export class ProductSeeder {
         }
     }
 
-    /**
-     * Truncate all related tables (OPTIONAL)
-     * Enable by setting CONFIG.TRUNCATE_RELATED_TABLES = true
-     */
-    async truncateRelatedTables() {
+async truncateRelatedTables() {
         logger.info('ðŸ—‘ï¸  Truncating related tables...');
 
         try {
-            // You can add other collections to truncate here
-            // await Category.deleteMany({});
-            // await Brand.deleteMany({});
-            // await VariantType.deleteMany({});
-            // await VariantOption.deleteMany({});
-
+                                                            
             logger.info('âœ… Related tables truncated (disabled by default)\n');
         } catch (error) {
             console.error('âš ï¸  Warning: Could not truncate some tables:', error.message);
         }
     }
 
-    /**
-     * Load reference data from database
-     * REQUIRED: Categories, Brands, and Variant Types must exist
-     */
-    async loadReferenceData() {
+async loadReferenceData() {
         logger.info('ðŸ“š Loading reference data from database...');
 
         this.categories = await Category.find({ status: 'active' }).lean();
         this.brands = await Brand.find({ status: 'active' }).lean();
         this.variantTypes = await VariantType.find().populate('options').lean();
 
-        // Validation
-        if (this.categories.length === 0) {
+                if (this.categories.length === 0) {
             throw new Error('âŒ No categories found! Please run CategorySeeder first.');
         }
         if (this.brands.length === 0) {
@@ -188,21 +103,14 @@ export class ProductSeeder {
         logger.info(`   - Variant Types: ${this.variantTypes.length}\n`);
     }
 
-    /**
-     * Clear all existing products (TRUNCATE)
-     */
-    async clearExistingProducts() {
+async clearExistingProducts() {
         logger.info('ðŸ§¹ Truncating products table...');
         const deletedCount = await Product.countDocuments();
         await Product.deleteMany({});
         logger.info(`âœ… Cleared ${deletedCount.toLocaleString()} existing products\n`);
     }
 
-    /**
-     * Create products in batches for better performance
-     * @param {number} totalProducts - Total products to create
-     */
-    async createProductsBatch(totalProducts) {
+async createProductsBatch(totalProducts) {
         const batches = Math.ceil(totalProducts / this.batchSize);
         const nonVariantTarget = Math.floor(totalProducts * (1 - CONFIG.VARIANT_PRODUCT_PERCENTAGE));
 
@@ -219,16 +127,13 @@ export class ProductSeeder {
             const products = [];
 
             for (let i = startIndex; i < endIndex; i++) {
-                // Determine if this product should have variants
-                // First 2% are non-variant, rest are variant-based
-                const shouldHaveVariants = this.nonVariantCount >= nonVariantTarget;
+                                                const shouldHaveVariants = this.nonVariantCount >= nonVariantTarget;
 
                 const product = await this.generateProduct(i, shouldHaveVariants);
                 products.push(product);
             }
 
-            // Bulk insert for performance
-            await Product.insertMany(products, { ordered: false });
+                        await Product.insertMany(products, { ordered: false });
             this.productCount += batchSize;
 
             const duration = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -242,17 +147,11 @@ export class ProductSeeder {
         }
     }
 
-    /**
-     * Generate a single product with all details
-     * @param {number} index - Product index for unique identification
-     * @param {boolean} forceVariants - Force this product to have variants (for 98% ratio)
-     */
-    async generateProduct(index, forceVariants = true) {
+async generateProduct(index, forceVariants = true) {
         const category = this.getRandomCategory();
         const brand = this.getRandomBrand();
 
-        // 98% products should have variants, 2% should not
-        const hasVariants = forceVariants;
+                const hasVariants = forceVariants;
 
         if (!hasVariants) {
             this.nonVariantCount++;
@@ -266,7 +165,7 @@ export class ProductSeeder {
             description: this.generateDescription(baseTitle, category, brand),
             condition: this.getRandomCondition(),
             status: this.getRandomStatus(),
-            isFeatured: Math.random() > 0.9, // 10% featured
+            isFeatured: Math.random() > 0.9,
             hasVariants,
             category: {
                 id: category._id,
@@ -287,7 +186,7 @@ export class ProductSeeder {
                 keywords: this.generateKeywords(baseTitle, category, brand)
             },
             ratings: {
-                average: Math.round((Math.random() * 2 + 3) * 10) / 10, // 3.0 - 5.0
+                average: Math.round((Math.random() * 2 + 3) * 10) / 10,
                 count: Math.floor(Math.random() * 1000),
                 distribution: this.generateRatingDistribution()
             },
@@ -296,23 +195,19 @@ export class ProductSeeder {
             createdAt: this.generateRandomDate()
         };
 
-        // Generate variants or simple product data
-        if (hasVariants) {
-            // VARIANT-BASED PRODUCT (98% of products)
-            const variants = this.generateVariants(category, brand);
+                if (hasVariants) {
+                        const variants = this.generateVariants(category, brand);
             product.variants = variants;
             this.variantCount += variants.length;
 
-            // Calculate aggregated pricing from variants
-            const prices = variants.map(v => v.price);
+                        const prices = variants.map(v => v.price);
             product.basePrice = Math.min(...prices);
             product.maxPrice = Math.max(...prices);
 
             const stocks = variants.map(v => v.stock);
             product.totalStock = stocks.reduce((sum, stock) => sum + stock, 0);
         } else {
-            // SIMPLE PRODUCT WITHOUT VARIANTS (2% of products)
-            product.basePrice = this.generatePrice(category);
+                        product.basePrice = this.generatePrice(category);
             product.baseDiscount = Math.random() > 0.7 ? Math.floor(Math.random() * 30) + 5 : 0;
             product.baseStock = Math.floor(Math.random() * 200) + 10;
             product.baseSku = this.generateSKU(brand, index);
@@ -353,8 +248,7 @@ export class ProductSeeder {
 
         const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
 
-        // Find product types for this category
-        let types = [];
+                let types = [];
         for (const [catName, catTypes] of Object.entries(productTypes)) {
             if (category.title.includes(catName) || category.pathNames?.includes(catName)) {
                 types = catTypes;
@@ -406,22 +300,14 @@ export class ProductSeeder {
         return descriptions[Math.floor(Math.random() * descriptions.length)];
     }
 
-    /**
-     * Generate product variants (Color, Size, etc.)
-     * @param {Object} category - Product category
-     * @param {Object} brand - Product brand
-     * @returns {Array} Array of variants
-     */
-    generateVariants(category, brand) {
-        // Random variant count between configured min and max
-        const variantCount = Math.floor(
+generateVariants(category, brand) {
+                const variantCount = Math.floor(
             Math.random() * (CONFIG.MAX_VARIANTS_PER_PRODUCT - CONFIG.MIN_VARIANTS_PER_PRODUCT + 1)
         ) + CONFIG.MIN_VARIANTS_PER_PRODUCT;
 
         const variants = [];
 
-        // Get relevant variant types for this category
-        let relevantTypes = this.variantTypes;
+                let relevantTypes = this.variantTypes;
         if (category.title.includes('Fashion') || category.title.includes('Clothing')) {
             relevantTypes = this.variantTypes.filter(t => ['Color', 'Size', 'Material', 'Style'].includes(t.name));
         }
@@ -458,7 +344,7 @@ export class ProductSeeder {
                 });
             }
 
-            const priceVariation = (Math.random() - 0.5) * 0.2; // Â±10%
+            const priceVariation = (Math.random() - 0.5) * 0.2;
             const variantPrice = Math.round(basePrice * (1 + priceVariation));
 
             const variantTitle = `${color?.displayValue || 'Standard'} ${size?.displayValue || ''}`.trim();
@@ -479,8 +365,7 @@ export class ProductSeeder {
     }
 
     generateImages() {
-        // Extended Laravel product images array - ensuring exactly 3 unique images per product
-        const availableImages = [
+                const availableImages = [
             'product_6889f81c489d0_0.webp', 'product_6889f81c5163c_1.webp', 'product_6889f81c59696_2.webp',
             'product_6889f81c616e8_3.webp', 'product_6889f81c6a225_4.webp', 'product_6889f9113eecd_0.webp',
             'product_6889f980ae308_0.webp', 'product_6889fd3e6fc02_0.webp', 'product_6889ff20a3003_0.webp',
@@ -523,8 +408,7 @@ export class ProductSeeder {
             'product_691c33d0c9c37_3.webp', 'product_691c320b0ebab_2.webp', 'product_691c2da306125_4.webp'
         ];
 
-        // Always return exactly 3 unique images
-        const shuffledImages = [...availableImages].sort(() => 0.5 - Math.random());
+                const shuffledImages = [...availableImages].sort(() => 0.5 - Math.random());
         const selectedImages = shuffledImages.slice(0, 3);
 
         const images = [];
@@ -541,8 +425,7 @@ export class ProductSeeder {
     }
 
     generateVariantImages() {
-        // Extended Laravel variant images array - ensuring exactly 3 images per variant
-        const availableVariantImages = [
+                const availableVariantImages = [
             'variant_68e8c429cdc68_0.webp', 'variant_68e8c67d53c28_0.webp', 'variant_68e8c73e05444_0.webp',
             'variant_68e8c824a9cf7_0.webp', 'variant_68e8ca99af65f_0.webp', 'variant_68e8cdbf8f7b7_0.webp',
             'variant_68e8cf3d223f7_0.webp', 'variant_68e8cfdb27714_0.webp', 'variant_68e8d02251456_0.webp',
@@ -564,8 +447,7 @@ export class ProductSeeder {
             'variant_6901f4c839cad_3.webp', 'variant_690201b061c8f_3.webp', 'variant_6902e6f9d2fd1_3.webp'
         ];
 
-        // Always return exactly 3 images for variants
-        const shuffledImages = [...availableVariantImages].sort(() => 0.5 - Math.random());
+                const shuffledImages = [...availableVariantImages].sort(() => 0.5 - Math.random());
         const selectedImages = shuffledImages.slice(0, 3);
 
         const images = [];
@@ -615,7 +497,7 @@ export class ProductSeeder {
             'Sports & Outdoors': { min: 15, max: 800 }
         };
 
-        let range = { min: 20, max: 300 }; // default
+        let range = { min: 20, max: 300 };
 
         for (const [catName, catRange] of Object.entries(priceRanges)) {
             if (category.title.includes(catName) || category.pathNames?.includes(catName)) {
@@ -642,8 +524,7 @@ export class ProductSeeder {
     generateRatingDistribution() {
         const total = Math.floor(Math.random() * 1000) + 50;
 
-        // Bias towards higher ratings
-        const dist = {
+                const dist = {
             1: Math.floor(total * (Math.random() * 0.05)),
             2: Math.floor(total * (Math.random() * 0.05)),
             3: Math.floor(total * (Math.random() * 0.15)),
@@ -664,7 +545,7 @@ export class ProductSeeder {
 
     getRandomCondition() {
         const conditions = ['default', 'new', 'hot'];
-        const weights = [0.6, 0.3, 0.1]; // 60% default, 30% new, 10% hot
+        const weights = [0.6, 0.3, 0.1];
 
         const random = Math.random();
         let sum = 0;
@@ -680,12 +561,11 @@ export class ProductSeeder {
     }
 
     getRandomStatus() {
-        return Math.random() > 0.05 ? 'active' : 'inactive'; // 95% active
+        return Math.random() > 0.05 ? 'active' : 'inactive';
     }
 
     getRandomCategory() {
-        // Prefer leaf categories (categories without children)
-        const leafCategories = this.categories.filter(cat =>
+                const leafCategories = this.categories.filter(cat =>
             !this.categories.some(otherCat => otherCat.parent?.toString() === cat._id.toString())
         );
 

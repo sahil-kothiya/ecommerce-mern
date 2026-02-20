@@ -6,7 +6,6 @@ import { uploadCategoryImage, handleUploadError } from '../middleware/upload.js'
 const router = Router();
 const categoryController = new CategoryController();
 
-// Public routes
 router.get('/', (req, res) => categoryController.index(req, res));
 
 router.get('/tree', (req, res) => categoryController.tree(req, res));
@@ -26,7 +25,6 @@ router.get('/:id/products', (req, res) => categoryController.products(req, res))
 
 router.get('/:id/brands', (req, res) => categoryController.brands(req, res));
 
-// Protected routes (Admin only)
 router.post('/', protect, authorize('admin'), uploadCategoryImage, handleUploadError, (req, res) => categoryController.store(req, res));
 
 router.post('/reorder', protect, authorize('admin'), (req, res) => categoryController.bulkReorder(req, res));

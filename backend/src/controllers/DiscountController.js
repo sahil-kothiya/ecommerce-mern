@@ -158,8 +158,7 @@ export class DiscountController {
         try {
             const now = new Date();
 
-            // Auto-expire discounts once their end time has passed.
-            await Discount.updateMany(
+                        await Discount.updateMany(
                 {
                     isActive: true,
                     endsAt: { $lt: now },

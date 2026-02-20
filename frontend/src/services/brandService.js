@@ -1,19 +1,10 @@
-import { logger } from '../utils/logger.js';
-
-/**
- * Brand Service
- * Centralized API calls for brand management
- */
+import { logger } from "../utils/logger.js";
 
 import { apiClient } from "./apiClient.js";
 import { API_CONFIG } from "../constants";
 
 class BrandService {
-  /**
-   * Get all brands with pagination and filters
-   * @param {Object} params - Query parameters
-   * @returns {Promise<Object>} Brands list with pagination
-   */
+  
   async getAllBrands(params = {}) {
     const queryParams = new URLSearchParams();
 
@@ -26,31 +17,15 @@ class BrandService {
     return apiClient.get(url);
   }
 
-  /**
-   * Get single brand by slug
-   * @param {string} slug - Brand slug
-   * @returns {Promise<Object>} Brand details
-   */
-  async getBrandBySlug(slug) {
+async getBrandBySlug(slug) {
     return apiClient.get(`${API_CONFIG.ENDPOINTS.BRANDS}/${slug}`);
   }
 
-  /**
-   * Get brand by ID
-   * @param {string} id - Brand ID
-   * @returns {Promise<Object>} Brand details
-   */
-  async getBrandById(id) {
+async getBrandById(id) {
     return apiClient.get(`${API_CONFIG.ENDPOINTS.BRANDS}/${id}`);
   }
 
-  /**
-   * Get products of a specific brand
-   * @param {string} slug - Brand slug
-   * @param {Object} params - Query parameters
-   * @returns {Promise<Object>} Products list with pagination
-   */
-  async getBrandProducts(slug, params = {}) {
+async getBrandProducts(slug, params = {}) {
     const queryParams = new URLSearchParams();
 
     if (params.page) queryParams.append("page", params.page);
@@ -60,13 +35,7 @@ class BrandService {
     return apiClient.get(url);
   }
 
-  /**
-   * Create new brand (Admin only)
-   * @param {FormData} formData - Brand data with images
-   * @returns {Promise<Object>} Created brand
-   * @throws {Error} Validation or network errors with formatted error details
-   */
-  async createBrand(formData) {
+async createBrand(formData) {
     try {
       return await apiClient.upload(
         API_CONFIG.ENDPOINTS.BRANDS,
@@ -76,23 +45,14 @@ class BrandService {
         },
       );
     } catch (error) {
-      // Re-throw with validation errors if present
-      if (error.errors) {
-        throw error; // Already has proper format
+            if (error.errors) {
+        throw error;
       }
       throw new Error(error.message || "Failed to create brand");
     }
   }
 
-  /**
-   * Update existing brand (Admin only)
-   * @param {string} id - Brand ID
-   * @param {FormData} formData - Updated brand data
-   * @returns {Promise<Object>} Updated brand
-   * @throws {Error} Validation or network errors with formatted error details
-   */
-  async updateBrand(id, formData) {
-    const token = localStorage.getItem("auth_token");
+async updateBrand(id, formData) {
     const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}/${id}`;
 
     return new Promise((resolve, reject) => {
@@ -107,15 +67,13 @@ class BrandService {
             resolve(xhr.responseText);
           }
         } else {
-          // Handle server-side validation errors
-          try {
+                    try {
             const errorData = JSON.parse(xhr.responseText);
             const error = new Error(
               errorData.message || `Update failed with status ${xhr.status}`,
             );
 
-            // Attach validation errors if present
-            if (errorData.errors) {
+                        if (errorData.errors) {
               error.errors = errorData.errors;
             }
 
@@ -131,25 +89,16 @@ class BrandService {
       });
 
       xhr.open("PUT", url);
-
-      if (token) {
-        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-      }
+      xhr.withCredentials = true;
 
       xhr.send(formData);
     });
   }
 
-  /**
-   * Delete brand (Admin only)
-   * @param {string} id - Brand ID
-   * @returns {Promise<Object>} Success message
-   */
-  async deleteBrand(id) {
+async deleteBrand(id) {
     return apiClient.delete(`${API_CONFIG.ENDPOINTS.BRANDS}/${id}`);
   }
 }
 
-// Export singleton instance
 export const brandService = new BrandService();
 export default brandService;

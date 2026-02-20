@@ -7,7 +7,6 @@ const initialState = {
     loading: false,
 };
 
-// Calculate totals
 const calculateTotals = (items) => {
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
     const totalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);

@@ -10,11 +10,7 @@ const ProductFormEnhanced = () => {
     const navigate = useNavigate();
     const isEdit = Boolean(id);
 
-    // ===========================
-    // State Management
-    // ===========================
-
-    const [formData, setFormData] = useState({
+const [formData, setFormData] = useState({
         title: '',
         summary: '',
         description: '',
@@ -43,25 +39,14 @@ const ProductFormEnhanced = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [errors, setErrors] = useState({});
 
-    // ===========================
-    // Effects
-    // ===========================
-
-    useEffect(() => {
+useEffect(() => {
         loadSelectOptions();
         if (isEdit) {
             loadProduct();
         }
     }, [id]);
 
-    // ===========================
-    // Data Loading Functions
-    // ===========================
-
-    /**
-     * Load categories and brands for select dropdowns
-     */
-    const loadSelectOptions = async () => {
+const loadSelectOptions = async () => {
         try {
             const [categoriesRes, brandsRes] = await Promise.all([
                 fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`),
@@ -88,10 +73,7 @@ const ProductFormEnhanced = () => {
         }
     };
 
-    /**
-     * Load product data for editing
-     */
-    const loadProduct = async () => {
+const loadProduct = async () => {
         try {
             setIsLoading(true);
             const response = await fetch(
@@ -131,14 +113,7 @@ const ProductFormEnhanced = () => {
         }
     };
 
-    // ===========================
-    // Form Handlers
-    // ===========================
-
-    /**
-     * Handle input field changes
-     */
-    const handleChange = (e) => {
+const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         
         setFormData(prev => ({
@@ -146,50 +121,34 @@ const ProductFormEnhanced = () => {
             [name]: type === 'checkbox' ? checked : value
         }));
 
-        // Clear error for this field
-        if (errors[name]) {
+                if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: null }));
         }
     };
 
-    /**
-     * Handle tag input
-     */
-    const handleTagsChange = (e) => {
+const handleTagsChange = (e) => {
         const tags = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
         setFormData(prev => ({ ...prev, tags }));
     };
 
-    /**
-     * Handle size input
-     */
-    const handleSizeChange = (e) => {
+const handleSizeChange = (e) => {
         const sizes = e.target.value.split(',').map(size => size.trim()).filter(Boolean);
         setFormData(prev => ({ ...prev, size: sizes }));
     };
 
-    // ===========================
-    // Image Upload Handlers
-    // ===========================
-
-    /**
-     * Handle image file selection
-     */
-    const handleImageChange = (e) => {
+const handleImageChange = (e) => {
         const files = Array.from(e.target.files);
         
         if (files.length === 0) return;
 
-        // Validate file count
-        if (images.length + files.length > 10) {
+                if (images.length + files.length > 10) {
             showNotification('Maximum 10 images allowed', 'error');
             return;
         }
 
-        // Validate file types and sizes
-        const validFiles = files.filter(file => {
+                const validFiles = files.filter(file => {
             const isImage = file.type.startsWith('image/');
-            const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB
+            const isValidSize = file.size <= 5 * 1024 * 1024;
 
             if (!isImage) {
                 showNotification(`${file.name} is not an image`, 'error');
@@ -206,11 +165,9 @@ const ProductFormEnhanced = () => {
 
         if (validFiles.length === 0) return;
 
-        // Add new images
-        setImages(prev => [...prev, ...validFiles]);
+                setImages(prev => [...prev, ...validFiles]);
 
-        // Create previews
-        validFiles.forEach(file => {
+                validFiles.forEach(file => {
             const reader = new FileReader();
             reader.onloadend = () => {
                 setImagePreviews(prev => [...prev, {
@@ -223,25 +180,16 @@ const ProductFormEnhanced = () => {
         });
     };
 
-    /**
-     * Remove image from upload queue
-     */
-    const removeImage = (index) => {
+const removeImage = (index) => {
         setImages(prev => prev.filter((_, i) => i !== index));
         setImagePreviews(prev => prev.filter((_, i) => i !== index));
     };
 
-    /**
-     * Remove existing image
-     */
-    const removeExistingImage = (index) => {
+const removeExistingImage = (index) => {
         setExistingImages(prev => prev.filter((_, i) => i !== index));
     };
 
-    /**
-     * Set primary image
-     */
-    const setPrimaryImage = (index, isExisting = false) => {
+const setPrimaryImage = (index, isExisting = false) => {
         if (isExisting) {
             setExistingImages(prev => prev.map((img, i) => ({
                 ...img,
@@ -255,30 +203,17 @@ const ProductFormEnhanced = () => {
         }
     };
 
-    // ===========================
-    // Drag and Drop Handlers
-    // ===========================
-
-    /**
-     * Handle drag start
-     */
-    const handleDragStart = (e, index) => {
+const handleDragStart = (e, index) => {
         setDraggedIndex(index);
         e.dataTransfer.effectAllowed = 'move';
     };
 
-    /**
-     * Handle drag over
-     */
-    const handleDragOver = (e) => {
+const handleDragOver = (e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
     };
 
-    /**
-     * Handle drop
-     */
-    const handleDrop = (e, dropIndex) => {
+const handleDrop = (e, dropIndex) => {
         e.preventDefault();
         
         if (draggedIndex === null || draggedIndex === dropIndex) return;
@@ -300,14 +235,7 @@ const ProductFormEnhanced = () => {
         setDraggedIndex(null);
     };
 
-    // ===========================
-    // Form Validation
-    // ===========================
-
-    /**
-     * Validate form data
-     */
-    const validateForm = () => {
+const validateForm = () => {
         const newErrors = {};
 
         if (!formData.title.trim()) {
@@ -330,14 +258,7 @@ const ProductFormEnhanced = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-    // ===========================
-    // Form Submission
-    // ===========================
-
-    /**
-     * Handle form submission
-     */
-    const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
         e.preventDefault();
 
         if (!validateForm()) {
@@ -350,8 +271,7 @@ const ProductFormEnhanced = () => {
         try {
             const formDataToSend = new FormData();
 
-            // Append text fields
-            Object.keys(formData).forEach(key => {
+                        Object.keys(formData).forEach(key => {
                 if (Array.isArray(formData[key])) {
                     formData[key].forEach(item => {
                         formDataToSend.append(`${key}[]`, item);
@@ -361,16 +281,14 @@ const ProductFormEnhanced = () => {
                 }
             });
 
-            // Append images
-            images.forEach((image, index) => {
+                        images.forEach((image, index) => {
                 formDataToSend.append('images', image);
                 formDataToSend.append(`imageData[${index}][isPrimary]`, 
                     imagePreviews[index]?.isPrimary || false
                 );
             });
 
-            // Append existing images data
-            if (isEdit) {
+                        if (isEdit) {
                 formDataToSend.append('existingImages', JSON.stringify(existingImages));
             }
 
@@ -402,14 +320,7 @@ const ProductFormEnhanced = () => {
         }
     };
 
-    // ===========================
-    // Utility Functions
-    // ===========================
-
-    /**
-     * Show notification (implement with your notification system)
-     */
-    const showNotification = (message, type = 'info') => {
+const showNotification = (message, type = 'info') => {
         if (type === 'error') {
             notify.error(message);
         } else if (type === 'success') {
@@ -420,20 +331,13 @@ const ProductFormEnhanced = () => {
         logger.info(`${type}: ${message}`);
     };
 
-    /**
-     * Calculate final price with discount
-     */
-    const calculateFinalPrice = () => {
+const calculateFinalPrice = () => {
         const price = parseFloat(formData.basePrice) || 0;
         const discount = parseFloat(formData.baseDiscount) || 0;
         return price - (price * discount / 100);
     };
 
-    // ===========================
-    // Render Loading State
-    // ===========================
-
-    if (isLoading) {
+if (isLoading) {
         return (
             <div className="flex items-center justify-center h-screen">
                 <div className="text-center">
@@ -444,13 +348,9 @@ const ProductFormEnhanced = () => {
         );
     }
 
-    // ===========================
-    // Main Render
-    // ===========================
-
-    return (
+return (
         <div className="max-w-6xl mx-auto px-4 py-8">
-            {/* Header */}
+            
             <div className="mb-8">
                 <h1 className="text-4xl font-bold text-gray-900 mb-2">
                     {isEdit ? 'Edit Product' : 'Create New Product'}
@@ -461,7 +361,7 @@ const ProductFormEnhanced = () => {
             </div>
 
             <form onSubmit={handleSubmit} noValidate className="space-y-8">
-                {/* Basic Information Section */}
+                
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
                     <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
                         <span className="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm font-bold">1</span>
@@ -522,8 +422,7 @@ const ProductFormEnhanced = () => {
                     </div>
                 </div>
 
-                {/* Pricing & Inventory Section */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+<div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
                     <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
                         <span className="bg-green-100 text-green-600 w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm font-bold">2</span>
                         Pricing & Inventory
@@ -616,15 +515,14 @@ const ProductFormEnhanced = () => {
                     </div>
                 </div>
 
-                {/* Image Upload Section */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+<div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
                     <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
                         <span className="bg-purple-100 text-purple-600 w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm font-bold">3</span>
                         Product Images
                     </h2>
 
                     <div className="space-y-6">
-                        {/* Upload Button */}
+                        
                         <div>
                             <label className="block">
                                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-blue-500 hover:bg-blue-50 transition-all cursor-pointer">
@@ -651,8 +549,7 @@ const ProductFormEnhanced = () => {
                             )}
                         </div>
 
-                        {/* Existing Images */}
-                        {existingImages.length > 0 && (
+{existingImages.length > 0 && (
                             <div>
                                 <h3 className="text-sm font-semibold text-gray-700 mb-3">
                                     Current Images
@@ -701,8 +598,7 @@ const ProductFormEnhanced = () => {
                             </div>
                         )}
 
-                        {/* New Image Previews with Drag & Drop */}
-                        {imagePreviews.length > 0 && (
+{imagePreviews.length > 0 && (
                             <div>
                                 <h3 className="text-sm font-semibold text-gray-700 mb-3">
                                     New Images (Drag to reorder)
@@ -764,8 +660,7 @@ const ProductFormEnhanced = () => {
                     </div>
                 </div>
 
-                {/* Classification Section */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+<div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
                     <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
                         <span className="bg-orange-100 text-orange-600 w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm font-bold">4</span>
                         Classification & Attributes
@@ -884,8 +779,7 @@ const ProductFormEnhanced = () => {
                     </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center gap-4 justify-end bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+<div className="flex items-center gap-4 justify-end bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                     <button
                         type="button"
                         onClick={() => navigate('/admin/products')}

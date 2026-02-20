@@ -9,7 +9,6 @@ import { AppError } from '../middleware/errorHandler.js';
 const router = Router();
 const round = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
-// All wishlist routes require authentication
 router.use(protect);
 
 router.get('/', async (req, res, next) => {

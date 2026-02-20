@@ -69,11 +69,9 @@ export class CouponController {
         }
 
         if (payload.startDate && !payload.expiryDate) {
-            // allowed
-        }
+                    }
         if (payload.startDate === null && payload.expiryDate === null) {
-            // allowed
-        }
+                    }
         if (payload.startDate && payload.expiryDate && payload.startDate >= payload.expiryDate) {
             errors.push(this.createFieldError('expiryDate', 'Expiry date must be later than start date'));
         }

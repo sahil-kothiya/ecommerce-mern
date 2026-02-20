@@ -12,15 +12,12 @@ import {
 
 const router = Router();
 
-// All order routes require authentication
 router.use(protect);
 
-// Admin routes
 router.get('/admin/summary', authorize('admin'), orderController.adminSummary.bind(orderController));
 router.get('/admin/all', authorize('admin'), orderQueryValidator, validate, orderController.adminAll.bind(orderController));
 router.put('/:id/status', authorize('admin'), updateOrderStatusValidator, validate, orderController.updateStatus.bind(orderController));
 
-// User routes
 router.post('/', createOrderValidator, validate, orderController.store.bind(orderController));
 router.get('/', orderQueryValidator, validate, orderController.index.bind(orderController));
 router.get('/returns', orderController.listReturns.bind(orderController));

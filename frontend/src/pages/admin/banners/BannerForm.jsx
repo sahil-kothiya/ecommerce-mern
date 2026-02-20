@@ -30,11 +30,6 @@ const BannerForm = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
-    const getAuthHeader = () => {
-        const token = localStorage.getItem('auth_token');
-        return token ? { Authorization: `Bearer ${token}` } : {};
-    };
-
     const getImageUrl = (path) => {
         if (!path) return '';
         if (/^https?:\/\//i.test(path)) return path;
@@ -52,9 +47,7 @@ const BannerForm = () => {
     const loadDiscountOptions = async () => {
         try {
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}/discount-options`, {
-                headers: {
-                    ...getAuthHeader(),
-                },
+                credentials: 'include',
             });
             const data = await response.json();
             if (response.ok && data.success) {
@@ -68,7 +61,9 @@ const BannerForm = () => {
     const loadBanner = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}/${id}`);
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}/${id}`, {
+                credentials: 'include',
+            });
             const data = await response.json();
 
             if (!response.ok || !data.success) {
@@ -218,9 +213,7 @@ const BannerForm = () => {
 
             const response = await fetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
-                headers: {
-                    ...getAuthHeader(),
-                },
+                credentials: 'include',
                 body: payload,
             });
             const data = await response.json();

@@ -112,7 +112,6 @@ const categorySchema = new Schema(
     }
 );
 
-// Optimized indexes for 10M+ products (compound indexes for covered queries)
 categorySchema.index({ slug: 1 }, { unique: true });
 categorySchema.index({ code: 1 }, { unique: true, sparse: true });
 categorySchema.index({ status: 1, isFeatured: -1, sortOrder: 1 });
@@ -121,7 +120,6 @@ categorySchema.index({ level: 1, status: 1 });
 categorySchema.index({ brandIds: 1 });
 categorySchema.index({ filterIds: 1 });
 
-// Partial index for navigation
 categorySchema.index(
     { sortOrder: 1, parentId: 1 },
     {
@@ -130,7 +128,6 @@ categorySchema.index(
     }
 );
 
-// Virtual populate children
 categorySchema.virtual('children', {
     ref: 'Category',
     localField: '_id',
@@ -138,7 +135,6 @@ categorySchema.virtual('children', {
     match: { status: 'active' },
 });
 
-// Virtual populate products
 categorySchema.virtual('products', {
     ref: 'Product',
     localField: '_id',
@@ -146,13 +142,11 @@ categorySchema.virtual('products', {
     match: { status: 'active' },
 });
 
-// Generate slug before saving
 categorySchema.pre('save', async function (next) {
     if (this.isModified('title') && !this.slug) {
         this.slug = slugify(this.title, { lower: true, strict: true });
 
-        // Ensure unique slug
-        const existingCategory = await mongoose.models.Category.findOne({ slug: this.slug });
+                const existingCategory = await mongoose.models.Category.findOne({ slug: this.slug });
         if (existingCategory) {
             this.slug = `${this.slug}-${Date.now()}`;
         }
@@ -160,7 +154,6 @@ categorySchema.pre('save', async function (next) {
     next();
 });
 
-// Recalculate parent metadata safely after create/move/delete operations.
 categorySchema.statics.syncChildrenMeta = async function (parentIds = []) {
     const normalizedParentIds = [
         ...new Set(
@@ -226,7 +219,6 @@ categorySchema.post('deleteOne', { document: true, query: false }, async functio
     }
 });
 
-// Static method to get next position for sorting
 categorySchema.statics.getNextPosition = async function (parentId = null) {
     const lastCategory = await this.findOne(
         { parentId },

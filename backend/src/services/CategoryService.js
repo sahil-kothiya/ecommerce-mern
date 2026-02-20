@@ -6,22 +6,12 @@ import { AppError } from '../middleware/errorHandler.js';
 import { logger } from '../utils/logger.js';
 import slugify from 'slugify';
 
-/**
- * Category Service Class
- * @extends BaseService
- * @description Manages category business logic and tree structures
- */
 export class CategoryService extends BaseService {
     constructor() {
         super(Category);
     }
 
-    /**
-     * Get all categories with optional filtering
-     * @param {Object} options - Query options
-     * @returns {Promise<Object>} Categories with pagination
-     */
-    async getCategories(options = {}) {
+async getCategories(options = {}) {
         const { status = 'active', sort = 'title', page, limit } = options;
 
         return await this.findAll({
@@ -32,21 +22,14 @@ export class CategoryService extends BaseService {
         });
     }
 
-    /**
-     * Get category tree structure
-     * @param {string} [status='active'] - Filter by status
-     * @returns {Promise<Array>} Hierarchical category tree
-     */
-    async getCategoryTree(status = 'active') {
+async getCategoryTree(status = 'active') {
         try {
-            // Get all root categories (no parent)
-            const rootCategories = await this.model
+                        const rootCategories = await this.model
                 .find({ parentId: null, status })
                 .sort({ sortOrder: 1, title: 1 })
                 .lean();
 
-            // Build tree recursively
-            const tree = await Promise.all(
+                        const tree = await Promise.all(
                 rootCategories.map(category => this.buildCategoryTree(category))
             );
 
@@ -57,13 +40,7 @@ export class CategoryService extends BaseService {
         }
     }
 
-    /**
-     * Build category tree recursively
-     * @private
-     * @param {Object} category - Parent category
-     * @returns {Promise<Object>} Category with children
-     */
-    async buildCategoryTree(category) {
+async buildCategoryTree(category) {
         const children = await this.model
             .find({ parentId: category._id, status: 'active' })
             .sort({ sortOrder: 1, title: 1 })
@@ -80,33 +57,22 @@ export class CategoryService extends BaseService {
         return category;
     }
 
-    /**
-     * Get flat list of all categories
-     * @param {string} [status='active'] - Filter by status
-     * @returns {Promise<Array>} Flat category list
-     */
-    async getFlatCategories(status = 'active') {
+async getFlatCategories(status = 'active') {
         return await this.model
             .find({ status })
             .sort({ title: 1 })
             .lean();
     }
 
-    /**
-     * Get category navigation structure (for menus)
-     * @returns {Promise<Array>} Navigation-ready categories
-     */
-    async getNavigationCategories() {
+async getNavigationCategories() {
         try {
-            // Get top-level categories with limited children
-            const categories = await this.model
+                        const categories = await this.model
                 .find({ parentId: null, status: 'active', isMenu: true })
                 .sort({ sortOrder: 1 })
                 .limit(8)
                 .lean();
 
-            // Add first level children only
-            for (const category of categories) {
+                        for (const category of categories) {
                 category.children = await this.model
                     .find({ parentId: category._id, status: 'active' })
                     .sort({ sortOrder: 1 })
@@ -121,22 +87,15 @@ export class CategoryService extends BaseService {
         }
     }
 
-    /**
-     * Get category by slug or ID
-     * @param {string} identifier - Category slug or ID
-     * @returns {Promise<Object>} Category data
-     */
-    async getCategoryBySlugOrId(identifier) {
+async getCategoryBySlugOrId(identifier) {
         try {
             let category;
 
-            // Try by ID first
-            if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
+                        if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
                 category = await this.findById(identifier);
             }
 
-            // Try by slug
-            if (!category) {
+                        if (!category) {
                 category = await this.findOne({ slug: identifier });
             }
 
@@ -152,28 +111,20 @@ export class CategoryService extends BaseService {
         }
     }
 
-    /**
-     * Create category with validation
-     * @param {Object} categoryData - Category data
-     * @returns {Promise<Object>} Created category
-     */
-    async createCategory(categoryData) {
+async createCategory(categoryData) {
         try {
-            // Generate slug if not provided
-            if (!categoryData.slug && categoryData.title) {
+                        if (!categoryData.slug && categoryData.title) {
                 categoryData.slug = slugify(categoryData.title, { lower: true, strict: true });
             }
 
-            // Validate parent category if provided
-            if (categoryData.parentId) {
+                        if (categoryData.parentId) {
                 const parentCategory = await this.findById(categoryData.parentId);
                 if (!parentCategory) {
                     throw new AppError('Parent category not found', 404);
                 }
             }
 
-            // Create category
-            const category = await this.create(categoryData);
+                        const category = await this.create(categoryData);
 
             logger.info('Category created:', category._id);
 
@@ -185,26 +136,17 @@ export class CategoryService extends BaseService {
         }
     }
 
-    /**
-     * Update category
-     * @param {string} id - Category ID
-     * @param {Object} updateData - Update data
-     * @returns {Promise<Object>} Updated category
-     */
-    async updateCategory(id, updateData) {
+async updateCategory(id, updateData) {
         try {
-            // Regenerate slug if title changed
-            if (updateData.title && !updateData.slug) {
+                        if (updateData.title && !updateData.slug) {
                 updateData.slug = slugify(updateData.title, { lower: true, strict: true });
             }
 
-            // Prevent self-parenting
-            if (updateData.parentId === id) {
+                        if (updateData.parentId === id) {
                 throw new AppError('Category cannot be its own parent', 400);
             }
 
-            // Validate parent if provided
-            if (updateData.parentId) {
+                        if (updateData.parentId) {
                 const parentCategory = await this.findById(updateData.parentId);
                 if (!parentCategory) {
                     throw new AppError('Parent category not found', 404);
@@ -223,15 +165,9 @@ export class CategoryService extends BaseService {
         }
     }
 
-    /**
-     * Delete category (with children check)
-     * @param {string} id - Category ID
-     * @returns {Promise<Object>} Deleted category
-     */
-    async deleteCategory(id) {
+async deleteCategory(id) {
         try {
-            // Check for children
-            const childrenCount = await this.model.countDocuments({ parentId: id });
+                        const childrenCount = await this.model.countDocuments({ parentId: id });
             
             if (childrenCount > 0) {
                 throw new AppError(
@@ -240,8 +176,7 @@ export class CategoryService extends BaseService {
                 );
             }
 
-            // Soft delete (set status to inactive) or hard delete
-            const category = await this.softDelete(id);
+                        const category = await this.softDelete(id);
 
             logger.info('Category deleted:', id);
 
@@ -253,18 +188,12 @@ export class CategoryService extends BaseService {
         }
     }
 
-    /**
-     * Get breadcrumb trail for a category
-     * @param {string} categoryId - Category ID
-     * @returns {Promise<Array>} Breadcrumb array from root to current
-     */
-    async getBreadcrumb(categoryId) {
+async getBreadcrumb(categoryId) {
         try {
             const breadcrumb = [];
             let currentCategory = await this.findByIdOrFail(categoryId);
 
-            // Build breadcrumb from bottom to top
-            while (currentCategory) {
+                        while (currentCategory) {
                 breadcrumb.unshift({
                     id: currentCategory._id,
                     title: currentCategory.title,

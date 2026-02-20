@@ -20,11 +20,6 @@ const VariantTypeForm = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
-    const getAuthHeader = () => {
-        const token = localStorage.getItem('auth_token');
-        return token ? { Authorization: `Bearer ${token}` } : {};
-    };
-
     useEffect(() => {
         if (isEdit) loadItem();
     }, [id]);
@@ -32,7 +27,9 @@ const VariantTypeForm = () => {
     const loadItem = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}/${id}`);
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}/${id}`, {
+                credentials: 'include',
+            });
             const data = await response.json();
             if (!response.ok || !data?.success) {
                 notify.error(data, 'Failed to load variant type');
@@ -94,8 +91,8 @@ const VariantTypeForm = () => {
                 method: isEdit ? 'PUT' : 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...getAuthHeader(),
                 },
+                credentials: 'include',
                 body: JSON.stringify(payload),
             });
             const data = await response.json();

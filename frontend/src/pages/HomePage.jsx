@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { getRandomProductImage } from '../services/imageService';
 import { formatPrice, calculateDiscountPrice } from '../utils/productUtils';
 import { API_CONFIG, PRODUCT_CONDITIONS, CURRENCY_CONFIG } from '../constants';
@@ -11,17 +11,156 @@ const FEATURED_CATEGORY_LIMIT = 12;
 const FEATURED_PRODUCTS_TARGET = 60;
 const PRODUCTS_PER_CATEGORY_LIMIT = 40;
 const IMAGE_ROTATION_INTERVAL = 1400;
+const BANNER_URL = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}?limit=5&status=active`;
 
-const FALLBACK_CATEGORIES = [
-    { _id: 'cat1', title: 'Electronics', slug: 'electronics' },
-    { _id: 'cat2', title: 'Fashion & Apparel', slug: 'fashion' },
-    { _id: 'cat3', title: 'Home & Garden', slug: 'home-garden' },
-    { _id: 'cat4', title: 'Sports & Outdoors', slug: 'sports' },
-    { _id: 'cat5', title: 'Books & Media', slug: 'books' },
-    { _id: 'cat6', title: 'Beauty & Personal Care', slug: 'beauty' }
-];
+const bucketBySlug = (products) =>
+    products.reduce((acc, p) => {
+        const slug = p.category?.slug;
+        if (!slug) return acc;
+        if (!acc[slug]) acc[slug] = [];
+        if (acc[slug].length < PRODUCTS_PER_CATEGORY_LIMIT) acc[slug].push(p);
+        return acc;
+    }, {});
 
-const MOCK_BRANDS = ['Sony', 'Apple', 'Samsung', 'Nike', 'Adidas', 'Canon', 'Dell', 'HP'];
+const buildCategoryMap = (cats, buckets) => {
+    const map = {};
+    cats.forEach((c) => { map[c.slug] = buckets[c.slug] || []; });
+    return map;
+};
+
+const aggregateFeatured = (cats, buckets, fallback) => {
+    const out = [], seen = new Set();
+    cats.forEach((c) => (buckets[c.slug] || []).forEach((p) => {
+        if (out.length < FEATURED_PRODUCTS_TARGET && p?._id && !seen.has(p._id)) { out.push(p); seen.add(p._id); }
+    }));
+    for (const p of fallback) {
+        if (out.length >= FEATURED_PRODUCTS_TARGET) break;
+        if (!p?._id || seen.has(p._id)) continue;
+        out.push(p); seen.add(p._id);
+    }
+    return out.slice(0, FEATURED_PRODUCTS_TARGET);
+};
+
+const catIcon = (t = '') => {
+    if (t.includes('Electronic')) return '💻';
+    if (t.includes('Fashion') || t.includes('Cloth')) return '👗';
+    if (t.includes('Home') || t.includes('Furniture')) return '🏠';
+    if (t.includes('Sport')) return '⚽';
+    if (t.includes('Book')) return '📚';
+    if (t.includes('Beauty') || t.includes('Cosmetic')) return '💄';
+    if (t.includes('Toy')) return '🧸';
+    return '🛍️';
+};
+
+const LoadingScreen = () => (
+    <div className="flex min-h-[400px] items-center justify-center">
+        <div className="store-surface p-12 text-center">
+            <div className="mx-auto mb-5 h-14 w-14 animate-spin rounded-full border-[3px] border-[#d2dff9] border-t-[#f9730c] shadow-[0_0_0_4px_rgba(165,187,252,0.18)]" />
+            <p className="store-display text-lg text-[#212191]">Loading amazing products…</p>
+            <p className="mt-1 text-sm text-[#666]">Preparing your shopping experience</p>
+        </div>
+    </div>
+);
+
+const HeroBanner = ({ banners, onShopNow }) => {
+    const [activeIdx, setActiveIdx] = useState(0);
+    const timerRef = useRef(null);
+    const start = useCallback(() => {
+        clearInterval(timerRef.current);
+        if (banners.length > 1) timerRef.current = setInterval(() => setActiveIdx((p) => (p + 1) % banners.length), 4500);
+    }, [banners.length]);
+    useEffect(() => { start(); return () => clearInterval(timerRef.current); }, [start]);
+    const goTo = (i) => { setActiveIdx(i); start(); };
+    const b = banners[activeIdx];
+    return (
+        <section className="store-hero mb-10 px-8 py-16 sm:px-12 sm:py-20 lg:py-24">
+            <div className="absolute -right-10 -top-20 h-56 w-56 rounded-full bg-[#ffa336]/25 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-16 -left-8 h-48 w-48 rounded-full bg-[#a5bbfc]/25 blur-3xl pointer-events-none" />
+            <div className="relative max-w-2xl">
+                <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.12)] px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
+                    🎉 Limited Time Offer
+                </span>
+                <h1 className="store-display mb-4 text-4xl leading-tight text-white sm:text-5xl lg:text-6xl">
+                    {b?.title || 'Up to 80% Off'}
+                </h1>
+                <p className="mb-7 text-base text-white/85 leading-relaxed sm:text-lg">
+                    {b?.description || 'Discover amazing deals on fashion, electronics, and more! Free shipping on orders over $50.'}
+                </p>
+                <div className="flex flex-wrap gap-3">
+                    <button onClick={onShopNow} className="store-btn-primary tap-bounce rounded-2xl px-7 py-3 text-sm font-bold">Shop Now →</button>
+                    <Link to="/products" className="inline-flex items-center gap-2 rounded-2xl border border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.1)] px-7 py-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-[rgba(255,255,255,0.2)] transition">Browse All</Link>
+                </div>
+            </div>
+            {banners.length > 1 && (
+                <div className="absolute bottom-5 left-8 flex items-center gap-2">
+                    {banners.map((_, i) => (
+                        <button key={i} onClick={() => goTo(i)} className={`h-1.5 rounded-full transition-all ${i === activeIdx ? 'w-6 bg-[#ffa336]' : 'w-1.5 bg-white/40 hover:bg-white/70'}`} />
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+};
+
+const ProductCard = ({ product, currentImage, isHovered, inWishlist, onHover, onLeave, onAddToCart, onWishlistToggle, formatCurrency }) => {
+    if (!product) return null;
+    const hasDiscount = Number(product.baseDiscount) > 0;
+    const finalPrice = calculateDiscountPrice(product.basePrice || 0, product.baseDiscount || 0);
+    return (
+        <Link to={`/products/${product._id}`} className="store-product-card group flex flex-col overflow-hidden"
+            onMouseEnter={() => onHover(product)} onMouseLeave={() => onLeave(product)}>
+            <div className="relative overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50">
+                <img src={currentImage} alt={product.title} className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                {product.condition && (
+                    <span className="absolute left-3 top-3 rounded-full bg-gradient-to-r from-[#4250d5] to-[#f9730c] px-2.5 py-1 text-[10px] font-bold text-white shadow">
+                        {product.condition === PRODUCT_CONDITIONS.HOT && '🔥 Hot'}
+                        {product.condition === PRODUCT_CONDITIONS.NEW && '✨ New'}
+                        {product.condition === PRODUCT_CONDITIONS.DEFAULT && '⭐ Trending'}
+                    </span>
+                )}
+                {hasDiscount && (
+                    <span className="absolute right-10 top-3 rounded-full border border-[rgba(255,163,51,0.5)] bg-[rgba(249,115,12,0.9)] px-2 py-0.5 text-[10px] font-bold text-white">
+                        -{Math.round(product.baseDiscount)}%
+                    </span>
+                )}
+                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onWishlistToggle(product); }}
+                    className={`absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border transition-all ${inWishlist ? 'border-rose-300 bg-rose-100 text-rose-600 shadow' : 'border-[rgba(165,187,252,0.4)] bg-white/80 text-[#4250d5] hover:border-rose-300 hover:bg-rose-50 hover:text-rose-500'} ${isHovered ? 'scale-110' : ''}`}>
+                    {inWishlist
+                        ? <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5A5.5 5.5 0 017.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3A5.5 5.5 0 0122 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
+                        : <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>}
+                </button>
+            </div>
+            <div className="flex flex-1 flex-col gap-2 p-3.5">
+                <div className="flex items-center justify-between">
+                    <span className="rounded-lg border border-[rgba(165,187,252,0.35)] bg-[rgba(66,80,213,0.06)] px-2 py-0.5 text-[11px] font-semibold text-[#4250d5]">
+                        {product.brand?.title || 'Brand'}
+                    </span>
+                    <div className="flex items-center gap-0.5">
+                        <span className="text-[11px] text-[#ffa336]">{'★'.repeat(Math.min(5, Math.floor(product.ratings?.average || 4)))}</span>
+                        <span className="text-[10px] text-[#999]">({product.ratings?.count || 0})</span>
+                    </div>
+                </div>
+                <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-tight text-[#1f1f1f] transition group-hover:text-[#212191]">
+                    {product.title}
+                </h3>
+                <div className="mt-auto space-y-2 pt-1">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-base font-bold text-[#131313]">{formatCurrency(finalPrice)}</span>
+                            {hasDiscount && <span className="text-xs text-[#999] line-through">{formatCurrency(product.basePrice)}</span>}
+                        </div>
+                        {hasDiscount && <span className="rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">Save {Math.round(product.baseDiscount)}%</span>}
+                    </div>
+                    <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddToCart(product); }}
+                        className="store-btn-primary tap-bounce w-full rounded-xl py-2 text-xs font-bold flex items-center justify-center gap-1.5">
+                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m1.6 8L5.4 5M7 13l-1.5 7h13M9 20a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z" /></svg>
+                        Add to Cart
+                    </button>
+                </div>
+            </div>
+        </Link>
+    );
+};
 
 const HomePage = () => {
     const navigate = useNavigate();
@@ -29,8 +168,8 @@ const HomePage = () => {
     const [categories, setCategories] = useState([]);
     const [productsByCategory, setProductsByCategory] = useState({});
     const [featuredProducts, setFeaturedProducts] = useState([]);
+    const [banners, setBanners] = useState([]);
     const [wishlistItems, setWishlistItems] = useState([]);
-    const [cartItems, setCartItems] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [isLoading, setIsLoading] = useState(true);
     const [hoveredProduct, setHoveredProduct] = useState(null);
@@ -38,884 +177,268 @@ const HomePage = () => {
     const [sortOption, setSortOption] = useState('newest');
     const hoverIntervalsRef = useRef({});
 
-    const loadWishlist = async () => {
-        if (!authService.isAuthenticated()) {
-            setWishlistItems([]);
-            return;
-        }
-
+    const loadWishlist = useCallback(async () => {
+        if (!authService.isAuthenticated()) { setWishlistItems([]); return; }
         try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, {
-                headers: authService.getAuthHeaders(),
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data?.message || 'Failed to load wishlist');
-            }
-
-            const items = Array.isArray(data?.data?.items) ? data.data.items : [];
-            const products = items
-                .map((item) => item.productId)
-                .filter(Boolean);
-            setWishlistItems(products);
-        } catch (error) {
-            notify.error(error, 'Failed to load wishlist');
-        }
-    };
-
-    const loadData = async () => {
-        try {
-            setIsLoading(true);
-
-            const productsUrl = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}?limit=${PRODUCT_FETCH_LIMIT}&sort=-popularity`;
-            const categoriesUrl = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`;
-
-            const [productsResponse, categoriesResponse] = await Promise.all([
-                fetch(productsUrl),
-                fetch(categoriesUrl)
-            ]);
-
-            if (!productsResponse.ok) {
-                throw new Error(`Products request failed: ${productsResponse.status}`);
-            }
-
-            if (!categoriesResponse.ok) {
-                throw new Error(`Categories request failed: ${categoriesResponse.status}`);
-            }
-
-            const [productsData, categoriesData] = await Promise.all([
-                productsResponse.json(),
-                categoriesResponse.json()
-            ]);
-
-            const apiProducts = (productsData?.data?.products || []).map(product => ({
-                ...product,
-                images: Array.isArray(product.images) ? product.images : []
-            }));
-
-            const apiCategories = Array.isArray(categoriesData?.data)
-                ? categoriesData.data
-                : (categoriesData?.data?.categories || []);
-
-            if (!apiProducts.length) {
-                throw new Error('No products returned from API');
-            }
-
-            setProducts(apiProducts);
-
-            const categoriesWithCounts = apiCategories
-                .map(category => ({
-                    ...category,
-                    productCount: apiProducts.filter(product => product.category?.slug === category.slug).length
-                }))
-                .sort((a, b) => b.productCount - a.productCount)
-                .slice(0, FEATURED_CATEGORY_LIMIT);
-
-            setCategories(categoriesWithCounts);
-
-            const categoryBuckets = bucketProductsBySlug(apiProducts);
-            setProductsByCategory(buildProductsByCategory(categoriesWithCounts, categoryBuckets));
-            setFeaturedProducts(aggregateFeaturedProducts(categoriesWithCounts, categoryBuckets, apiProducts));
-            initializeImageIndices(apiProducts);
-        } catch (error) {
-            console.error('Falling back to mock data due to:', error);
-            const mockProducts = generateMockProductsWithImages();
-            setProducts(mockProducts);
-            setCategories(FALLBACK_CATEGORIES);
-
-            const fallbackBuckets = bucketProductsBySlug(mockProducts);
-            setProductsByCategory(buildProductsByCategory(FALLBACK_CATEGORIES, fallbackBuckets));
-            setFeaturedProducts(aggregateFeaturedProducts(FALLBACK_CATEGORIES, fallbackBuckets, mockProducts));
-            initializeImageIndices(mockProducts);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        loadData();
-        loadWishlist();
-
-        return () => {
-            Object.values(hoverIntervalsRef.current).forEach(intervalId => clearInterval(intervalId));
-        };
-         
+            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { headers: authService.getAuthHeaders() });
+            if (res.status === 401) { authService.reset(); setWishlistItems([]); return; }
+            if (!res.ok) { setWishlistItems([]); return; }
+            const data = await res.json();
+            setWishlistItems((Array.isArray(data?.data?.items) ? data.data.items : []).map((i) => i.productId).filter(Boolean));
+        } catch { setWishlistItems([]); }
     }, []);
 
-    const generateMockProductsWithImages = () => {
-        const mockProducts = [];
-        const desiredCount = Math.max(FEATURED_PRODUCTS_TARGET, 80);
-
-        for (let index = 0; index < desiredCount; index += 1) {
-            const category = FALLBACK_CATEGORIES[index % FALLBACK_CATEGORIES.length];
-            const basePrice = 50 + Math.random() * 500;
-            const discount = Math.random() > 0.6 ? Math.floor(Math.random() * 30) + 5 : 0;
-
-            mockProducts.push({
-                _id: `mock_${index}`,
-                title: `${category.title} Premium Product ${index + 1}`,
-                basePrice,
-                baseDiscount: discount,
-                condition: [PRODUCT_CONDITIONS.NEW, PRODUCT_CONDITIONS.HOT, PRODUCT_CONDITIONS.DEFAULT][index % 3],
-                ratings: {
-                    average: 3 + Math.random() * 2,
-                    count: Math.floor(Math.random() * 120) + 5
-                },
-                brand: {
-                    title: MOCK_BRANDS[index % MOCK_BRANDS.length]
-                },
-                category,
-                images: getRandomProductImages(3)
-            });
-        }
-
-        return mockProducts;
-    };
-
-    const getRandomProductImages = (count = 3) => {
-        return Array.from({ length: count }).map((_, imageIndex) => ({
-            path: getRandomProductImage(),
-            isPrimary: imageIndex === 0,
-            _id: `mock_image_${Date.now()}_${imageIndex}`
-        }));
-    };
-
-    const bucketProductsBySlug = (productList) => {
-        return productList.reduce((acc, product) => {
-            const slug = product.category?.slug;
-
-            if (!slug) {
-                return acc;
+    const loadData = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            const [prodsRes, catsRes, bannersRes] = await Promise.all([
+                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}?limit=${PRODUCT_FETCH_LIMIT}&sort=-popularity`),
+                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`),
+                fetch(BANNER_URL).catch(() => null),
+            ]);
+            if (!prodsRes.ok) throw new Error(`Products ${prodsRes.status}`);
+            if (!catsRes.ok) throw new Error(`Categories ${catsRes.status}`);
+            const [prodsData, catsData, bannersData] = await Promise.all([
+                prodsRes.json(), catsRes.json(),
+                bannersRes ? bannersRes.json().catch(() => null) : Promise.resolve(null),
+            ]);
+            const apiProducts = (prodsData?.data?.products || []).map((p) => ({ ...p, images: Array.isArray(p.images) ? p.images : [] }));
+            const apiCategories = Array.isArray(catsData?.data) ? catsData.data : (catsData?.data?.categories || []);
+            if (!apiProducts.length) throw new Error('No products');
+            const categoriesWithCounts = apiCategories
+                .map((c) => ({ ...c, productCount: apiProducts.filter((p) => p.category?.slug === c.slug).length }))
+                .sort((a, b) => b.productCount - a.productCount).slice(0, FEATURED_CATEGORY_LIMIT);
+            const buckets = bucketBySlug(apiProducts);
+            setProducts(apiProducts);
+            setCategories(categoriesWithCounts);
+            setProductsByCategory(buildCategoryMap(categoriesWithCounts, buckets));
+            setFeaturedProducts(aggregateFeatured(categoriesWithCounts, buckets, apiProducts));
+            const indices = {};
+            apiProducts.forEach((p) => { indices[p._id] = 0; });
+            setCurrentImageIndex(indices);
+            if (bannersData?.data) {
+                const bArr = Array.isArray(bannersData.data) ? bannersData.data : (bannersData.data?.banners || []);
+                setBanners(bArr.slice(0, 5));
             }
+        } catch (error) {
+            notify.error(error, 'Failed to load homepage data');
+            setProducts([]); setCategories([]);
+        } finally { setIsLoading(false); }
+    }, []);
 
-            if (!acc[slug]) {
-                acc[slug] = [];
-            }
-
-            if (acc[slug].length < PRODUCTS_PER_CATEGORY_LIMIT) {
-                acc[slug].push(product);
-            }
-
-            return acc;
-        }, {});
-    };
-
-    const buildProductsByCategory = (categoryList, buckets) => {
-        const map = {};
-
-        categoryList.forEach(category => {
-            map[category.slug] = buckets[category.slug] || [];
-        });
-
-        return map;
-    };
-
-    const aggregateFeaturedProducts = (categoryList, buckets, fallbackProducts) => {
-        const prioritized = [];
-        const usedIds = new Set();
-
-        categoryList.forEach(category => {
-            (buckets[category.slug] || []).forEach(product => {
-                if (prioritized.length < FEATURED_PRODUCTS_TARGET && product?._id && !usedIds.has(product._id)) {
-                    prioritized.push(product);
-                    usedIds.add(product._id);
-                }
-            });
-        });
-
-        if (prioritized.length < FEATURED_PRODUCTS_TARGET) {
-            (fallbackProducts || []).some(product => {
-                if (!product?._id || usedIds.has(product._id)) {
-                    return false;
-                }
-
-                prioritized.push(product);
-                usedIds.add(product._id);
-                return prioritized.length >= FEATURED_PRODUCTS_TARGET;
-            });
-        }
-
-        return prioritized.slice(0, FEATURED_PRODUCTS_TARGET);
-    };
-
-    const initializeImageIndices = (sourceProducts) => {
-        const indices = {};
-
-        sourceProducts.forEach(product => {
-            indices[product._id] = 0;
-        });
-
-        setCurrentImageIndex(indices);
-    };
+    useEffect(() => {
+        loadData(); loadWishlist();
+        return () => Object.values(hoverIntervalsRef.current).forEach(clearInterval);
+    }, [loadData, loadWishlist]);
 
     const addToCart = async (product) => {
-        if (!authService.isAuthenticated()) {
-            navigate('/login');
-            return;
-        }
-
+        if (!authService.isAuthenticated()) { navigate('/login'); return; }
         try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
-                method: 'POST',
-                headers: authService.getAuthHeaders(),
-                body: JSON.stringify({
-                    productId: product._id,
-                    quantity: 1,
-                }),
+            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
+                method: 'POST', headers: authService.getAuthHeaders(),
+                body: JSON.stringify({ productId: product._id, quantity: 1 }),
             });
-            const data = await response.json();
-
-            if (!response.ok || !data?.success) {
-                throw new Error(data?.message || 'Failed to add item to cart');
-            }
-
-            setCartItems((prev) => {
-                const existing = prev.find((item) => item._id === product._id);
-                if (existing) {
-                    return prev.map((item) => (
-                        item._id === product._id
-                            ? { ...item, quantity: item.quantity + 1 }
-                            : item
-                    ));
-                }
-
-                return [...prev, { ...product, quantity: 1 }];
-            });
-        } catch (error) {
-            notify.error(error, 'Failed to add item to cart');
-        }
+            const data = await res.json();
+            if (!res.ok || !data?.success) throw new Error(data?.message || 'Failed');
+            window.dispatchEvent(new Event('cart:changed'));
+            notify.success(`"${product.title.slice(0, 30)}" added to cart`);
+        } catch (error) { notify.error(error, 'Failed to add to cart'); }
     };
 
-    const addToWishlist = async (product) => {
-        if (!authService.isAuthenticated()) {
-            navigate('/login');
-            return;
+    const toggleWishlist = async (product) => {
+        if (!authService.isAuthenticated()) { navigate('/login'); return; }
+        const inList = wishlistItems.some((i) => i._id === product._id);
+        if (inList) {
+            setWishlistItems((prev) => prev.filter((i) => i._id !== product._id));
+            try {
+                const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { headers: authService.getAuthHeaders() });
+                if (!res.ok) return;
+                const data = await res.json();
+                const matched = (Array.isArray(data?.data?.items) ? data.data.items : []).find((i) => i.productId?._id === product._id || i.productId === product._id);
+                if (matched?._id) { await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${matched._id}`, { method: 'DELETE', headers: authService.getAuthHeaders() }); window.dispatchEvent(new Event('wishlist:changed')); }
+            } catch { }
+        } else {
+            setWishlistItems((prev) => prev.some((i) => i._id === product._id) ? prev : [...prev, product]);
+            try {
+                await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { method: 'POST', headers: authService.getAuthHeaders(), body: JSON.stringify({ productId: product._id }) });
+                window.dispatchEvent(new Event('wishlist:changed'));
+            } catch { }
         }
-
-        try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, {
-                method: 'POST',
-                headers: authService.getAuthHeaders(),
-                body: JSON.stringify({ productId: product._id }),
-            });
-
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data?.message || 'Failed to add to wishlist');
-            }
-
-            setWishlistItems((prev) => {
-                if (prev.some((item) => item._id === product._id)) {
-                    return prev;
-                }
-                return [...prev, product];
-            });
-        } catch (error) {
-            notify.error(error, 'Failed to add to wishlist');
-        }
-    };
-
-    const removeFromWishlist = async (productId) => {
-        if (!authService.isAuthenticated()) {
-            setWishlistItems((prev) => prev.filter((item) => item._id !== productId));
-            return;
-        }
-
-        try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, {
-                headers: authService.getAuthHeaders(),
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data?.message || 'Failed to resolve wishlist item');
-            }
-
-            const items = Array.isArray(data?.data?.items) ? data.data.items : [];
-            const matched = items.find((item) => item.productId?._id === productId);
-            if (!matched?._id) {
-                setWishlistItems((prev) => prev.filter((item) => item._id !== productId));
-                return;
-            }
-
-            const deleteResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${matched._id}`, {
-                method: 'DELETE',
-                headers: authService.getAuthHeaders(),
-            });
-            const deleteData = await deleteResponse.json();
-            if (!deleteResponse.ok) {
-                throw new Error(deleteData?.message || 'Failed to remove from wishlist');
-            }
-
-            setWishlistItems((prev) => prev.filter((item) => item._id !== productId));
-        } catch (error) {
-            notify.error(error, 'Failed to remove from wishlist');
-        }
-    };
-
-    const isInWishlist = (productId) => wishlistItems.some(item => item._id === productId);
-
-    const handleImageCycle = (productId, images = []) => {
-        if (images.length < 2) {
-            return;
-        }
-
-        setCurrentImageIndex(prev => ({
-            ...prev,
-            [productId]: ((prev[productId] || 0) + 1) % images.length
-        }));
     };
 
     const handleProductHover = (product) => {
         setHoveredProduct(product._id);
-
-        if ((product.images?.length || 0) < 2 || hoverIntervalsRef.current[product._id]) {
-            return;
-        }
-
+        if ((product.images?.length || 0) < 2 || hoverIntervalsRef.current[product._id]) return;
         hoverIntervalsRef.current[product._id] = setInterval(() => {
-            handleImageCycle(product._id, product.images);
+            setCurrentImageIndex((prev) => ({ ...prev, [product._id]: ((prev[product._id] || 0) + 1) % product.images.length }));
         }, IMAGE_ROTATION_INTERVAL);
     };
 
     const handleProductLeave = (product) => {
         setHoveredProduct(null);
-        const intervalId = hoverIntervalsRef.current[product._id];
+        clearInterval(hoverIntervalsRef.current[product._id]);
+        delete hoverIntervalsRef.current[product._id];
+        setCurrentImageIndex((prev) => ({ ...prev, [product._id]: 0 }));
+    };
 
-        if (intervalId) {
-            clearInterval(intervalId);
-            delete hoverIntervalsRef.current[product._id];
-        }
-
-        setCurrentImageIndex(prev => ({
-            ...prev,
-            [product._id]: 0
-        }));
+    const getProductImage = (product) => {
+        const imgs = product.images || [];
+        if (!imgs.length) return getRandomProductImage();
+        const raw = imgs[currentImageIndex[product._id] || 0] || imgs[0];
+        const path = raw?.path;
+        if (!path) return getRandomProductImage();
+        return path.startsWith('http') ? path : path;
     };
 
     const formatCurrency = (price) => formatPrice(price || 0, CURRENCY_CONFIG.DEFAULT, CURRENCY_CONFIG.LOCALE);
 
-    const getImageUrl = (path) => {
-        if (!path) {
-            return getRandomProductImage();
-        }
-
-        if (path.startsWith('http')) {
-            return path;
-        }
-
-        return path;
-    };
-
-    const getCurrentImage = (product) => {
-        const images = product.images || [];
-        if (!images.length) {
-            return getRandomProductImage();
-        }
-
-        const index = currentImageIndex[product._id] || 0;
-        const currentImage = images[index] || images[0];
-        return getImageUrl(currentImage?.path);
-    };
-
-    const sortProducts = (productList) => {
-        const sorted = [...productList];
-
-        switch (sortOption) {
-            case 'price-low':
-                return sorted.sort((a, b) => {
-                    const priceA = calculateDiscountPrice(a.basePrice || 0, a.baseDiscount || 0);
-                    const priceB = calculateDiscountPrice(b.basePrice || 0, b.baseDiscount || 0);
-                    return priceA - priceB;
-                });
-            case 'price-high':
-                return sorted.sort((a, b) => {
-                    const priceA = calculateDiscountPrice(a.basePrice || 0, a.baseDiscount || 0);
-                    const priceB = calculateDiscountPrice(b.basePrice || 0, b.baseDiscount || 0);
-                    return priceB - priceA;
-                });
-            case 'rating':
-                return sorted.sort((a, b) => {
-                    const ratingA = a.ratings?.average || 0;
-                    const ratingB = b.ratings?.average || 0;
-                    return ratingB - ratingA;
-                });
-            case 'newest':
-            default:
-                return sorted; // Keep original order (already sorted by popularity from API)
-        }
-    };
-
-    const renderProductCard = (product) => {
-        if (!product) {
-            return null;
-        }
-
-        const hasDiscount = Number(product.baseDiscount) > 0;
-        const finalPrice = calculateDiscountPrice(product.basePrice || 0, product.baseDiscount || 0);
-        const isHovered = hoveredProduct === product._id;
-        const inWishlist = isInWishlist(product._id);
-        const wishlistHandler = async () => {
-            if (inWishlist) {
-                await removeFromWishlist(product._id);
-            } else {
-                await addToWishlist(product);
-            }
-        };
-
-        return (
-            <div
-                key={product._id}
-                className="group relative bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-2xl hover:border-blue-300 transition-all duration-300 cursor-pointer transform hover:-translate-y-1 flex flex-col h-full"
-                onClick={() => navigate(`/products/${product._id}`)}
-                onMouseEnter={() => handleProductHover(product)}
-                onMouseLeave={() => handleProductLeave(product)}
-            >
-                <div className="relative bg-gray-50 flex-shrink-0">
-                    <img
-                        src={getCurrentImage(product)}
-                        alt={product.title}
-                        className="w-full h-48 object-cover object-center transition-transform duration-500 group-hover:scale-105"
-                    />
-
-                    {product.condition && (
-                        <span className="absolute top-3 left-3 px-3 py-1 text-xs font-semibold rounded-full bg-blue-600 text-white shadow-lg">
-                            {product.condition === PRODUCT_CONDITIONS.HOT && '🔥 Hot'}
-                            {product.condition === PRODUCT_CONDITIONS.NEW && '✨ New'}
-                            {product.condition === PRODUCT_CONDITIONS.DEFAULT && '⭐ Trending'}
-                        </span>
-                    )}
-
-                    <button
-                        type="button"
-                        title="Wishlist"
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            wishlistHandler();
-                        }}
-                        className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-sm transition-all duration-200 ${inWishlist ? 'bg-red-100 text-red-600 shadow-lg' : 'bg-white/80 text-gray-600 hover:bg-red-100 hover:text-red-600'} ${isHovered ? 'scale-110' : ''}`}
-                    >
-                        {inWishlist ? '❤️' : '🤍'}
-                    </button>
-
-                    <div className={`absolute inset-0 bg-black/20 flex items-center justify-center gap-3 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-                        <button className="p-3 bg-white rounded-full shadow-lg hover:bg-gray-50 transition-all duration-200 transform hover:scale-110" title="Quick View">
-                            <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                        </button>
-                        <button className="p-3 bg-white rounded-full shadow-lg hover:bg-gray-50 transition-all duration-200 transform hover:scale-110" title="Compare">
-                            <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-
-                <div className="p-4 flex-grow flex flex-col">
-                    <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                            {product.brand?.title || 'Brand'}
-                        </span>
-                        <div className="flex items-center gap-1">
-                            <div className="flex text-yellow-400 text-sm">
-                                {'★'.repeat(Math.floor(product.ratings?.average || 4))}
-                                {'☆'.repeat(5 - Math.floor(product.ratings?.average || 4))}
-                            </div>
-                            <span className="text-xs text-gray-500 ml-1">
-                                ({product.ratings?.count || Math.floor(Math.random() * 100) + 10})
-                            </span>
-                        </div>
-                    </div>
-
-                    <h3 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2 group-hover:text-blue-700 transition-colors min-h-[2.5rem] mb-3">
-                        {product.title}
-                    </h3>
-
-                    <div className="mt-auto space-y-3">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <span className="font-bold text-lg text-gray-900">
-                                    {formatCurrency(finalPrice)}
-                                </span>
-                                {hasDiscount && (
-                                    <span className="text-sm text-gray-500 line-through">
-                                        {formatCurrency(product.basePrice)}
-                                    </span>
-                                )}
-                            </div>
-                            {hasDiscount && (
-                                <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                                    Save {Math.round(product.baseDiscount)}%
-                                </span>
-                            )}
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                addToCart(product);
-                            }}
-                            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-2.5 px-4 rounded-lg transition-all duration-200 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] flex items-center justify-center gap-2"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5-5M7 13l-2.5 5M17 13v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6" />
-                            </svg>
-                            Add to Cart
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
+    const sortProducts = (list) => {
+        const arr = [...list];
+        if (sortOption === 'price-low') return arr.sort((a, b) => calculateDiscountPrice(a.basePrice || 0, a.baseDiscount || 0) - calculateDiscountPrice(b.basePrice || 0, b.baseDiscount || 0));
+        if (sortOption === 'price-high') return arr.sort((a, b) => calculateDiscountPrice(b.basePrice || 0, b.baseDiscount || 0) - calculateDiscountPrice(a.basePrice || 0, a.baseDiscount || 0));
+        if (sortOption === 'rating') return arr.sort((a, b) => (b.ratings?.average || 0) - (a.ratings?.average || 0));
+        return arr;
     };
 
     const featuredGridProducts = sortProducts(featuredProducts.length ? featuredProducts : products.slice(0, FEATURED_PRODUCTS_TARGET));
     const visibleCategoryProducts = sortProducts(selectedCategory === 'all' ? [] : (productsByCategory[selectedCategory] || []));
 
+    const cardProps = (product) => ({
+        key: product._id, product,
+        currentImage: getProductImage(product),
+        isHovered: hoveredProduct === product._id,
+        inWishlist: wishlistItems.some((i) => i._id === product._id),
+        onHover: handleProductHover, onLeave: handleProductLeave,
+        onAddToCart: addToCart, onWishlistToggle: toggleWishlist,
+        formatCurrency,
+    });
+
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="bg-white shadow-sm border-b border-gray-200">
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 border-b border-gray-200">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="flex items-center justify-between h-10 text-sm text-white">
-                            <div>🚚 Free shipping on orders over $50 | ✨ 30-day returns</div>
-                            <div className="flex items-center space-x-4">
-                                <span className="hover:text-blue-200 cursor-pointer">Help</span>
-                                <span className="hover:text-blue-200 cursor-pointer">Contact</span>
-                                <span className="hover:text-blue-200 cursor-pointer">Track Order</span>
-                            </div>
+        <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+            {/* Hero */}
+            <HeroBanner banners={banners} onShopNow={() => navigate('/products')} />
+
+            {/* Stats strip */}
+            <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[
+                    { icon: '🚚', label: 'Free Shipping', sub: 'On orders over $50' },
+                    { icon: '🔄', label: 'Easy Returns', sub: '30-day hassle-free' },
+                    { icon: '🔒', label: 'Secure Payment', sub: 'SSL encrypted' },
+                    { icon: '🎁', label: 'Exclusive Deals', sub: 'Members get more' },
+                ].map(({ icon, label, sub }) => (
+                    <div key={label} className="store-surface flex items-center gap-3 px-4 py-3">
+                        <span className="text-xl">{icon}</span>
+                        <div>
+                            <p className="text-sm font-bold text-[#1f1f1f]">{label}</p>
+                            <p className="text-xs text-[#666]">{sub}</p>
                         </div>
                     </div>
-                </div>
+                ))}
+            </div>
 
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-16">
-                        <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            E-Shop Pro
+            {/* Categories */}
+            {categories.length > 0 && (
+                <section className="mb-10">
+                    <div className="mb-5 flex items-end justify-between">
+                        <div>
+                            <p className="store-eyebrow mb-1">Explore</p>
+                            <h2 className="store-display text-2xl text-[#131313] sm:text-3xl">Shop by Category</h2>
                         </div>
-
-                        <div className="flex-1 max-w-2xl mx-8">
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    placeholder="Search for products, brands, categories..."
-                                    className="w-full px-4 py-3 pl-12 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
-                                />
-                                <svg className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center space-x-4">
-                            <button className="relative p-2 text-gray-600 hover:text-blue-600 transition-colors" title="Wishlist">
-                                <span className="text-lg">🤍</span>
-                                {wishlistItems.length > 0 && (
-                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                        {wishlistItems.length}
-                                    </span>
-                                )}
-                            </button>
-                            <button className="relative p-2 text-gray-600 hover:text-blue-600 transition-colors" title="Cart">
-                                <span className="text-lg">🛒</span>
-                                {cartItems.length > 0 && (
-                                    <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                        {cartItems.reduce((sum, item) => sum + item.quantity, 0)}
-                                    </span>
-                                )}
-                            </button>
-                            <button className="p-2 text-gray-600 hover:text-blue-600 transition-colors" title="Account">
-                                <span className="text-lg">👤</span>
-                            </button>
-                        </div>
+                        <Link to="/products" className="store-btn-secondary tap-bounce rounded-xl px-4 py-2 text-sm">View All →</Link>
                     </div>
-
-                    <nav className="flex items-center space-x-8 py-4 border-t border-gray-200 overflow-auto">
-                        <button
-                            onClick={() => setSelectedCategory('all')}
-                            className={`font-medium transition-colors ${selectedCategory === 'all' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-700 hover:text-blue-600'}`}
-                        >
-                            All Products
+                    <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-9">
+                        <button onClick={() => setSelectedCategory('all')} className={`store-category-chip flex flex-col items-center gap-1.5 px-3 py-3 text-center ${selectedCategory === 'all' ? 'active' : ''}`}>
+                            <span className="text-xl">🛒</span>
+                            <span className="text-xs font-semibold">All</span>
                         </button>
-                        {categories.slice(0, 5).map((category) => (
-                            <button
-                                key={category._id || category.slug}
-                                onClick={() => setSelectedCategory(category.slug)}
-                                className={`font-medium transition-colors ${selectedCategory === category.slug ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-700 hover:text-blue-600'}`}
-                            >
-                                {category.title}
+                        {categories.slice(0, 8).map((cat) => (
+                            <button key={cat._id || cat.slug} onClick={() => setSelectedCategory(cat.slug)} className={`store-category-chip flex flex-col items-center gap-1.5 px-3 py-3 text-center ${selectedCategory === cat.slug ? 'active' : ''}`}>
+                                <span className="text-xl">{catIcon(cat.title)}</span>
+                                <span className="line-clamp-2 text-xs font-semibold leading-tight">{cat.title}</span>
                             </button>
                         ))}
-                        <span className="text-red-600 font-medium hover:text-red-700 cursor-pointer whitespace-nowrap">🔥 Featured</span>
-                    </nav>
-                </div>
-            </header>
+                    </div>
+                </section>
+            )}
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl overflow-hidden mb-12">
-                    <div className="absolute inset-0 bg-black/20" />
-                    <div className="relative z-10 px-8 py-16 text-white">
-                        <div className="max-w-2xl">
-                            <span className="inline-block bg-white/20 backdrop-blur-sm text-white text-sm font-medium px-4 py-2 rounded-full mb-4">
-                                🎉 Limited Time Offer
+            {/* Products */}
+            <section>
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <p className="store-eyebrow mb-1">{selectedCategory === 'all' ? 'Curated for You' : 'Category'}</p>
+                        <h2 className="store-display text-xl text-[#131313] sm:text-2xl">
+                            {selectedCategory === 'all' ? 'Featured Products' : (categories.find((c) => c.slug === selectedCategory)?.title || 'Products')}
+                            <span className="ml-2 text-sm font-normal text-[#666]">
+                                ({selectedCategory === 'all' ? featuredGridProducts.length : visibleCategoryProducts.length})
                             </span>
-                            <h1 className="text-5xl md:text-6xl font-bold mb-4">
-                                Up to 80% Off
-                            </h1>
-                            <p className="text-xl mb-6 text-white/90">
-                                Discover amazing deals on fashion, electronics, and more! Free shipping on all orders.
-                            </p>
-                            <button className="bg-white text-blue-600 hover:bg-gray-100 font-semibold px-8 py-4 rounded-full transition-all duration-200 transform hover:scale-105 shadow-xl">
-                                Shop Now →
-                            </button>
-                        </div>
+                        </h2>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {selectedCategory !== 'all' && (
+                            <button onClick={() => setSelectedCategory('all')} className="store-btn-secondary tap-bounce rounded-xl px-4 py-2 text-sm">← All</button>
+                        )}
+                        <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="store-input cursor-pointer rounded-xl px-4 py-2 text-sm">
+                            <option value="newest">Newest</option>
+                            <option value="price-low">Price: Low → High</option>
+                            <option value="price-high">Price: High → Low</option>
+                            <option value="rating">Best Rating</option>
+                        </select>
                     </div>
                 </div>
 
-                <div className="mb-12">
-                    <div className="text-center mb-8">
-                        <h2 className="text-3xl font-bold text-gray-900 mb-4">Shop by Category</h2>
-                        <p className="text-gray-600 text-lg">Discover amazing products across all our categories</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                        {categories.slice(0, 10).map((category) => (
-                            <button
-                                key={category._id || category.slug}
-                                onClick={() => setSelectedCategory(category.slug)}
-                                className={`group relative p-6 bg-white rounded-xl border-2 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${selectedCategory === category.slug
-                                    ? 'border-blue-500 bg-blue-50'
-                                    : 'border-gray-200 hover:border-blue-300'
-                                    }`}
-                            >
-                                <div className="text-center">
-                                    <div className="mb-3">
-                                        <div className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center text-2xl transition-colors ${selectedCategory === category.slug
-                                            ? 'bg-blue-500 text-white'
-                                            : 'bg-gray-100 text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600'
-                                            }`}>
-                                            {category.title.includes('Electronics') && '📱'}
-                                            {category.title.includes('Fashion') && '👕'}
-                                            {category.title.includes('Home') && '🏠'}
-                                            {category.title.includes('Sports') && '⚽'}
-                                            {category.title.includes('Books') && '📚'}
-                                            {!['Electronics', 'Fashion', 'Home', 'Sports', 'Books'].some(keyword => category.title.includes(keyword)) && '🛍️'}
-                                        </div>
-                                    </div>
-                                    <h3 className={`font-semibold text-sm transition-colors ${selectedCategory === category.slug
-                                        ? 'text-blue-700'
-                                        : 'text-gray-800 group-hover:text-blue-600'
-                                        }`}>
-                                        {category.title}
-                                    </h3>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
+                {/* Category filter pills */}
+                <div className="mb-6 flex flex-wrap gap-2 overflow-x-auto pb-1">
+                    <button onClick={() => setSelectedCategory('all')} className={`store-category-chip px-4 py-1.5 text-sm ${selectedCategory === 'all' ? 'active' : ''}`}>All Products</button>
+                    {categories.slice(0, 6).map((cat) => (
+                        <button key={cat._id || cat.slug} onClick={() => setSelectedCategory(cat.slug)} className={`store-category-chip px-4 py-1.5 text-sm ${selectedCategory === cat.slug ? 'active' : ''}`}>
+                            {cat.title} {cat.productCount > 0 && <span className="opacity-70">({cat.productCount})</span>}
+                        </button>
+                    ))}
                 </div>
 
-                <div className="mb-8">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center space-x-8">
-                            <button
-                                onClick={() => setSelectedCategory('all')}
-                                className={`text-lg font-semibold pb-2 border-b-2 transition-colors ${selectedCategory === 'all' ? 'text-gray-900 border-blue-600' : 'text-gray-500 border-transparent hover:text-gray-700'}`}
-                            >
-                                All Products
-                            </button>
-
-                            {categories.slice(0, 5).map((category) => (
-                                <button
-                                    key={category._id || category.slug}
-                                    onClick={() => setSelectedCategory(category.slug)}
-                                    className={`text-lg font-semibold pb-2 border-b-2 transition-colors whitespace-nowrap ${selectedCategory === category.slug ? 'text-gray-900 border-blue-600' : 'text-gray-500 border-transparent hover:text-gray-700'}`}
-                                >
-                                    {category.title} ({(productsByCategory[category.slug] || []).length})
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="flex items-center space-x-4">
-                            <select
-                                value={sortOption}
-                                onChange={(e) => setSortOption(e.target.value)}
-                                className="border border-gray-300 rounded-lg px-4 py-2 text-sm bg-white shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer hover:border-gray-400 transition-colors"
-                            >
-                                <option value="newest">Newest First</option>
-                                <option value="price-low">Price: Low to High</option>
-                                <option value="price-high">Price: High to Low</option>
-                                <option value="rating">Best Rating</option>
-                            </select>
-                        </div>
+                {isLoading ? (<LoadingScreen />) : selectedCategory === 'all' ? (
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                        {featuredGridProducts.map((p) => <ProductCard {...cardProps(p)} />)}
                     </div>
-                </div>
-
-                {isLoading ? (
-                    <div className="flex justify-center items-center min-h-[400px]">
-                        <div className="text-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-                            <div className="text-lg text-gray-600">Loading amazing products...</div>
-                        </div>
+                ) : !visibleCategoryProducts.length ? (
+                    <div className="store-surface py-14 text-center">
+                        <div className="text-4xl mb-3">🛍️</div>
+                        <h3 className="store-display text-lg text-[#212191] mb-1">No Products Found</h3>
+                        <p className="text-sm text-[#666] mb-5">No products in this category yet.</p>
+                        <button onClick={() => setSelectedCategory('all')} className="store-btn-primary tap-bounce inline-block rounded-xl px-6 py-2.5 text-sm font-bold">Browse All</button>
                     </div>
                 ) : (
-                    <section>
-                        {selectedCategory === 'all' ? (
-                            <div>
-                                <div className="flex items-center justify-between mb-8">
-                                    <div>
-                                        <h2 className="text-3xl font-bold text-gray-900 mb-2">Featured Products</h2>
-                                        <p className="text-gray-600">
-                                            Showing {featuredGridProducts.length} curated items sourced from {categories.length || FALLBACK_CATEGORIES.length} categories
-                                        </p>
-                                    </div>
-                                    <div className="text-sm text-gray-500">
-                                        Powered by smart sampling (fetch limit {PRODUCT_FETCH_LIMIT})
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
-                                    {featuredGridProducts.map(renderProductCard)}
-                                </div>
-                            </div>
-                        ) : (
-                            <div>
-                                <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-2xl font-bold text-gray-900">
-                                        {categories.find(c => c.slug === selectedCategory)?.title || 'Products'}
-                                        <span className="text-sm font-normal text-gray-500 ml-2">
-                                            ({visibleCategoryProducts.length} items)
-                                        </span>
-                                    </h2>
-                                    <button
-                                        onClick={() => setSelectedCategory('all')}
-                                        className="text-blue-600 hover:text-blue-700 font-medium"
-                                    >
-                                        ← Back to All Categories
-                                    </button>
-                                </div>
-
-                                {!visibleCategoryProducts.length ? (
-                                    <div className="text-center py-12">
-                                        <div className="text-6xl mb-4">🛍️</div>
-                                        <h3 className="text-xl font-semibold text-gray-700 mb-2">No Products Found</h3>
-                                        <p className="text-gray-500">No products available in this category</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-                                        {visibleCategoryProducts.map(renderProductCard)}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </section>
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                        {visibleCategoryProducts.map((p) => <ProductCard {...cardProps(p)} />)}
+                    </div>
                 )}
-            </main>
 
-            <footer className="bg-gray-900 text-white">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                        <div className="space-y-4">
-                            <div className="text-2xl font-bold text-blue-400">E-Shop Pro</div>
-                            <p className="text-gray-300 text-sm leading-relaxed">
-                                Your trusted partner for premium products. We deliver quality, style, and excellence right to your doorstep with professional service.
-                            </p>
-                            <div className="flex space-x-3">
-                                <button className="bg-blue-600 hover:bg-blue-700 p-2 rounded-full transition-colors" aria-label="Twitter">
-                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z" />
-                                    </svg>
-                                </button>
-                                <button className="bg-blue-800 hover:bg-blue-900 p-2 rounded-full transition-colors" aria-label="Facebook">
-                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                                    </svg>
-                                </button>
-                                <button className="bg-pink-600 hover:bg-pink-700 p-2 rounded-full transition-colors" aria-label="Instagram">
-                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.174-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.347-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.402.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.357-.629-2.746-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24.009 12.017 24.009c6.624 0 11.99-5.367 11.99-11.988C24.007 5.367 18.641.001 12.017.001z" />
-                                    </svg>
-                                </button>
-                                <button className="bg-red-600 hover:bg-red-700 p-2 rounded-full transition-colors" aria-label="YouTube">
-                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                                    </svg>
-                                </button>
+                {!isLoading && selectedCategory === 'all' && featuredGridProducts.length > 0 && (
+                    <div className="mt-10 text-center">
+                        <Link to="/products" className="store-btn-primary tap-bounce inline-flex items-center gap-2 rounded-2xl px-8 py-3.5 text-sm font-bold">
+                            View All Products
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                        </Link>
+                    </div>
+                )}
+            </section>
+
+            {/* Trust badges */}
+            <section className="mt-14 store-hero rounded-3xl px-8 py-10 text-center sm:px-12">
+                <div className="relative">
+                    <p className="store-eyebrow mb-2 text-[#d2dff9]">Why Choose Us</p>
+                    <h2 className="store-display mb-2 text-2xl text-white sm:text-3xl">Trusted by Thousands</h2>
+                    <p className="mb-8 text-sm text-white/80">Join our growing community of happy shoppers worldwide.</p>
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                        {[{ value: '10M+', label: 'Products' }, { value: '500K+', label: 'Happy Customers' }, { value: '99.8%', label: 'Satisfaction Rate' }, { value: '24/7', label: 'Support' }].map(({ value, label }) => (
+                            <div key={label} className="rounded-2xl border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.08)] px-4 py-5 backdrop-blur-sm">
+                                <p className="store-display text-2xl font-bold text-[#ffa336]">{value}</p>
+                                <p className="mt-1 text-xs text-white/75">{label}</p>
                             </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold text-white">Quick Links</h3>
-                            <ul className="space-y-2 text-sm">
-                                <li><a href="#" className="text-gray-300 hover:text-blue-400 transition-colors">About Us</a></li>
-                                <li><a href="#" className="text-gray-300 hover:text-blue-400 transition-colors">Contact Us</a></li>
-                                <li><a href="#" className="text-gray-300 hover:text-blue-400 transition-colors">FAQ</a></li>
-                                <li><a href="#" className="text-gray-300 hover:text-blue-400 transition-colors">Size Guide</a></li>
-                                <li><a href="#" className="text-gray-300 hover:text-blue-400 transition-colors">Returns & Exchanges</a></li>
-                                <li><a href="#" className="text-gray-300 hover:text-blue-400 transition-colors">Track Your Order</a></li>
-                            </ul>
-                        </div>
-
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold text-white">Customer Service</h3>
-                            <ul className="space-y-2 text-sm">
-                                <li><a href="#" className="text-gray-300 hover:text-blue-400 transition-colors">Help Center</a></li>
-                                <li><a href="#" className="text-gray-300 hover:text-blue-400 transition-colors">Shipping Information</a></li>
-                                <li><a href="#" className="text-gray-300 hover:text-blue-400 transition-colors">Return Policy</a></li>
-                                <li><a href="#" className="text-gray-300 hover:text-blue-400 transition-colors">Privacy Policy</a></li>
-                                <li><a href="#" className="text-gray-300 hover:text-blue-400 transition-colors">Terms of Service</a></li>
-                                <li><a href="#" className="text-gray-300 hover:text-blue-400 transition-colors">Live Chat Support</a></li>
-                            </ul>
-                        </div>
-
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold text-white">Stay Connected</h3>
-                            <p className="text-gray-300 text-sm">Subscribe to get exclusive offers and updates on new products</p>
-                            <div className="space-y-3">
-                                <input
-                                    type="email"
-                                    placeholder="Enter your email address"
-                                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                                />
-                                <button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 px-4 rounded-lg transition-all duration-200 font-semibold shadow-lg">
-                                    Subscribe Now
-                                </button>
-                            </div>
-                            <div className="flex items-center gap-4 pt-2">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                                    <span className="text-sm text-gray-300">24/7 Support</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                                    <span className="text-sm text-gray-300">Fast Delivery</span>
-                                </div>
-                            </div>
-                        </div>
+                        ))}
                     </div>
                 </div>
-
-                <div className="border-t border-gray-800">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                            <div className="text-sm text-gray-300">
-                                © 2025 E-Shop Pro. All rights reserved. Built with ❤️ for an amazing shopping experience.
-                            </div>
-                            <div className="flex items-center gap-6">
-                                <div className="flex items-center gap-3">
-                                    <span className="text-sm text-gray-300">We Accept:</span>
-                                    <div className="flex gap-2">
-                                        <div className="px-2 py-1 bg-blue-600 text-white text-xs rounded">VISA</div>
-                                        <div className="px-2 py-1 bg-red-600 text-white text-xs rounded">MC</div>
-                                        <div className="px-2 py-1 bg-blue-500 text-white text-xs rounded">PAYPAL</div>
-                                        <div className="px-2 py-1 bg-green-600 text-white text-xs rounded">SECURE</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </footer>
+            </section>
         </div>
     );
 };

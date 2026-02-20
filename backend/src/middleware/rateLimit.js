@@ -6,27 +6,23 @@ export const rateLimit = (maxRequests = 100, windowMinutes = 15) => {
         const windowMs = windowMinutes * 60 * 1000;
         const now = Date.now();
 
-        // Clean up old entries
-        for (const [key, data] of rateLimitMap.entries()) {
+                for (const [key, data] of rateLimitMap.entries()) {
             if (now - data.firstRequest > windowMs) {
                 rateLimitMap.delete(key);
             }
         }
 
-        // Get current limit data
-        const currentData = rateLimitMap.get(identifier) || {
+                const currentData = rateLimitMap.get(identifier) || {
             count: 0,
             firstRequest: now
         };
 
-        // Check if window has reset
-        if (now - currentData.firstRequest > windowMs) {
+                if (now - currentData.firstRequest > windowMs) {
             currentData.count = 0;
             currentData.firstRequest = now;
         }
 
-        // Check rate limit
-        if (currentData.count >= maxRequests) {
+                if (currentData.count >= maxRequests) {
             return res.status(429).json({
                 success: false,
                 message: 'Too many requests. Please try again later.',
@@ -34,12 +30,10 @@ export const rateLimit = (maxRequests = 100, windowMinutes = 15) => {
             });
         }
 
-        // Increment counter
-        currentData.count++;
+                currentData.count++;
         rateLimitMap.set(identifier, currentData);
 
-        // Set headers
-        res.set({
+                res.set({
             'X-RateLimit-Limit': maxRequests,
             'X-RateLimit-Remaining': Math.max(0, maxRequests - currentData.count),
             'X-RateLimit-Reset': new Date(currentData.firstRequest + windowMs).getTime()

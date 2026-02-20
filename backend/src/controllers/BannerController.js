@@ -66,14 +66,11 @@ export class BannerController extends BaseController {
             const skip = (page - 1) * limit;
             const query = {};
 
-            // Apply filters
-            if (status) query.status = status;
+                        if (status) query.status = status;
 
-            // Build sort object
-            const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
+                        const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
 
-            // Execute query with pagination
-            const [banners, total] = await Promise.all([
+                        const [banners, total] = await Promise.all([
                 Banner.find(query)
                     .sort(sort)
                     .skip(skip)
@@ -109,12 +106,7 @@ export class BannerController extends BaseController {
         }
     }
 
-    /**
-     * Get active discount options for banner linking
-     * @route GET /api/banners/discount-options
-     * @access Admin
-     */
-    async getDiscountOptions(req, res) {
+        async getDiscountOptions(req, res) {
         try {
             const now = new Date();
             const discounts = await Discount.find({
@@ -140,14 +132,7 @@ export class BannerController extends BaseController {
         }
     }
 
-    /**
-     * Get single banner by ID
-     * @route GET /api/banners/:id
-     * @access Public
-     * @param {Object} req - Express request
-     * @param {Object} res - Express response
-     */
-    async show(req, res) {
+async show(req, res) {
         try {
             const { id } = req.params;
 
@@ -181,14 +166,7 @@ export class BannerController extends BaseController {
         }
     }
 
-    /**
-     * Create new banner with image upload
-     * @route POST /api/banners
-     * @access Admin
-     * @param {Object} req - Express request (with uploaded file)
-     * @param {Object} res - Express response
-     */
-    async create(req, res) {
+async create(req, res) {
         try {
             const {
                 title,
@@ -209,8 +187,7 @@ export class BannerController extends BaseController {
 
             const normalizedLinkType = this.normalizeSingleValue(linkType || link_type, null);
 
-            // Validate required fields
-            if (!title) {
+                        if (!title) {
                 return res.status(400).json({
                     success: false,
                     message: 'Title is required'
@@ -231,8 +208,7 @@ export class BannerController extends BaseController {
                 parsedDiscountIds = normalized.filter((v) => mongoose.Types.ObjectId.isValid(v));
             }
 
-            // Create banner data
-            const bannerData = {
+                        const bannerData = {
                 title,
                 slug: await this.ensureUniqueSlug(slug || title),
                 description,
@@ -256,8 +232,7 @@ export class BannerController extends BaseController {
                 data: banner
             });
         } catch (error) {
-            // Clean up uploaded file if banner creation fails
-            if (req.file) {
+                        if (req.file) {
                 await deleteUploadedFile(`banners/${req.file.filename}`);
             }
 
@@ -295,14 +270,7 @@ export class BannerController extends BaseController {
         }
     }
 
-    /**
-     * Update existing banner
-     * @route PUT /api/banners/:id
-     * @access Admin
-     * @param {Object} req - Express request
-     * @param {Object} res - Express response
-     */
-    async update(req, res) {
+async update(req, res) {
         try {
             const { id } = req.params;
 
@@ -325,11 +293,9 @@ export class BannerController extends BaseController {
                 });
             }
 
-            // Track old image for deletion
-            const oldImage = banner.image;
+                        const oldImage = banner.image;
 
-            // Update fields
-            const {
+                        const {
                 title,
                 slug,
                 description,
@@ -372,15 +338,13 @@ export class BannerController extends BaseController {
                 banner.image = req.body.image || req.body.photo || null;
             }
 
-            // Update image if new one uploaded
-            if (req.file) {
+                        if (req.file) {
                 banner.image = `banners/${req.file.filename}`;
             }
 
             await banner.save();
 
-            // Delete old image if new one was uploaded
-            if (req.file && oldImage) {
+                        if (req.file && oldImage) {
                 await deleteUploadedFile(oldImage);
             }
 
@@ -428,14 +392,7 @@ export class BannerController extends BaseController {
         }
     }
 
-    /**
-     * Delete banner
-     * @route DELETE /api/banners/:id
-     * @access Admin
-     * @param {Object} req - Express request
-     * @param {Object} res - Express response
-     */
-    async destroy(req, res) {
+async destroy(req, res) {
         try {
             const { id } = req.params;
 
@@ -455,8 +412,7 @@ export class BannerController extends BaseController {
                 });
             }
 
-            // Delete associated image
-            if (banner.image) {
+                        if (banner.image) {
                 await deleteUploadedFile(banner.image);
             }
 
@@ -476,14 +432,7 @@ export class BannerController extends BaseController {
         }
     }
 
-    /**
-     * Track banner view
-     * @route POST /api/banners/:id/view
-     * @access Public
-     * @param {Object} req - Express request
-     * @param {Object} res - Express response
-     */
-    async trackView(req, res) {
+async trackView(req, res) {
         try {
             const { id } = req.params;
 
@@ -519,14 +468,7 @@ export class BannerController extends BaseController {
         }
     }
 
-    /**
-     * Track banner click
-     * @route POST /api/banners/:id/click
-     * @access Public
-     * @param {Object} req - Express request
-     * @param {Object} res - Express response
-     */
-    async trackClick(req, res) {
+async trackClick(req, res) {
         try {
             const { id } = req.params;
 
@@ -562,14 +504,7 @@ export class BannerController extends BaseController {
         }
     }
 
-    /**
-     * Get banner analytics
-     * @route GET /api/banners/analytics
-     * @access Admin
-     * @param {Object} req - Express request
-     * @param {Object} res - Express response
-     */
-    async getAnalytics(req, res) {
+async getAnalytics(req, res) {
         try {
             const { startDate, endDate } = req.query;
 

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { API_CONFIG } from '../../constants';
 import { AdminLoadingState, AdminSurface } from '../../components/admin/AdminTheme';
 import notify from '../../utils/notify';
-import authService from '../../services/authService';
+import apiClient from '../../services/apiClient';
 
 const Dashboard = () => {
     const [stats, setStats] = useState({
@@ -25,41 +25,25 @@ const Dashboard = () => {
         try {
             setIsLoading(true);
             const [productsRes, usersRes, orderSummaryRes, recentOrdersRes] = await Promise.all([
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}?limit=5`),
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}?page=1&limit=1`, {
-                    headers: authService.getAuthHeaders({}, false),
-                }),
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}/admin/summary`, {
-                    headers: authService.getAuthHeaders({}, false),
-                }),
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}/admin/all?page=1&limit=5&sort=-createdAt`, {
-                    headers: authService.getAuthHeaders({}, false),
-                }),
+                apiClient.get(`${API_CONFIG.ENDPOINTS.PRODUCTS}?limit=5`),
+                apiClient.get(`${API_CONFIG.ENDPOINTS.USERS}?page=1&limit=1`),
+                apiClient.get(`${API_CONFIG.ENDPOINTS.ORDERS}/admin/summary`),
+                apiClient.get(`${API_CONFIG.ENDPOINTS.ORDERS}/admin/all?page=1&limit=5&sort=-createdAt`),
             ]);
 
-            if (
-                authService.handleUnauthorizedResponse(usersRes) ||
-                authService.handleUnauthorizedResponse(orderSummaryRes) ||
-                authService.handleUnauthorizedResponse(recentOrdersRes)
-            ) {
-                return;
-            }
-
-            const [productsData, usersData, orderSummaryData, recentOrdersData] = await Promise.all([
-                productsRes.json(),
-                usersRes.json(),
-                orderSummaryRes.json(),
-                recentOrdersRes.json(),
-            ]);
+            const productsData = productsRes?.data || {};
+            const usersData = usersRes?.data || {};
+            const orderSummaryData = orderSummaryRes?.data || {};
+            const recentOrdersData = recentOrdersRes?.data || {};
 
             setStats({
-                totalProducts: productsData?.data?.pagination?.total || 0,
-                totalUsers: usersData?.data?.pagination?.total || 0,
-                totalOrders: orderSummaryData?.data?.totalOrders || 0,
-                totalRevenue: orderSummaryData?.data?.totalRevenue || 0,
-                paidOrders: orderSummaryData?.data?.paidOrders || 0,
-                topProducts: productsData?.data?.products?.slice(0, 5) || [],
-                recentOrders: recentOrdersData?.data?.orders || [],
+                totalProducts: Number(productsData?.pagination?.total || 0),
+                totalUsers: Number(usersData?.pagination?.total || 0),
+                totalOrders: Number(orderSummaryData?.totalOrders || 0),
+                totalRevenue: Number(orderSummaryData?.totalRevenue || 0),
+                paidOrders: Number(orderSummaryData?.paidOrders || 0),
+                topProducts: Array.isArray(productsData?.products) ? productsData.products.slice(0, 5) : [],
+                recentOrders: Array.isArray(recentOrdersData?.orders) ? recentOrdersData.orders : [],
             });
         } catch (error) {
             notify.error(error, 'Failed to load dashboard data');

@@ -1,9 +1,5 @@
-/**
- * Application Constants
- * Following international coding standards for maintainability and scalability
- */
 
-// API Configuration
+
 export const API_CONFIG = {
     BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001',
     ENDPOINTS: {
@@ -27,7 +23,6 @@ export const API_CONFIG = {
     RETRY_ATTEMPTS: 3
 };
 
-// Image Configuration
 export const IMAGE_CONFIG = {
     BASE_PATH: '/images',
     PRODUCT_PATH: '/images/products',
@@ -38,7 +33,6 @@ export const IMAGE_CONFIG = {
     LAZY_LOADING: true
 };
 
-// Product Configuration
 export const PRODUCT_CONFIG = {
     ITEMS_PER_PAGE: 20,
     MAX_ITEMS_PER_REQUEST: 100,
@@ -48,7 +42,6 @@ export const PRODUCT_CONFIG = {
     DEFAULT_SORT: 'newest'
 };
 
-// UI Configuration
 export const UI_CONFIG = {
     BREAKPOINTS: {
         SM: 640,
@@ -67,7 +60,6 @@ export const UI_CONFIG = {
     ANIMATION_DURATION: 200
 };
 
-// Product Status Constants
 export const PRODUCT_STATUS = {
     ACTIVE: 'active',
     INACTIVE: 'inactive',
@@ -75,7 +67,6 @@ export const PRODUCT_STATUS = {
     ARCHIVED: 'archived'
 };
 
-// Product Conditions
 export const PRODUCT_CONDITIONS = {
     NEW: 'new',
     HOT: 'hot',
@@ -83,7 +74,6 @@ export const PRODUCT_CONDITIONS = {
     DEFAULT: 'default'
 };
 
-// Currency Configuration
 export const CURRENCY_CONFIG = {
     DEFAULT: 'USD',
     SYMBOL: '$',
@@ -91,7 +81,6 @@ export const CURRENCY_CONFIG = {
     DECIMAL_PLACES: 2
 };
 
-// Sort Options
 export const SORT_OPTIONS = [
     { value: 'newest', label: 'Newest', field: 'createdAt', order: 'desc' },
     { value: 'price-low', label: 'Price: Low to High', field: 'basePrice', order: 'asc' },
@@ -100,7 +89,6 @@ export const SORT_OPTIONS = [
     { value: 'popularity', label: 'Most Popular', field: 'viewCount', order: 'desc' }
 ];
 
-// Filter Configuration
 export const FILTER_CONFIG = {
     PRICE_RANGES: [
         { min: 0, max: 50, label: 'Under $50' },
@@ -113,7 +101,6 @@ export const FILTER_CONFIG = {
     MAX_RATING: 5
 };
 
-// Error Messages
 export const ERROR_MESSAGES = {
     NETWORK_ERROR: 'Network error. Please check your connection.',
     SERVER_ERROR: 'Server error. Please try again later.',
@@ -124,7 +111,6 @@ export const ERROR_MESSAGES = {
     GENERIC_ERROR: 'Something went wrong. Please try again.'
 };
 
-// Success Messages
 export const SUCCESS_MESSAGES = {
     PRODUCT_ADDED_TO_CART: 'Product added to cart successfully!',
     PRODUCT_ADDED_TO_WISHLIST: 'Product added to wishlist!',
@@ -133,7 +119,6 @@ export const SUCCESS_MESSAGES = {
     EMAIL_VERIFIED: 'Your email has been verified.'
 };
 
-// Local Storage Keys
 export const STORAGE_KEYS = {
     CART: 'ecommerce_cart',
     WISHLIST: 'ecommerce_wishlist',
@@ -143,7 +128,6 @@ export const STORAGE_KEYS = {
     SEARCH_HISTORY: 'search_history'
 };
 
-// Validation Rules
 export const VALIDATION_RULES = {
     EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     PHONE: /^\+?[\d\s\-\(\)]{10,}$/,
@@ -154,7 +138,6 @@ export const VALIDATION_RULES = {
     SEARCH_MAX_LENGTH: 100
 };
 
-// SEO Configuration
 export const SEO_CONFIG = {
     DEFAULT_TITLE: 'Professional E-Commerce Platform',
     DEFAULT_DESCRIPTION: 'Discover amazing products with our professional e-commerce platform built with modern technology.',
@@ -164,7 +147,6 @@ export const SEO_CONFIG = {
     MAX_DESCRIPTION_LENGTH: 160
 };
 
-// Theme Configuration
 export const THEME_CONFIG = {
     COLORS: {
         PRIMARY: '#3B82F6',

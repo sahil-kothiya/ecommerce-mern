@@ -47,6 +47,9 @@ const SettingsPage = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [logoFile, setLogoFile] = useState(null);
     const [faviconFile, setFaviconFile] = useState(null);
+    const [testEmailAddress, setTestEmailAddress] = useState('');
+    const [isSendingTest, setIsSendingTest] = useState(false);
+    const [smtpPasswordVisible, setSmtpPasswordVisible] = useState(false);
 
     const toAssetUrl = (path) => {
         if (!path) return '';
@@ -106,6 +109,23 @@ const SettingsPage = () => {
 
         setErrors(nextErrors);
         return Object.keys(nextErrors).length === 0;
+    };
+
+    const handleTestEmail = async () => {
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!testEmailAddress || !emailPattern.test(testEmailAddress)) {
+            notify.error('Enter a valid email address to send the test to');
+            return;
+        }
+        try {
+            setIsSendingTest(true);
+            await settingsService.testEmail(testEmailAddress);
+            notify.success(`Test email sent to ${testEmailAddress}`);
+        } catch (error) {
+            notify.error(error, 'Failed to send test email');
+        } finally {
+            setIsSendingTest(false);
+        }
     };
 
     const handleSubmit = async (event) => {
@@ -300,23 +320,109 @@ const SettingsPage = () => {
                 </div>
 
                 <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <h2 className="mb-4 text-xl font-black text-slate-900">Credentials</h2>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <input className="w-full rounded-xl border border-slate-300 px-4 py-3" name="smtpHost" value={formData.smtpHost || ''} onChange={handleChange} placeholder="SMTP Host" />
-                        <div>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'smtpPort')}`} name="smtpPort" value={formData.smtpPort || ''} onChange={handleChange} placeholder="SMTP Port" />
-                            {errors.smtpPort && <p className="mt-1 text-sm text-red-600">{errors.smtpPort}</p>}
+                    <h2 className="mb-1 text-xl font-black text-slate-900">Credentials</h2>
+                    <p className="mb-6 text-sm text-slate-500">SMTP and payment gateway configuration. Changes take effect immediately.</p>
+
+                    <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50/40 p-5">
+                        <div className="mb-4 flex items-center gap-2">
+                            <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            <h3 className="text-base font-bold text-slate-800">SMTP Email Configuration</h3>
                         </div>
-                        <input className="w-full rounded-xl border border-slate-300 px-4 py-3" name="smtpUser" value={formData.smtpUser || ''} onChange={handleChange} placeholder="SMTP User" />
-                        <div>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'smtpFrom')}`} name="smtpFrom" value={formData.smtpFrom || ''} onChange={handleChange} placeholder="SMTP From Email" />
-                            {errors.smtpFrom && <p className="mt-1 text-sm text-red-600">{errors.smtpFrom}</p>}
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                                <label className="mb-2 block text-sm font-semibold text-slate-700">SMTP Host</label>
+                                <input className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" name="smtpHost" value={formData.smtpHost || ''} onChange={handleChange} placeholder="sandbox.smtp.mailtrap.io" />
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-sm font-semibold text-slate-700">SMTP Port</label>
+                                <input className={`w-full rounded-xl border bg-white px-4 py-3 ${getFieldBorderClass(errors, 'smtpPort')}`} name="smtpPort" value={formData.smtpPort || ''} onChange={handleChange} placeholder="2525" />
+                                {errors.smtpPort && <p className="mt-1 text-sm text-red-600">{errors.smtpPort}</p>}
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-sm font-semibold text-slate-700">SMTP Username</label>
+                                <input className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" name="smtpUser" value={formData.smtpUser || ''} onChange={handleChange} placeholder="your-smtp-username" autoComplete="off" />
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-sm font-semibold text-slate-700">SMTP Password</label>
+                                <div className="relative">
+                                    <input
+                                        type={smtpPasswordVisible ? 'text' : 'password'}
+                                        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 pr-11"
+                                        name="smtpPassword"
+                                        value={formData.smtpPassword || ''}
+                                        onChange={handleChange}
+                                        placeholder="••••••••••••"
+                                        autoComplete="new-password"
+                                    />
+                                    <button type="button" onClick={() => setSmtpPasswordVisible((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                        {smtpPasswordVisible
+                                            ? <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                                            : <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                        }
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="mb-2 block text-sm font-semibold text-slate-700">From Email Address</label>
+                                <input className={`w-full rounded-xl border bg-white px-4 py-3 ${getFieldBorderClass(errors, 'smtpFrom')}`} name="smtpFrom" value={formData.smtpFrom || ''} onChange={handleChange} placeholder="noreply@yourdomain.com" />
+                                {errors.smtpFrom && <p className="mt-1 text-sm text-red-600">{errors.smtpFrom}</p>}
+                            </div>
                         </div>
-                        <input type="password" className="w-full rounded-xl border border-slate-300 px-4 py-3" name="smtpPassword" value={formData.smtpPassword || ''} onChange={handleChange} placeholder="SMTP Password" />
-                        <input className="w-full rounded-xl border border-slate-300 px-4 py-3" name="stripePublicKey" value={formData.stripePublicKey || ''} onChange={handleChange} placeholder="Stripe Public Key" />
-                        <input type="password" className="w-full rounded-xl border border-slate-300 px-4 py-3" name="stripeSecretKey" value={formData.stripeSecretKey || ''} onChange={handleChange} placeholder="Stripe Secret Key" />
-                        <input className="w-full rounded-xl border border-slate-300 px-4 py-3" name="paypalClientId" value={formData.paypalClientId || ''} onChange={handleChange} placeholder="PayPal Client ID" />
-                        <input type="password" className="w-full rounded-xl border border-slate-300 px-4 py-3" name="paypalClientSecret" value={formData.paypalClientSecret || ''} onChange={handleChange} placeholder="PayPal Client Secret" />
+
+                        <div className="mt-4 rounded-xl border border-blue-200 bg-white p-4">
+                            <p className="mb-3 text-sm font-semibold text-slate-700">Send Test Email</p>
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                                <input
+                                    type="email"
+                                    className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-sm"
+                                    placeholder="recipient@example.com"
+                                    value={testEmailAddress}
+                                    onChange={(e) => setTestEmailAddress(e.target.value)}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleTestEmail}
+                                    disabled={isSendingTest}
+                                    className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                    {isSendingTest ? (
+                                        <><svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg> Sending...</>
+                                    ) : (
+                                        <><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg> Send Test</>
+                                    )}
+                                </button>
+                            </div>
+                            <p className="mt-2 text-xs text-slate-400">Save settings first, then send a test to confirm SMTP is working.</p>
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/40 p-5">
+                        <div className="mb-4 flex items-center gap-2">
+                            <svg className="h-5 w-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                            </svg>
+                            <h3 className="text-base font-bold text-slate-800">Payment Gateway</h3>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                                <label className="mb-2 block text-sm font-semibold text-slate-700">Stripe Public Key</label>
+                                <input className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" name="stripePublicKey" value={formData.stripePublicKey || ''} onChange={handleChange} placeholder="pk_live_..." />
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-sm font-semibold text-slate-700">Stripe Secret Key</label>
+                                <input type="password" className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" name="stripeSecretKey" value={formData.stripeSecretKey || ''} onChange={handleChange} placeholder="sk_live_..." autoComplete="new-password" />
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-sm font-semibold text-slate-700">PayPal Client ID</label>
+                                <input className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" name="paypalClientId" value={formData.paypalClientId || ''} onChange={handleChange} placeholder="AZ..." />
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-sm font-semibold text-slate-700">PayPal Client Secret</label>
+                                <input type="password" className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" name="paypalClientSecret" value={formData.paypalClientSecret || ''} onChange={handleChange} placeholder="••••••••••••" autoComplete="new-password" />
+                            </div>
+                        </div>
                     </div>
                 </div>
 

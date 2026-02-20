@@ -1,10 +1,4 @@
-/**
- * @fileoverview Category Form Component with Multiple Image Support
- * @description Create/Edit categories with image gallery upload
- * @component CategoryForm
- * @author Enterprise E-Commerce Team
- * @version 1.0.0
- */
+
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -28,8 +22,7 @@ const CategoryForm = () => {
         seoDescription: ''
     });
 
-    // Multiple images support
-    const [images, setImages] = useState([]);
+        const [images, setImages] = useState([]);
     const [imagePreviews, setImagePreviews] = useState([]);
     const [existingImages, setExistingImages] = useState([]);
     const [primaryImageIndex, setPrimaryImageIndex] = useState(0);
@@ -52,12 +45,10 @@ const CategoryForm = () => {
             const data = await response.json();
             const categoriesList = Array.isArray(data?.data) ? data.data : [];
             
-            // Build hierarchical category names for parent dropdown
-            const categoriesWithHierarchy = categoriesList.map(cat => {
+                        const categoriesWithHierarchy = categoriesList.map(cat => {
                 let displayName = cat.title;
                 
-                // Find parent if exists
-                if (cat.parentId) {
+                                if (cat.parentId) {
                     const parent = categoriesList.find(p => p._id === cat.parentId);
                     if (parent) {
                         displayName = `${parent.title} > ${cat.title}`;
@@ -97,12 +88,10 @@ const CategoryForm = () => {
                     seoDescription: category.seoDescription || ''
                 });
 
-                // Load existing images if available
-                if (category.images && Array.isArray(category.images)) {
+                                if (category.images && Array.isArray(category.images)) {
                     setExistingImages(category.images);
                 } else if (category.photo) {
-                    // Legacy single photo support
-                    setExistingImages([{
+                                        setExistingImages([{
                         path: category.photo,
                         isPrimary: true,
                         sortOrder: 0
@@ -128,8 +117,7 @@ const CategoryForm = () => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
 
-        // Limit to 5 images for categories
-        if (images.length + files.length > 5) {
+                if (images.length + files.length > 5) {
             toast.error('Maximum 5 images allowed for categories');
             return;
         }
@@ -233,13 +221,9 @@ const CategoryForm = () => {
                 ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${id}`
                 : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`;
 
-            const token = localStorage.getItem('auth_token');
-
             const response = await fetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
+                credentials: 'include',
                 body: formDataToSend
             });
 
@@ -282,7 +266,7 @@ const CategoryForm = () => {
             </div>
 
             <form onSubmit={handleSubmit} noValidate className="space-y-6">
-                {/* Basic Information */}
+                
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
                     <h2 className="text-xl font-bold text-gray-900">Basic Information</h2>
 
@@ -341,12 +325,10 @@ const CategoryForm = () => {
                     </div>
                 </div>
 
-                {/* Category Images */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     <h2 className="text-xl font-bold text-gray-900 mb-4">Category Image</h2>
 
-                    {/* Simple File Input */}
-                    <div className="mb-6">
+<div className="mb-6">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Category Image
                         </label>
@@ -361,8 +343,7 @@ const CategoryForm = () => {
                         {errors.images && <p className="mt-2 text-sm text-red-600">{errors.images}</p>}
                     </div>
 
-                    {/* Existing Images */}
-                    {existingImages.length > 0 && (
+{existingImages.length > 0 && (
                         <div className="mb-6">
                             <h3 className="text-sm font-semibold text-gray-700 mb-3">Current Images</h3>
                             <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
@@ -406,8 +387,7 @@ const CategoryForm = () => {
                         </div>
                     )}
 
-                    {/* New Images */}
-                    {imagePreviews.length > 0 && (
+{imagePreviews.length > 0 && (
                         <div>
                             <h3 className="text-sm font-semibold text-gray-700 mb-3">New Images</h3>
                             <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
@@ -452,8 +432,7 @@ const CategoryForm = () => {
                     )}
                 </div>
 
-                {/* Settings */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
+<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
                     <h2 className="text-xl font-bold text-gray-900">Settings</h2>
 
                     <div className="grid grid-cols-2 gap-6">
@@ -512,8 +491,7 @@ const CategoryForm = () => {
                     </div>
                 </div>
 
-                {/* SEO */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
+<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
                     <h2 className="text-xl font-bold text-gray-900">SEO Settings</h2>
 
                     <div>
@@ -549,8 +527,7 @@ const CategoryForm = () => {
                     </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-4">
+<div className="flex items-center gap-4">
                     <button
                         type="submit"
                         disabled={isSaving}

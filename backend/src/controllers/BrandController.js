@@ -48,12 +48,10 @@ export class BrandController extends BaseController {
     });
   });
 
-  // GET /api/brands/:slug - Get brand by slug or ID
-  show = this.catchAsync(async (req, res) => {
+    show = this.catchAsync(async (req, res) => {
     const { slug } = req.params;
 
-    // Support lookup by both slug and ObjectId
-    let brand;
+        let brand;
     if (mongoose.Types.ObjectId.isValid(slug)) {
       brand = await Brand.findById(slug).lean();
     }
@@ -68,21 +66,18 @@ export class BrandController extends BaseController {
     this.sendSuccess(res, brand);
   });
 
-  // GET /api/brands/:slug/products - Get products by brand
-  getProducts = this.catchAsync(async (req, res) => {
+    getProducts = this.catchAsync(async (req, res) => {
     const { slug } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    // Find brand first
-    const brand = await Brand.findOne({ slug, status: "active" }).lean();
+        const brand = await Brand.findOne({ slug, status: "active" }).lean();
     if (!brand) {
       throw new AppError("Brand not found", 404);
     }
 
-    // Get products for this brand (Product model stores brand ref as brand.id)
-    const products = await Product.find({
+        const products = await Product.find({
       "brand.id": brand._id,
       status: "active",
     })
@@ -112,25 +107,18 @@ export class BrandController extends BaseController {
     });
   });
 
-  // POST /api/brands - Create brand (Admin only)
-  store = this.catchAsync(async (req, res) => {
+    store = this.catchAsync(async (req, res) => {
     const { title, description, status } = req.body;
 
-    // Note: Validation is handled by express-validator middleware
-    // See brandValidators.js for validation rules
-
-    // Handle uploaded files
-    let logo = null;
+let logo = null;
     let banners = [];
 
     if (req.files) {
-      // Handle logo (single file)
-      if (req.files.logo && req.files.logo.length > 0) {
+            if (req.files.logo && req.files.logo.length > 0) {
         logo = `uploads/brands/${req.files.logo[0].filename}`;
       }
 
-      // Handle banners (multiple files)
-      if (req.files.banners && req.files.banners.length > 0) {
+            if (req.files.banners && req.files.banners.length > 0) {
         banners = req.files.banners.map(
           (file) => `uploads/brands/${file.filename}`,
         );
@@ -152,14 +140,12 @@ export class BrandController extends BaseController {
     this.sendSuccess(res, brand, 201, "Brand created successfully");
   });
 
-  // PUT /api/brands/:id - Update brand (Admin only)
-  update = this.catchAsync(async (req, res) => {
+    update = this.catchAsync(async (req, res) => {
     const { id } = req.params;
     const { title, description, status, existingBanners, keepExistingLogo } =
       req.body;
 
-    // Validate MongoDB ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (!mongoose.Types.ObjectId.isValid(id)) {
       throw new AppError("Invalid brand ID", 400);
     }
 
@@ -169,35 +155,28 @@ export class BrandController extends BaseController {
       throw new AppError("Brand not found", 404);
     }
 
-    // Prepare update data
-    const updateData = {
+        const updateData = {
       title: title || brand.title,
       description: description || brand.description,
       status: status || brand.status,
     };
 
-    // Handle logo update
-    if (req.files && req.files.logo && req.files.logo.length > 0) {
-      // New logo uploaded - replace old one
-      updateData.logo = `uploads/brands/${req.files.logo[0].filename}`;
+        if (req.files && req.files.logo && req.files.logo.length > 0) {
+            updateData.logo = `uploads/brands/${req.files.logo[0].filename}`;
 
-      // Delete old logo if exists
-      if (brand.logo) {
+            if (brand.logo) {
         await deleteUploadedFile(brand.logo);
       }
     } else if (keepExistingLogo === "false") {
-      // Explicitly requested logo removal
-      updateData.logo = null;
+            updateData.logo = null;
       if (brand.logo) {
         await deleteUploadedFile(brand.logo);
       }
     } else {
-      // Keep existing logo by default
-      updateData.logo = brand.logo;
+            updateData.logo = brand.logo;
     }
 
-    // Handle banners update
-    let existingBannersArray = [];
+        let existingBannersArray = [];
     if (existingBanners) {
       try {
         existingBannersArray =
@@ -212,43 +191,36 @@ export class BrandController extends BaseController {
       }
     }
 
-    // Add new banners
-    const newBanners =
+        const newBanners =
       req.files && req.files.banners && req.files.banners.length > 0
         ? req.files.banners.map((file) => `uploads/brands/${file.filename}`)
         : [];
 
     updateData.banners = [...existingBannersArray, ...newBanners];
 
-    // Update brand using service
-    const updatedBrand = await this.service.updateBrand(id, updateData);
+        const updatedBrand = await this.service.updateBrand(id, updateData);
 
     logger.info(`Brand updated: ${updatedBrand.title}`);
 
     this.sendSuccess(res, updatedBrand, 200, "Brand updated successfully");
   });
 
-  // DELETE /api/brands/:id - Delete brand (Admin only)
-  destroy = this.catchAsync(async (req, res) => {
+    destroy = this.catchAsync(async (req, res) => {
     const { id } = req.params;
 
-    // Validate MongoDB ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (!mongoose.Types.ObjectId.isValid(id)) {
       throw new AppError("Invalid brand ID", 400);
     }
 
-    // Get brand first to delete files
-    const brand = await Brand.findById(id);
+        const brand = await Brand.findById(id);
 
     if (!brand) {
       throw new AppError("Brand not found", 404);
     }
 
-    // Delete brand using service (checks for products)
-    await this.service.deleteBrand(id);
+        await this.service.deleteBrand(id);
 
-    // Delete associated files
-    if (brand.logo) {
+        if (brand.logo) {
       await deleteUploadedFile(brand.logo);
     }
 
