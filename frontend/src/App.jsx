@@ -38,6 +38,7 @@ const ReviewsList = lazy(() => import('./pages/admin/reviews/ReviewsList.jsx'));
 const SettingsPage = lazy(() => import('./pages/admin/settings/SettingsPage.jsx'));
 const VariantTypesList = lazy(() => import('./pages/admin/variants/VariantTypesList.jsx'));
 const VariantTypeForm = lazy(() => import('./pages/admin/variants/VariantTypeForm.jsx'));
+const VariantTypeView = lazy(() => import('./pages/admin/variants/VariantTypeView.jsx'));
 const VariantOptionsList = lazy(() => import('./pages/admin/variants/VariantOptionsList.jsx'));
 const VariantOptionForm = lazy(() => import('./pages/admin/variants/VariantOptionForm.jsx'));
 const OrdersList = lazy(() => import('./pages/admin/orders/OrdersList.jsx'));
@@ -115,6 +116,7 @@ function App() {
                 <Route path="coupons/:id/edit" element={<CouponForm />} />
                 <Route path="variant-type" element={<VariantTypesList />} />
                 <Route path="variant-type/create" element={<VariantTypeForm />} />
+                <Route path="variant-type/:id" element={<VariantTypeView />} />
                 <Route path="variant-type/:id/edit" element={<VariantTypeForm />} />
                 <Route path="variant-option" element={<VariantOptionsList />} />
                 <Route path="variant-option/create" element={<VariantOptionForm />} />

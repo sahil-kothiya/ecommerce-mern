@@ -24,7 +24,7 @@ const UserDashboard = () => {
     const [orders, setOrders] = useState([]);
     const [returns, setReturns] = useState([]);
     const [addresses, setAddresses] = useState([]);
-    const [profileForm, setProfileForm] = useState({ name: '', email: '' });
+    const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '' });
     const [addressForm, setAddressForm] = useState(defaultAddressForm);
     const [editingAddressId, setEditingAddressId] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -49,6 +49,7 @@ const UserDashboard = () => {
         setProfileForm({
             name: profile?.name || '',
             email: profile?.email || '',
+            phone: profile?.phone || '',
         });
         setAddresses(Array.isArray(profile?.addresses) ? profile.addresses : []);
     };
@@ -108,10 +109,31 @@ const UserDashboard = () => {
             setIsSavingProfile(true);
             setMessage('');
 
+            const trimmedName = profileForm.name.trim();
+            const trimmedEmail = profileForm.email.trim();
+            const trimmedPhone = profileForm.phone.trim();
+
+            if (!trimmedName) {
+                throw new Error('Full name is required');
+            }
+
+            const emailPattern = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,})+$/;
+            if (!emailPattern.test(trimmedEmail)) {
+                throw new Error('Please provide a valid email address');
+            }
+
+            if (trimmedPhone && trimmedPhone.length < 7) {
+                throw new Error('Mobile number must be at least 7 characters');
+            }
+
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/profile`, {
                 method: 'PUT',
                 headers: authHeaders,
-                body: JSON.stringify({ name: profileForm.name }),
+                body: JSON.stringify({
+                    name: trimmedName,
+                    email: trimmedEmail,
+                    phone: trimmedPhone,
+                }),
             });
 
             const payload = await response.json();
@@ -122,6 +144,11 @@ const UserDashboard = () => {
             const updatedUser = payload?.data?.user || user;
             setUser(updatedUser);
             authService.setUser(updatedUser);
+            setProfileForm({
+                name: updatedUser?.name || '',
+                email: updatedUser?.email || '',
+                phone: updatedUser?.phone || '',
+            });
             setMessage('Profile updated successfully');
         } catch (error) {
             setMessage(error.message || 'Failed to update profile');
@@ -391,7 +418,7 @@ const UserDashboard = () => {
                                         <input
                                             type="text"
                                             value={profileForm.name}
-                                            onChange={(event) => setProfileForm((prev) => ({ ...prev, name: event.target.value }))}
+                                            onChange={(event) => setProfileForm((prev) => ({ ...prev, name: event.target.value.trimStart() }))}
                                             className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
                                             required
                                         />
@@ -401,8 +428,19 @@ const UserDashboard = () => {
                                         <input
                                             type="email"
                                             value={profileForm.email}
-                                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 bg-gray-100"
-                                            disabled
+                                            onChange={(event) => setProfileForm((prev) => ({ ...prev, email: event.target.value.trim() }))}
+                                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                                            required
+                                        />
+                                    </label>
+                                    <label className="text-sm font-semibold text-gray-700 sm:col-span-2">
+                                        Mobile Number
+                                        <input
+                                            type="text"
+                                            value={profileForm.phone}
+                                            onChange={(event) => setProfileForm((prev) => ({ ...prev, phone: event.target.value.trim() }))}
+                                            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                                            placeholder="Enter mobile number"
                                         />
                                     </label>
                                 </div>

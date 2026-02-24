@@ -7,11 +7,11 @@ applyTo: "**/*.{js,jsx,ts,tsx}"
 
 ## General Principles
 
-**ALWAYS add inline comments** to improve code readability and maintainability.
+**Use minimal inline comments** and add them only when they explain non-obvious reasoning.
 
 ### When to Add Comments
 
-✅ **Required Comments:**
+✅ **Recommended Comments (when needed):**
 
 - Complex business logic or algorithms
 - Non-obvious code patterns or workarounds

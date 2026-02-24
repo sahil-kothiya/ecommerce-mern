@@ -76,6 +76,29 @@ New-Enterprice-Ecommerce/
 
 ## 🚀 Development Setup & Workflow
 
+## 📌 Latest-Stable Baseline Policy
+
+Unless blocked by compatibility constraints, always use latest stable versions for core stack dependencies.
+
+- Node.js: **25.6.1+**
+- React / React DOM: **19.2.4+**
+- Express: **5.2.1+**
+
+If a change updates these baselines, update `.github/instructions/` and this file in the same task.
+
+## 🔒 Mandatory Startup Rules (All AI Agents)
+
+Every coding agent must complete this before editing code:
+
+1. Read `.github/copilot-instructions.md` and all `.github/instructions/*.md` files.
+2. Confirm workspace target (`New-Enterprice-Ecommerce` for MERN changes).
+3. Search for existing reusable component/service/module before creating new files.
+4. Preserve backend architecture: **Routes → Controllers → Services → Models**.
+5. Preserve frontend architecture: **Pages → Layouts/Components → Services**.
+6. Keep security-first defaults (validation, auth middleware, sanitized input, least-privilege routes).
+7. Run targeted verification for touched areas.
+8. Update instruction files if structure/architecture rules change.
+
 ### **Initial Setup (First Time)**
 
 ```bash
@@ -249,7 +272,7 @@ export const myValidator = [
 
 ### Inline Comments Standards
 
-**ALWAYS add comprehensive inline comments** - see [inline-comments-standard.instructions.md](.github/instructions/inline-comments-standard.instructions.md) for complete guide.
+**Use minimal inline comments and only explain non-obvious "why"** - see [inline-comments-standard.instructions.md](.github/instructions/inline-comments-standard.instructions.md) for complete guide.
 
 **Required section headers**:
 

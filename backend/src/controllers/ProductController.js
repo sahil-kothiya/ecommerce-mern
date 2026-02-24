@@ -5,6 +5,20 @@ import { VariantType, VariantOption } from "../models/Supporting.models.js";
 import mongoose from "mongoose";
 import slugify from "slugify";
 
+// Generate a slug that doesn't already exist in the DB
+async function generateUniqueSlug(title, excludeId = null) {
+  const base = slugify(title, { lower: true, strict: true });
+  let candidate = base;
+  let counter = 1;
+  while (true) {
+    const query = { slug: candidate };
+    if (excludeId) query._id = { $ne: excludeId };
+    const existing = await Product.findOne(query).select("_id").lean();
+    if (!existing) return candidate;
+    candidate = `${base}-${counter++}`;
+  }
+}
+
 const MAX_PAGE_SIZE = 100;
 const PRODUCT_LIST_SELECT = [
   "title",
@@ -18,6 +32,10 @@ const PRODUCT_LIST_SELECT = [
   "baseDiscount",
   "baseStock",
   "images",
+  "variants.images",
+  "variants.price",
+  "variants.discount",
+  "variants.status",
   "category",
   "brand",
   "ratings",
@@ -59,7 +77,7 @@ const parseSort = (sort = "-createdAt") => {
 };
 
 export class ProductController {
-    async index(req, res) {
+  async index(req, res) {
     try {
       const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
       const limit = Math.min(
@@ -78,14 +96,22 @@ export class ProductController {
         maxPrice,
         condition,
         isFeatured,
-        status = "active",
+        status,
         sort = "-createdAt",
       } = req.query;
 
-            const query = { status };
+      const query = {};
+      // Only filter by status when a specific value is supplied
+      if (status) query.status = status;
 
       if (search) {
-        query.$text = { $search: search };
+        const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        query.$or = [
+          { title: { $regex: escaped, $options: "i" } },
+          { "brand.title": { $regex: escaped, $options: "i" } },
+          { tags: { $regex: escaped, $options: "i" } },
+          { summary: { $regex: escaped, $options: "i" } },
+        ];
       }
 
       if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
@@ -119,7 +145,7 @@ export class ProductController {
         query.isFeatured = isFeatured === "true";
       }
 
-            const [products, total] = await Promise.all([
+      const [products, total] = await Promise.all([
         Product.find(query)
           .select(PRODUCT_LIST_SELECT)
           .sort(parseSort(sort))
@@ -155,7 +181,7 @@ export class ProductController {
     }
   }
 
-    async featured(req, res) {
+  async featured(req, res) {
     try {
       const limit = parseInt(req.query.limit) || 10;
 
@@ -181,7 +207,7 @@ export class ProductController {
     }
   }
 
-    async search(req, res) {
+  async search(req, res) {
     try {
       const { q, ...filters } = req.query;
 
@@ -207,7 +233,7 @@ export class ProductController {
     }
   }
 
-    async show(req, res) {
+  async show(req, res) {
     try {
       const { slug } = req.params;
       const byIdQuery =
@@ -241,7 +267,30 @@ export class ProductController {
     }
   }
 
-    async showBySlug(req, res) {
+  async adminShow(req, res) {
+    try {
+      const { id } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid product ID" });
+      }
+      const product = await Product.findById(id);
+      if (!product) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Product not found" });
+      }
+      res.json({ success: true, data: product });
+    } catch (error) {
+      console.error("Admin product show error:", error);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to fetch product" });
+    }
+  }
+
+  async showBySlug(req, res) {
     try {
       const { slug } = req.params;
 
@@ -271,7 +320,7 @@ export class ProductController {
     }
   }
 
-    async store(req, res) {
+  async store(req, res) {
     try {
       const {
         title,
@@ -293,9 +342,12 @@ export class ProductController {
         tags = [],
       } = req.body;
 
-            let images = [];
+      let images = [];
       if (req.files && req.files.length > 0) {
-        images = req.files.map((file, index) => ({
+        const productImgFiles = req.files.filter(
+          (f) => f.fieldname === "images",
+        );
+        images = productImgFiles.map((file, index) => ({
           path: `products/${file.filename}`,
           url: `/uploads/products/${file.filename}`,
           isPrimary: index === 0,
@@ -303,7 +355,7 @@ export class ProductController {
         }));
       }
 
-            const parsedSize = Array.isArray(size)
+      const parsedSize = Array.isArray(size)
         ? size
         : size
           ? JSON.parse(size)
@@ -319,14 +371,32 @@ export class ProductController {
           ? JSON.parse(tags)
           : [];
 
-            if (!title) {
+      // Inject per-variant uploaded images into parsedVariants
+      if (req.files && req.files.length > 0) {
+        const variantImgFiles = req.files.filter((f) =>
+          /^variantImages_\d+$/.test(f.fieldname),
+        );
+        variantImgFiles.forEach((file) => {
+          const idx = parseInt(file.fieldname.split("_")[1], 10);
+          if (parsedVariants[idx]) {
+            if (!parsedVariants[idx].images) parsedVariants[idx].images = [];
+            parsedVariants[idx].images.push({
+              path: `products/${file.filename}`,
+              isPrimary: parsedVariants[idx].images.length === 0,
+              sortOrder: parsedVariants[idx].images.length,
+            });
+          }
+        });
+      }
+
+      if (!title) {
         return res.status(400).json({
           success: false,
           message: "Title is required",
         });
       }
 
-            let finalBaseSku = baseSku;
+      let finalBaseSku = baseSku;
       if (hasVariants === true || hasVariants === "true") {
         if (!parsedVariants || parsedVariants.length === 0) {
           return res.status(400).json({
@@ -342,14 +412,16 @@ export class ProductController {
           });
         }
 
-                if (!baseSku) {
+        if (!baseSku) {
           const timestamp = Date.now();
           const randomNum = Math.floor(Math.random() * 1000);
           finalBaseSku = `PRD-${timestamp}-${randomNum}`;
         }
       }
 
-            let categoryInfo = null;
+      const uniqueSlug = await generateUniqueSlug(title);
+
+      let categoryInfo = null;
       let brandInfo = null;
 
       if (categoryId) {
@@ -375,8 +447,9 @@ export class ProductController {
         }
       }
 
-            const product = new Product({
+      const product = new Product({
         title,
+        slug: uniqueSlug,
         summary: summary || title,
         description,
         condition,
@@ -395,8 +468,12 @@ export class ProductController {
           hasVariants === true || hasVariants === "true"
             ? null
             : parseInt(baseStock) || 0,
+        // undefined (not null) so Mongoose omits the field entirely —
+        // sparse unique index only indexes present fields, not absent ones
         baseSku:
-          hasVariants === true || hasVariants === "true" ? null : finalBaseSku,
+          hasVariants === true || hasVariants === "true"
+            ? undefined
+            : finalBaseSku,
         size: parsedSize,
         variants: parsedVariants,
         images,
@@ -421,7 +498,7 @@ export class ProductController {
     } catch (error) {
       console.error("Product store error:", error);
 
-            if (error.name === "ValidationError") {
+      if (error.name === "ValidationError") {
         const errors = Object.keys(error.errors).reduce((acc, key) => {
           acc[key] = error.errors[key].message;
           return acc;
@@ -434,10 +511,12 @@ export class ProductController {
         });
       }
 
-            if (error.code === 11000) {
+      if (error.code === 11000) {
+        const field = Object.keys(error.keyValue || {})[0] || "slug or SKU";
+        const value = error.keyValue?.[field];
         return res.status(409).json({
           success: false,
-          message: "Product with this slug or SKU already exists",
+          message: `Duplicate value for field: ${field}${value ? ` ('${value}')` : ""}`,
         });
       }
 
@@ -449,7 +528,7 @@ export class ProductController {
     }
   }
 
-    async update(req, res) {
+  async update(req, res) {
     try {
       const { id } = req.params;
       const {
@@ -482,9 +561,9 @@ export class ProductController {
         });
       }
 
-            let images = [];
+      let images = [];
 
-            if (existingImages) {
+      if (existingImages) {
         try {
           const parsedExisting =
             typeof existingImages === "string"
@@ -497,17 +576,7 @@ export class ProductController {
         }
       }
 
-            if (req.files && req.files.length > 0) {
-        const newImages = req.files.map((file, index) => ({
-          path: `products/${file.filename}`,
-          url: `/uploads/products/${file.filename}`,
-          isPrimary: images.length === 0 && index === 0,
-          sortOrder: images.length + index,
-        }));
-        images = [...images, ...newImages];
-      }
-
-            const parsedSize = size
+      const parsedSize = size
         ? Array.isArray(size)
           ? size
           : JSON.parse(size)
@@ -523,7 +592,36 @@ export class ProductController {
           : JSON.parse(tags)
         : [];
 
-            let categoryInfo = product.category;
+      if (req.files && req.files.length > 0) {
+        const productImgFiles = req.files.filter(
+          (f) => f.fieldname === "images",
+        );
+        const newImages = productImgFiles.map((file, index) => ({
+          path: `products/${file.filename}`,
+          url: `/uploads/products/${file.filename}`,
+          isPrimary: images.length === 0 && index === 0,
+          sortOrder: images.length + index,
+        }));
+        images = [...images, ...newImages];
+
+        // Per-variant image injection
+        const variantImgFiles = req.files.filter((f) =>
+          /^variantImages_\d+$/.test(f.fieldname),
+        );
+        variantImgFiles.forEach((file) => {
+          const idx = parseInt(file.fieldname.split("_")[1], 10);
+          if (parsedVariants[idx]) {
+            if (!parsedVariants[idx].images) parsedVariants[idx].images = [];
+            parsedVariants[idx].images.push({
+              path: `products/${file.filename}`,
+              isPrimary: parsedVariants[idx].images.length === 0,
+              sortOrder: parsedVariants[idx].images.length,
+            });
+          }
+        });
+      }
+
+      let categoryInfo = product.category;
       let brandInfo = product.brand;
 
       if (categoryId && categoryId !== product.category?.id?.toString()) {
@@ -576,7 +674,7 @@ export class ProductController {
       const parsedBaseStock =
         baseStock !== undefined ? Number.parseInt(baseStock, 10) : undefined;
 
-            product.title = title ?? product.title;
+      product.title = title ?? product.title;
       product.summary = summary ?? title ?? product.summary;
       product.description = description ?? product.description;
       product.condition = condition ?? product.condition;
@@ -594,7 +692,8 @@ export class ProductController {
         product.basePrice = null;
         product.baseDiscount = 0;
         product.baseStock = null;
-        product.baseSku = null;
+        // Do NOT set baseSku here — handled via $unset after save
+        // to avoid sparse unique index collision on null values
       } else {
         if (basePrice !== undefined && Number.isFinite(parsedBasePrice)) {
           product.basePrice = parsedBasePrice;
@@ -625,6 +724,16 @@ export class ProductController {
 
       await product.save();
 
+      // $unset baseSku for variant products — setting to null would conflict
+      // with the sparse unique index on subsequent variant products
+      if (resolvedHasVariants) {
+        await Product.updateOne(
+          { _id: product._id },
+          { $unset: { baseSku: 1 } },
+        );
+        product.baseSku = undefined;
+      }
+
       res.json({
         success: true,
         message: "Product updated successfully",
@@ -654,7 +763,7 @@ export class ProductController {
     }
   }
 
-    async destroy(req, res) {
+  async destroy(req, res) {
     try {
       const { id } = req.params;
 
@@ -682,7 +791,7 @@ export class ProductController {
     }
   }
 
-    async byCategory(req, res) {
+  async byCategory(req, res) {
     try {
       const { categoryId } = req.params;
       const page = parseInt(req.query.page) || 1;
@@ -721,7 +830,7 @@ export class ProductController {
     }
   }
 
-    async byBrand(req, res) {
+  async byBrand(req, res) {
     try {
       const { brandId } = req.params;
       const page = parseInt(req.query.page) || 1;
@@ -760,7 +869,7 @@ export class ProductController {
     }
   }
 
-    async updateStock(req, res) {
+  async updateStock(req, res) {
     try {
       const { id } = req.params;
       const { variantId, quantity } = req.body;
@@ -790,7 +899,7 @@ export class ProductController {
     }
   }
 
-    async lowStock(req, res) {
+  async lowStock(req, res) {
     try {
       const threshold = parseInt(req.query.threshold) || 10;
 
@@ -809,7 +918,7 @@ export class ProductController {
     }
   }
 
-    async related(req, res) {
+  async related(req, res) {
     try {
       const { id } = req.params;
       const limit = Math.min(
@@ -826,7 +935,7 @@ export class ProductController {
         });
       }
 
-            const query = {
+      const query = {
         _id: { $ne: product._id },
         status: "active",
         $or: [],
@@ -840,7 +949,7 @@ export class ProductController {
         query.$or.push({ "brand.id": product.brand.id });
       }
 
-            if (query.$or.length === 0 && product.tags?.length > 0) {
+      if (query.$or.length === 0 && product.tags?.length > 0) {
         query.tags = { $in: product.tags };
         delete query.$or;
       }
@@ -861,6 +970,30 @@ export class ProductController {
         success: false,
         message: "Failed to fetch related products",
       });
+    }
+  }
+
+  // Admin-only: fetch any product by ID regardless of status
+  async adminShow(req, res) {
+    try {
+      const { id } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid product ID" });
+      }
+      const product = await Product.findById(id).lean();
+      if (!product) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Product not found" });
+      }
+      res.json({ success: true, data: product });
+    } catch (error) {
+      console.error("adminShow error:", error);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to fetch product" });
     }
   }
 }

@@ -2,7 +2,32 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import authService from '../services/authService';
 import { API_CONFIG } from '../constants';
-import { formatPrice } from '../utils/productUtils';
+import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
+
+const resolveImageUrl = (raw) => {
+    if (!raw) return '/images/placeholder.webp';
+    if (typeof raw === 'object') raw = raw.path || raw.url || null;
+    if (!raw) return '/images/placeholder.webp';
+    return raw.startsWith('http') ? raw : `${API_CONFIG.BASE_URL}/${raw.replace(/^\//, '')}`;
+};
+
+const getWishlistProductImage = (product) => {
+    const directImages = Array.isArray(product?.images) ? product.images : [];
+    const directPrimary = directImages.find((img) => img?.isPrimary) || directImages[0];
+    if (directPrimary) return directPrimary;
+
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    const activeVariants = variants.filter((variant) => !variant?.status || variant.status === 'active');
+    const sourceVariants = activeVariants.length ? activeVariants : variants;
+
+    for (const variant of sourceVariants) {
+        const variantImages = Array.isArray(variant?.images) ? variant.images : [];
+        const variantPrimary = variantImages.find((img) => img?.isPrimary) || variantImages[0];
+        if (variantPrimary) return variantPrimary;
+    }
+
+    return null;
+};
 
 const WishlistPage = () => {
     const [items, setItems] = useState([]);
@@ -68,8 +93,11 @@ const WishlistPage = () => {
                     {items.map((item) => {
                         const product = item.productId;
                         if (!product) return null;
-                        const imgPath = product.images?.[0]?.path;
-                        const imgUrl = imgPath ? imgPath : '/images/placeholder.webp';
+                        const pricing = getProductDisplayPricing(product);
+                        const imgUrl = resolveImageUrl(getWishlistProductImage(product));
+                        const priceLabel = pricing.isRange
+                            ? `${formatPrice(pricing.minPrice)} - ${formatPrice(pricing.maxPrice)}`
+                            : formatPrice(pricing.finalPrice);
                         return (
                             <div key={item._id} className="store-surface p-4">
                                 <div className="flex items-center gap-4">
@@ -78,7 +106,7 @@ const WishlistPage = () => {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <Link to={`/products/${product.slug || product._id}`} className="font-semibold text-[#1f1f1f] hover:text-[#212191] line-clamp-1 transition">{product.title}</Link>
-                                        <p className="mt-1 text-sm font-bold text-[#4250d5]">{formatPrice(product.basePrice || 0)}</p>
+                                        <p className="mt-1 text-sm font-bold text-[#4250d5]">{priceLabel}</p>
                                         {product.brand?.title && <p className="text-xs text-[#999]">{product.brand.title}</p>}
                                     </div>
                                     <div className="flex flex-shrink-0 items-center gap-2">

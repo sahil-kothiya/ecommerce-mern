@@ -3,7 +3,6 @@ import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
 import cookieParser from "cookie-parser";
-import mongoSanitize from "express-mongo-sanitize";
 import hpp from "hpp";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -11,6 +10,7 @@ import { config } from "./config/index.js";
 import { logger } from "./utils/logger.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
+import { mongoSanitizeMiddleware } from "./middleware/mongoSanitize.js";
 
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
@@ -62,7 +62,7 @@ app.use(
     },
   }),
 );
-app.use(mongoSanitize());
+app.use(mongoSanitizeMiddleware());
 app.use(hpp());
 
 app.use(

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { API_CONFIG } from '../constants';
-import { formatPrice } from '../utils/productUtils';
+import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
 
 const CategoryPage = () => {
     const { slug } = useParams();
@@ -52,16 +52,23 @@ const CategoryPage = () => {
                 <p className="mt-4 text-slate-500">No products available in this category.</p>
             ) : (
                 <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {products.map((product) => (
-                        <Link
-                            key={product._id}
-                            to={`/products/${product.slug || product._id}`}
-                            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-cyan-300 hover:shadow-md"
-                        >
-                            <h2 className="line-clamp-2 text-sm font-semibold text-slate-900">{product.title}</h2>
-                            <p className="mt-2 text-sm text-slate-600">{formatPrice(product.basePrice || 0)}</p>
-                        </Link>
-                    ))}
+                    {products.map((product) => {
+                        const pricing = getProductDisplayPricing(product);
+                        const priceLabel = pricing.isRange
+                            ? `${formatPrice(pricing.minPrice)} - ${formatPrice(pricing.maxPrice)}`
+                            : formatPrice(pricing.finalPrice);
+
+                        return (
+                            <Link
+                                key={product._id}
+                                to={`/products/${product.slug || product._id}`}
+                                className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-cyan-300 hover:shadow-md"
+                            >
+                                <h2 className="line-clamp-2 text-sm font-semibold text-slate-900">{product.title}</h2>
+                                <p className="mt-2 text-sm text-slate-600">{priceLabel}</p>
+                            </Link>
+                        );
+                    })}
                 </div>
             )}
         </div>

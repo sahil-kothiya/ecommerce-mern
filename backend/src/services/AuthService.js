@@ -16,24 +16,24 @@ export class AuthService extends BaseService {
     super(User);
   }
 
-async register(userData) {
+  async register(userData) {
     const { name, email, password, role = "user" } = userData;
 
-        const existingUser = await this.findOne({ email });
+    const existingUser = await this.findOne({ email });
     if (existingUser) {
       throw new AppError("User already exists with this email", 400);
     }
 
-        if (!this.isValidEmail(email)) {
+    if (!this.isValidEmail(email)) {
       throw new AppError("Invalid email format", 400);
     }
 
-        const passwordValidation = this.validatePassword(password);
+    const passwordValidation = this.validatePassword(password);
     if (!passwordValidation.isValid) {
       throw new AppError(passwordValidation.message, 400);
     }
 
-        const user = await this.create({
+    const user = await this.create({
       name,
       email,
       password,
@@ -42,7 +42,7 @@ async register(userData) {
       emailVerified: false,
     });
 
-        const tokens = await this.generateAuthTokens(user, false);
+    const tokens = await this.generateAuthTokens(user, false);
 
     logger.info(`New user registered: ${email}`);
 
@@ -52,23 +52,23 @@ async register(userData) {
     };
   }
 
-async login(email, password, rememberMe = false) {
-        const user = await User.findOne({ email }).select("+password");
+  async login(email, password, rememberMe = false) {
+    const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
       throw new AppError("Invalid email or password", 401);
     }
 
-        if (user.status !== "active") {
+    if (user.status !== "active") {
       throw new AppError("Account is inactive. Please contact support.", 401);
     }
 
-        const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       throw new AppError("Invalid email or password", 401);
     }
 
-        const tokens = await this.generateAuthTokens(user, rememberMe);
+    const tokens = await this.generateAuthTokens(user, rememberMe);
 
     logger.info(
       `User logged in: ${email} ${rememberMe ? "(Remember Me)" : ""}`,
@@ -80,26 +80,50 @@ async login(email, password, rememberMe = false) {
     };
   }
 
-async getProfile(userId) {
+  async getProfile(userId) {
     const user = await this.findByIdOrFail(userId);
     return this.sanitizeUser(user);
   }
 
-async updateProfile(userId, updateData) {
-        const { password, role, status, addresses, ...safeData } = updateData;
+  async updateProfile(userId, updateData) {
+    const {
+      password,
+      role,
+      status,
+      addresses,
+      refreshToken,
+      provider,
+      providerId,
+      ...safeData
+    } = updateData || {};
+
+    if (typeof safeData.name === "string") {
+      safeData.name = safeData.name.trim();
+    }
+
+    if (typeof safeData.email === "string") {
+      safeData.email = safeData.email.trim().toLowerCase();
+      if (!safeData.email) {
+        delete safeData.email;
+      }
+    }
+
+    if (typeof safeData.phone === "string") {
+      safeData.phone = safeData.phone.trim();
+    }
 
     const updatedUser = await this.updateOrFail(userId, safeData);
     return this.sanitizeUser(updatedUser);
   }
 
-async changePassword(userId, currentPassword, newPassword) {
+  async changePassword(userId, currentPassword, newPassword) {
     const user = await User.findById(userId).select("+password");
 
     if (!user) {
       throw new AppError("User not found", 404);
     }
 
-        const isCurrentPasswordValid = await bcrypt.compare(
+    const isCurrentPasswordValid = await bcrypt.compare(
       currentPassword,
       user.password,
     );
@@ -107,12 +131,12 @@ async changePassword(userId, currentPassword, newPassword) {
       throw new AppError("Current password is incorrect", 401);
     }
 
-        const passwordValidation = this.validatePassword(newPassword);
+    const passwordValidation = this.validatePassword(newPassword);
     if (!passwordValidation.isValid) {
       throw new AppError(passwordValidation.message, 400);
     }
 
-        user.password = newPassword;
+    user.password = newPassword;
     await user.save();
 
     logger.info(`Password changed for user: ${user.email}`);
@@ -120,12 +144,12 @@ async changePassword(userId, currentPassword, newPassword) {
     return { message: "Password changed successfully" };
   }
 
-async verifyToken(token) {
+  async verifyToken(token) {
     try {
-            const decoded = jwt.verify(token, config.jwt.secret);
+      const decoded = jwt.verify(token, config.jwt.secret);
       const userId = decoded.userId || decoded.id;
 
-            const user = await this.findById(userId);
+      const user = await this.findById(userId);
 
       if (!user) {
         throw new AppError("User no longer exists", 401);
@@ -147,19 +171,19 @@ async verifyToken(token) {
     }
   }
 
-async generateAuthTokens(user, rememberMe = false) {
-        const accessToken = this.generateAccessToken(user);
+  async generateAuthTokens(user, rememberMe = false) {
+    const accessToken = this.generateAccessToken(user);
 
     const result = {
       accessToken,
       expiresIn: config.jwt.expire,
     };
 
-        if (rememberMe) {
+    if (rememberMe) {
       const refreshToken = this.generateRefreshToken(user);
       const hashedRefreshToken = this.hashRefreshToken(refreshToken);
 
-            await User.findByIdAndUpdate(user._id, {
+      await User.findByIdAndUpdate(user._id, {
         refreshToken: hashedRefreshToken,
         $set: { lastLoginAt: new Date() },
       });
@@ -171,7 +195,7 @@ async generateAuthTokens(user, rememberMe = false) {
     return result;
   }
 
-generateAccessToken(user) {
+  generateAccessToken(user) {
     return jwt.sign(
       {
         userId: user._id,
@@ -184,7 +208,7 @@ generateAccessToken(user) {
     );
   }
 
-generateRefreshToken(user) {
+  generateRefreshToken(user) {
     return jwt.sign(
       {
         userId: user._id,
@@ -200,19 +224,19 @@ generateRefreshToken(user) {
     return crypto.createHash("sha256").update(refreshToken).digest("hex");
   }
 
-async refreshAccessToken(refreshToken) {
+  async refreshAccessToken(refreshToken) {
     if (!refreshToken) {
       throw new AppError("Refresh token is required", 401);
     }
 
     try {
-            const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret);
+      const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret);
 
       if (decoded.type !== "refresh") {
         throw new AppError("Invalid token type", 401);
       }
 
-            const user = await User.findById(decoded.userId).select("+refreshToken");
+      const user = await User.findById(decoded.userId).select("+refreshToken");
 
       if (!user) {
         throw new AppError("User not found", 401);
@@ -222,12 +246,12 @@ async refreshAccessToken(refreshToken) {
         throw new AppError("Account is inactive", 401);
       }
 
-            const hashedRefreshToken = this.hashRefreshToken(refreshToken);
+      const hashedRefreshToken = this.hashRefreshToken(refreshToken);
       if (!user.refreshToken || user.refreshToken !== hashedRefreshToken) {
         throw new AppError("Invalid refresh token", 401);
       }
 
-            const accessToken = this.generateAccessToken(user);
+      const accessToken = this.generateAccessToken(user);
       const rotatedRefreshToken = this.generateRefreshToken(user);
       const rotatedHashedToken = this.hashRefreshToken(rotatedRefreshToken);
 
@@ -256,7 +280,7 @@ async refreshAccessToken(refreshToken) {
     }
   }
 
-async revokeRefreshToken(userId) {
+  async revokeRefreshToken(userId) {
     await User.findByIdAndUpdate(userId, {
       $unset: { refreshToken: 1 },
     });
@@ -569,7 +593,7 @@ async revokeRefreshToken(userId) {
     };
   }
 
-sanitizeUser(user) {
+  sanitizeUser(user) {
     const userObj = user.toObject ? user.toObject() : user;
     const {
       password,
@@ -582,12 +606,12 @@ sanitizeUser(user) {
     return sanitizedUser;
   }
 
-isValidEmail(email) {
+  isValidEmail(email) {
     const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
     return emailRegex.test(email);
   }
 
-validatePassword(password) {
+  validatePassword(password) {
     const length = password?.length || 0;
 
     if (length < 8 || length > 128) {
@@ -600,11 +624,11 @@ validatePassword(password) {
     return { isValid: true };
   }
 
-async findByEmail(email) {
+  async findByEmail(email) {
     return await this.findOne({ email });
   }
 
-async isAdmin(userId) {
+  async isAdmin(userId) {
     const user = await this.findById(userId, { select: "role" });
     return user?.role === "admin";
   }

@@ -36,6 +36,8 @@ class AuthService {
       );
 
       const user = response?.data?.user ?? response?.user;
+      const token = response?.data?.accessToken ?? response?.accessToken;
+      if (token) localStorage.setItem("auth_token", token);
 
       this.setUser(user);
       this._emitAuthEvent("auth:login", { user });
@@ -73,6 +75,8 @@ class AuthService {
       );
 
       const user = response?.data?.user ?? response?.user;
+      const token = response?.data?.accessToken ?? response?.accessToken;
+      if (token) localStorage.setItem("auth_token", token);
 
       this.setUser(user);
       this._emitAuthEvent("auth:login", { user });

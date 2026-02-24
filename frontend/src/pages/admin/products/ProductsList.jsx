@@ -11,7 +11,7 @@ const ProductsList = () => {
     const [isFetching, setIsFetching] = useState(false);
     const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0, hasPrev: false, hasNext: false });
     const [searchTerm, setSearchTerm] = useState('');
-    const [filters, setFilters] = useState({ category: '', status: 'active' });
+    const [filters, setFilters] = useState({ category: '', status: '' });
     const [productToDelete, setProductToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const requestCounterRef = useRef(0);
@@ -43,6 +43,28 @@ const ProductsList = () => {
         if (path.startsWith('uploads/')) return `${API_CONFIG.BASE_URL}/${path}`;
         const normalized = path.startsWith('/') ? path.slice(1) : path;
         return `${API_CONFIG.BASE_URL}/uploads/${normalized}`;
+    };
+
+    const getPrimaryProductImage = (product) => {
+        if (!product) return null;
+
+        const directImages = Array.isArray(product.images) ? product.images : [];
+        const directPrimary = directImages.find((img) => img?.isPrimary) || directImages[0];
+        if (directPrimary) return directPrimary;
+
+        const variants = Array.isArray(product.variants) ? product.variants : [];
+        const activeVariants = variants.filter((variant) => !variant?.status || variant.status === 'active');
+        const sourceVariants = activeVariants.length ? activeVariants : variants;
+
+        for (const variant of sourceVariants) {
+            const variantImages = Array.isArray(variant?.images) ? variant.images : [];
+            const variantPrimary = variantImages.find((img) => img?.isPrimary) || variantImages[0];
+            if (variantPrimary) {
+                return variantPrimary;
+            }
+        }
+
+        return null;
     };
 
     const loadProducts = async (overrides = {}, options = {}) => {
@@ -98,8 +120,12 @@ const ProductsList = () => {
         if (!productToDelete?._id) return;
         try {
             setIsDeleting(true);
+            const authToken = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/${productToDelete._id}`, {
                 method: 'DELETE',
+                credentials: 'include',
+                headers,
             });
 
             if (response.ok) {
@@ -232,9 +258,9 @@ const ProductsList = () => {
                         type="button"
                         onClick={() => {
                             setSearchTerm('');
-                            setFilters((prev) => ({ ...prev, category: '', status: 'active' }));
+                            setFilters({ category: '', status: '' });
                             setPagination((prev) => ({ ...prev, page: 1 }));
-                            loadProducts({ page: 1, search: '', status: 'active', category: '' }, { background: true });
+                            loadProducts({ page: 1, search: '', status: '', category: '' }, { background: true });
                         }}
                         className="rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white transition-colors hover:bg-slate-700"
                     >
@@ -267,10 +293,30 @@ const ProductsList = () => {
             ) : (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                     {products.map((product) => {
-                        const primaryImage = Array.isArray(product.images)
-                            ? product.images.find((img) => img?.isPrimary) || product.images[0]
-                            : null;
-                        const finalPrice = Number(product.basePrice || 0) - (Number(product.basePrice || 0) * Number(product.baseDiscount || 0) / 100);
+                        const primaryImage = getPrimaryProductImage(product);
+                        const isVariant = product.hasVariants;
+                        const finalPrice = isVariant
+                            ? null
+                            : Number(product.basePrice || 0) - (Number(product.basePrice || 0) * Number(product.baseDiscount || 0) / 100);
+
+                        const variantPrices = (Array.isArray(product.variants) ? product.variants : [])
+                            .filter((variant) => !variant?.status || variant.status === 'active')
+                            .map((variant) => {
+                                const price = Number(variant?.price || 0);
+                                const discount = Number(variant?.discount || 0);
+                                if (price <= 0) return null;
+                                return price - (price * discount / 100);
+                            })
+                            .filter((price) => Number.isFinite(price) && price > 0);
+
+                        const minVariantPrice = variantPrices.length ? Math.min(...variantPrices) : null;
+                        const maxVariantPrice = variantPrices.length ? Math.max(...variantPrices) : null;
+
+                        const variantPriceLabel = minVariantPrice === null
+                            ? 'Varies'
+                            : minVariantPrice === maxVariantPrice
+                              ? `$${minVariantPrice.toFixed(2)}`
+                              : `$${minVariantPrice.toFixed(2)} - $${maxVariantPrice.toFixed(2)}`;
 
                         return (
                             <div
@@ -320,7 +366,11 @@ const ProductsList = () => {
                                     <div className="flex items-end justify-between">
                                         <div>
                                             <p className="text-xs uppercase tracking-wider text-slate-500">Price</p>
-                                            <p className="text-lg font-black text-slate-900">${Number(finalPrice || 0).toFixed(2)}</p>
+                                            {isVariant ? (
+                                                <p className="text-lg font-black text-indigo-600">{variantPriceLabel}</p>
+                                            ) : (
+                                                <p className="text-lg font-black text-slate-900">${Number(finalPrice || 0).toFixed(2)}</p>
+                                            )}
                                         </div>
                                         {Number(product.baseDiscount) > 0 ? (
                                             <span className="rounded-full border border-emerald-200 bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">

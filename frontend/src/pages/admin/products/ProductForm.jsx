@@ -4,6 +4,61 @@ import { API_CONFIG } from '../../../constants';
 import { toast } from 'react-hot-toast';
 import { applyServerFieldErrors, clearFieldError, getFieldBorderClass, hasValidationErrors } from '../../../utils/formValidation';
 
+const cartesian = (arrays) => {
+    if (arrays.length === 0) return [[]];
+    const [first, ...rest] = arrays;
+    const restCombos = cartesian(rest);
+    return first.flatMap(item => restCombos.map(combo => [item, ...combo]));
+};
+
+const getOptionsKey = (options = []) => {
+    const parts = options
+        .map((option) => {
+            const typeId = String(option?.typeId || option?.type?._id || option?.type?.id || '').trim();
+            const optionId = String(option?.optionId || option?._id || option?.id || '').trim();
+            if (!typeId || !optionId) return null;
+            return `${typeId}:${optionId}`;
+        })
+        .filter(Boolean)
+        .sort();
+
+    return parts.length ? parts.join('|') : '';
+};
+
+const getComboKey = (combo = []) => {
+    const parts = combo
+        .map((entry) => {
+            const typeId = String(entry?.type?._id || '').trim();
+            const optionId = String(entry?.option?._id || '').trim();
+            if (!typeId || !optionId) return null;
+            return `${typeId}:${optionId}`;
+        })
+        .filter(Boolean)
+        .sort();
+
+    return parts.length ? parts.join('|') : '';
+};
+
+const buildVariantFromCombo = (combo = []) => ({
+    _tempId: `tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    sku: combo.map(c => c.option.value.toUpperCase()).join('-'),
+    displayName: combo.map(c => c.option.displayValue).join(' / '),
+    price: '',
+    discount: 0,
+    stock: 0,
+    status: 'active',
+    options: combo.map(c => ({
+        typeId: c.type._id,
+        typeName: c.type.name,
+        typeDisplayName: c.type.displayName,
+        optionId: c.option._id,
+        value: c.option.value,
+        displayValue: c.option.displayValue,
+        hexColor: c.option.hexColor || null,
+    })),
+    images: [],
+});
+
 const ProductForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -31,12 +86,20 @@ const ProductForm = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [errors, setErrors] = useState({});
 
+    // ── Variant state
+    const [hasVariants, setHasVariants] = useState(false);
+    const [availableVariantTypes, setAvailableVariantTypes] = useState([]);
+    const [variantOptions, setVariantOptions] = useState({});
+    const [selectedOptionIds, setSelectedOptionIds] = useState({});
+    const [generatedVariants, setGeneratedVariants] = useState([]);
+    const [variantImages, setVariantImages] = useState({});
+
     useEffect(() => {
         loadSelectOptions();
+        loadVariantTypes();
         if (isEdit) {
             loadProduct();
         }
-         
     }, [id]);
 
     const getImageUrl = (img) => {
@@ -54,14 +117,14 @@ const ProductForm = () => {
         try {
             const [categoriesRes, brandsRes] = await Promise.all([
                 fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`),
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}`),
+                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}?limit=200&status=active`),
             ]);
 
             const categoriesData = await categoriesRes.json();
             const brandsData = await brandsRes.json();
 
-            const categoriesList = Array.isArray(categoriesData?.data) ? categoriesData.data : categoriesData?.data?.categories || [];
-            const brandsList = Array.isArray(brandsData?.data) ? brandsData.data : brandsData?.data?.brands || [];
+            const categoriesList = Array.isArray(categoriesData?.data) ? categoriesData.data : categoriesData?.data?.categories || categoriesData?.data?.items || [];
+            const brandsList = Array.isArray(brandsData?.data) ? brandsData.data : brandsData?.data?.items || brandsData?.data?.brands || [];
 
             const categoriesWithHierarchy = categoriesList.map((cat) => {
                 let displayName = cat.title;
@@ -82,10 +145,41 @@ const ProductForm = () => {
         }
     };
 
+    const loadVariantTypes = async () => {
+        try {
+            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}/active`, { credentials: 'include' });
+            const data = await res.json();
+            if (data.success) {
+                const types = Array.isArray(data.data) ? data.data : [];
+                setAvailableVariantTypes(types);
+                types.forEach(t => {
+                    fetch(
+                        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_OPTIONS}?variantTypeId=${t._id}&status=active&limit=100`,
+                        { credentials: 'include' }
+                    )
+                        .then(r => r.json())
+                        .then(d => {
+                            if (d.success) {
+                                setVariantOptions(prev => ({ ...prev, [t._id]: Array.isArray(d.data?.items) ? d.data.items : [] }));
+                            }
+                        })
+                        .catch(() => {});
+                });
+            }
+        } catch (err) {
+            console.error('Error loading variant types:', err);
+        }
+    };
+
     const loadProduct = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/${id}`);
+            // Use admin endpoint so draft/inactive products can be edited
+            const authToken = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            const response = await fetch(
+                `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/admin/${id}`,
+                { credentials: 'include', headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} }
+            );
             const data = await response.json();
 
             if (data.success) {
@@ -105,12 +199,174 @@ const ProductForm = () => {
                 if (product.images && Array.isArray(product.images)) {
                     setExistingImages(product.images);
                 }
+
+                if (product.hasVariants && product.variants?.length) {
+                    setHasVariants(true);
+                    setGeneratedVariants(product.variants.map(v => ({ ...v, _tempId: v._id || String(Math.random()) })));
+
+                    const selectedByType = product.variants.reduce((acc, variant) => {
+                        const options = Array.isArray(variant?.options) ? variant.options : [];
+
+                        options.forEach((option) => {
+                            const typeId = String(option?.typeId || option?.type?._id || option?.type?.id || '').trim();
+                            const optionId = String(option?.optionId || option?._id || option?.id || '').trim();
+
+                            if (!typeId || !optionId) {
+                                return;
+                            }
+
+                            if (!acc[typeId]) {
+                                acc[typeId] = new Set();
+                            }
+
+                            acc[typeId].add(optionId);
+                        });
+
+                        return acc;
+                    }, {});
+
+                    setSelectedOptionIds(selectedByType);
+                } else {
+                    setHasVariants(false);
+                    setGeneratedVariants([]);
+                    setSelectedOptionIds({});
+                }
             }
         } catch (error) {
             console.error('Error loading product:', error);
             toast.error('Failed to load product');
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    // ── Variant handlers
+    const handleHasVariantsToggle = (enabled) => {
+        setHasVariants(enabled);
+        if (!enabled) { setGeneratedVariants([]); setVariantImages({}); setSelectedOptionIds({}); }
+    };
+
+    const handleOptionToggle = (typeId, optionId) => {
+        setSelectedOptionIds(prev => {
+            const current = new Set(prev[typeId] || []);
+            current.has(optionId) ? current.delete(optionId) : current.add(optionId);
+            return { ...prev, [typeId]: current };
+        });
+    };
+
+    const generateCombinations = () => {
+        const activeTypes = availableVariantTypes.filter(t => selectedOptionIds[t._id]?.size > 0);
+        if (!activeTypes.length) { toast.error('Select at least one option from a variant type'); return; }
+        const typeOptionSets = activeTypes.map(type =>
+            (variantOptions[type._id] || [])
+                .filter(o => selectedOptionIds[type._id].has(o._id))
+                .map(o => ({ type, option: o }))
+        );
+        const combos = cartesian(typeOptionSets);
+
+        const comboByKey = new Map();
+        combos.forEach((combo) => {
+            const key = getComboKey(combo);
+            if (key && !comboByKey.has(key)) {
+                comboByKey.set(key, combo);
+            }
+        });
+
+        setGeneratedVariants((prev) => {
+            const existingByKey = new Map();
+            prev.forEach((variant) => {
+                const key = getOptionsKey(variant.options || []);
+                if (key && !existingByKey.has(key)) {
+                    existingByKey.set(key, variant);
+                }
+            });
+
+            return Array.from(comboByKey.entries()).map(([key, combo]) => {
+                const existingVariant = existingByKey.get(key);
+                if (existingVariant) {
+                    return {
+                        ...existingVariant,
+                        options: existingVariant.options?.length ? existingVariant.options : buildVariantFromCombo(combo).options,
+                        _tempId: existingVariant._tempId || existingVariant._id || `tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                    };
+                }
+
+                return buildVariantFromCombo(combo);
+            });
+        });
+
+        setVariantImages({});
+        toast.success('Variants generated!');
+    };
+
+    const updateVariantField = (index, field, value) => {
+        setGeneratedVariants(prev => prev.map((v, i) => i === index ? { ...v, [field]: value } : v));
+    };
+
+    const removeVariant = (index) => {
+        setGeneratedVariants(prev => prev.filter((_, i) => i !== index));
+        setVariantImages(prev => {
+            const next = {};
+            Object.entries(prev).forEach(([k, v]) => {
+                const ki = parseInt(k);
+                if (ki !== index) next[ki > index ? ki - 1 : ki] = v;
+            });
+            return next;
+        });
+    };
+
+    const addEmptyVariant = () => {
+        setGeneratedVariants(prev => [...prev, {
+            _tempId: `tmp_${Date.now()}`,
+            sku: '', displayName: '', price: '', discount: 0, stock: 0,
+            status: 'active', options: [], images: [],
+        }]);
+    };
+
+    const handleVariantImageChange = (e, vi) => {
+        const files = Array.from(e.target.files);
+        // Reset input so the same file can be re-selected
+        e.target.value = '';
+        const valid = files.filter(f => {
+            if (!f.type.startsWith('image/')) { toast.error(`${f.name} not an image`); return false; }
+            if (f.size > 5 * 1024 * 1024) { toast.error(`${f.name} exceeds 5MB`); return false; }
+            return true;
+        });
+        if (!valid.length) return;
+        // Read all previews first, then do a single state update to avoid async stale-prev issues
+        Promise.all(
+            valid.map(file => new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve({ file, preview: reader.result });
+                reader.readAsDataURL(file);
+            }))
+        ).then(results => {
+            setVariantImages(prev => {
+                const cur = prev[vi] || { files: [], previews: [] };
+                return {
+                    ...prev,
+                    [vi]: {
+                        files: [...cur.files, ...results.map(r => r.file)],
+                        previews: [...cur.previews, ...results.map(r => r.preview)],
+                    },
+                };
+            });
+        });
+    };
+
+    const removeVariantImage = (vi, ii, isExisting) => {
+        if (isExisting) {
+            setGeneratedVariants(prev =>
+                prev.map((v, i) => i === vi ? { ...v, images: v.images.filter((_, idx) => idx !== ii) } : v)
+            );
+        } else {
+            setVariantImages(prev => {
+                const cur = prev[vi] || { files: [], previews: [] };
+                return {
+                    ...prev,
+                    [vi]: { files: cur.files.filter((_, idx) => idx !== ii), previews: cur.previews.filter((_, idx) => idx !== ii) },
+                };
+            });
         }
     };
 
@@ -175,11 +431,43 @@ const ProductForm = () => {
         const nextErrors = {};
 
         if (!formData.title.trim()) nextErrors.title = 'Title is required';
-        if (!String(formData.basePrice).trim()) nextErrors.basePrice = 'Base price is required';
-        else if (Number(formData.basePrice) <= 0) nextErrors.basePrice = 'Base price must be greater than 0';
         if (!formData.categoryId) nextErrors.categoryId = 'Category is required';
         if (!formData.brandId) nextErrors.brandId = 'Brand is required';
-        if (!isEdit && images.length + existingImages.length === 0) nextErrors.images = 'At least one image is required';
+
+        if (!hasVariants) {
+            if (!String(formData.basePrice).trim()) nextErrors.basePrice = 'Base price is required';
+            else if (Number(formData.basePrice) <= 0) nextErrors.basePrice = 'Base price must be greater than 0';
+            // Images required only for non-variant products
+            if (!isEdit && images.length + existingImages.length === 0) nextErrors.images = 'At least one image is required';
+        } else {
+            if (!generatedVariants.length) nextErrors.variants = 'Add at least one variant';
+            else if (generatedVariants.some(v => !v.sku?.trim())) nextErrors.variants = 'All variants need a SKU';
+            else if (generatedVariants.some(v => !v.price || parseFloat(v.price) <= 0)) nextErrors.variants = 'All variants need a valid price (greater than 0)';
+            else {
+                const seenOptionKeys = new Set();
+                const seenSkus = new Set();
+
+                for (const variant of generatedVariants) {
+                    const sku = String(variant?.sku || '').trim().toUpperCase();
+                    if (sku) {
+                        if (seenSkus.has(sku)) {
+                            nextErrors.variants = 'Duplicate SKU found. Each variant SKU must be unique';
+                            break;
+                        }
+                        seenSkus.add(sku);
+                    }
+
+                    const optionKey = getOptionsKey(variant?.options || []);
+                    if (optionKey) {
+                        if (seenOptionKeys.has(optionKey)) {
+                            nextErrors.variants = 'Duplicate variant combination found. Keep only one row per option combination';
+                            break;
+                        }
+                        seenOptionKeys.add(optionKey);
+                    }
+                }
+            }
+        }
 
         setErrors(nextErrors);
         return Object.keys(nextErrors).length === 0;
@@ -201,6 +489,8 @@ const ProductForm = () => {
                 formDataToSend.append(key, formData[key]);
             });
 
+            formDataToSend.append('hasVariants', hasVariants);
+
             images.forEach((image) => {
                 formDataToSend.append('images', image);
             });
@@ -209,13 +499,36 @@ const ProductForm = () => {
                 formDataToSend.append('existingImages', JSON.stringify(existingImages));
             }
 
+            if (hasVariants) {
+                const variantsPayload = generatedVariants.map(v => ({
+                    ...(v._id ? { _id: v._id } : {}),
+                    sku: v.sku,
+                    displayName: v.displayName,
+                    price: parseFloat(v.price) || 0,
+                    discount: parseFloat(v.discount) || 0,
+                    stock: parseInt(v.stock) || 0,
+                    status: v.status,
+                    options: v.options || [],
+                    images: v.images || [],
+                }));
+                formDataToSend.append('variants', JSON.stringify(variantsPayload));
+                Object.entries(variantImages).forEach(([idx, data]) => {
+                    (data.files || []).forEach(file => formDataToSend.append(`variantImages_${idx}`, file));
+                });
+            }
+
             const url = isEdit
                 ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/${id}`
                 : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}`;
 
+            const authToken = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            const authHeaders = {};
+            if (authToken) authHeaders['Authorization'] = `Bearer ${authToken}`;
+
             const response = await fetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
                 credentials: 'include',
+                headers: authHeaders,
                 body: formDataToSend,
             });
 
@@ -252,7 +565,33 @@ const ProductForm = () => {
         );
     }
 
-    const totalImages = existingImages.length + imagePreviews.length;
+    const baseProductImageCount = existingImages.length + imagePreviews.length;
+    const existingVariantImageCount = generatedVariants.reduce(
+        (sum, variant) => sum + (Array.isArray(variant?.images) ? variant.images.length : 0),
+        0,
+    );
+    const newVariantImageCount = Object.values(variantImages).reduce(
+        (sum, item) => sum + (Array.isArray(item?.files) ? item.files.length : 0),
+        0,
+    );
+    const totalImages = hasVariants
+        ? existingVariantImageCount + newVariantImageCount
+        : baseProductImageCount;
+
+    const variantPrices = generatedVariants
+        .map((variant) => Number.parseFloat(variant?.price))
+        .filter((price) => Number.isFinite(price) && price > 0);
+    const minVariantPrice = variantPrices.length ? Math.min(...variantPrices) : null;
+    const maxVariantPrice = variantPrices.length ? Math.max(...variantPrices) : null;
+
+    const priceDisplay = hasVariants
+        ? (variantPrices.length
+            ? (minVariantPrice === maxVariantPrice
+                ? `$${minVariantPrice.toFixed(2)}`
+                : `$${minVariantPrice.toFixed(2)} - $${maxVariantPrice.toFixed(2)}`)
+            : 'Not Set')
+        : (formData.basePrice ? `$${formData.basePrice}` : 'Not Set');
+
     const productStatus = formData.status || 'draft';
 
     return (
@@ -296,7 +635,7 @@ const ProductForm = () => {
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
                     <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Price</p>
-                    <p className="mt-1 text-lg font-black text-slate-900">{formData.basePrice ? `$${formData.basePrice}` : 'Not Set'}</p>
+                    <p className="mt-1 text-lg font-black text-slate-900">{priceDisplay}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
                     <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Featured</p>
@@ -342,39 +681,42 @@ const ProductForm = () => {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <div>
-                                    <label className="mb-2 block text-sm font-semibold text-slate-700">Base Price *</label>
-                                    <input
-                                        type="number"
-                                        name="basePrice"
-                                        value={formData.basePrice}
-                                        onChange={handleChange}
-                                        step="0.01"
-                                        min="0"
-                                        className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${getFieldBorderClass(errors, 'basePrice')}`}
-                                        placeholder="0.00"
-                                    />
-                                    {errors.basePrice && <p className="mt-1 text-sm text-red-600">{errors.basePrice}</p>}
-                                </div>
+                            {!hasVariants && (
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div>
+                                        <label className="mb-2 block text-sm font-semibold text-slate-700">Base Price *</label>
+                                        <input
+                                            type="number"
+                                            name="basePrice"
+                                            value={formData.basePrice}
+                                            onChange={handleChange}
+                                            step="0.01"
+                                            min="0"
+                                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${getFieldBorderClass(errors, 'basePrice')}`}
+                                            placeholder="0.00"
+                                        />
+                                        {errors.basePrice && <p className="mt-1 text-sm text-red-600">{errors.basePrice}</p>}
+                                    </div>
 
-                                <div>
-                                    <label className="mb-2 block text-sm font-semibold text-slate-700">Discount (%)</label>
-                                    <input
-                                        type="number"
-                                        name="baseDiscount"
-                                        value={formData.baseDiscount}
-                                        onChange={handleChange}
-                                        step="0.01"
-                                        min="0"
-                                        max="100"
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
-                                        placeholder="0"
-                                    />
+                                    <div>
+                                        <label className="mb-2 block text-sm font-semibold text-slate-700">Discount (%)</label>
+                                        <input
+                                            type="number"
+                                            name="baseDiscount"
+                                            value={formData.baseDiscount}
+                                            onChange={handleChange}
+                                            step="0.01"
+                                            min="0"
+                                            max="100"
+                                            className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                                            placeholder="0"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
 
+                        {!hasVariants && (
                         <div className="space-y-6 rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all hover:shadow-[0_20px_40px_rgba(15,23,42,0.12)] sm:p-7">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-xl font-black text-slate-900">Classification</h2>
@@ -464,9 +806,73 @@ const ProductForm = () => {
                                 </label>
                             </div>
                         </div>
+                        )}
                     </div>
 
                     <div className="order-2 space-y-6 lg:order-2">
+                        {hasVariants && (
+                        <div className="space-y-6 rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all hover:shadow-[0_20px_40px_rgba(15,23,42,0.12)] sm:p-7">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-xl font-black text-slate-900">Classification</h2>
+                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200 bg-gradient-to-br from-indigo-100 to-sky-100 text-indigo-700">
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
+                                    </svg>
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div>
+                                    <label className="mb-2 block text-sm font-semibold text-slate-700">Category</label>
+                                    <select name="categoryId" value={formData.categoryId} onChange={handleChange}
+                                        className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${getFieldBorderClass(errors, 'categoryId')}`}>
+                                        <option value="">Select Category</option>
+                                        {categories.map((cat) => (
+                                            <option key={cat._id} value={cat._id}>{cat.displayName || cat.title}</option>
+                                        ))}
+                                    </select>
+                                    {errors.categoryId && <p className="mt-1 text-sm text-red-600">{errors.categoryId}</p>}
+                                </div>
+                                <div>
+                                    <label className="mb-2 block text-sm font-semibold text-slate-700">Brand</label>
+                                    <select name="brandId" value={formData.brandId} onChange={handleChange}
+                                        className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${getFieldBorderClass(errors, 'brandId')}`}>
+                                        <option value="">Select Brand</option>
+                                        {brands.map((brand) => (
+                                            <option key={brand._id} value={brand._id}>{brand.title}</option>
+                                        ))}
+                                    </select>
+                                    {errors.brandId && <p className="mt-1 text-sm text-red-600">{errors.brandId}</p>}
+                                </div>
+                                <div>
+                                    <label className="mb-2 block text-sm font-semibold text-slate-700">Condition</label>
+                                    <select name="condition" value={formData.condition} onChange={handleChange}
+                                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200">
+                                        <option value="new">New</option>
+                                        <option value="hot">Hot</option>
+                                        <option value="default">Default</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="mb-2 block text-sm font-semibold text-slate-700">Status</label>
+                                    <select name="status" value={formData.status} onChange={handleChange}
+                                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200">
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                        <option value="draft">Draft</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                <label className="flex cursor-pointer items-center gap-3">
+                                    <input type="checkbox" name="isFeatured" checked={formData.isFeatured} onChange={handleChange}
+                                        className="h-5 w-5 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500" />
+                                    <span className="text-sm font-semibold text-slate-700">Mark as Featured Product</span>
+                                </label>
+                            </div>
+                        </div>
+                        )}
+
+                        {!hasVariants && (
                         <div className="media-card">
                             <div className="mb-4 flex items-center justify-between">
                                 <h2 className="text-xl font-black text-slate-900">Product Images</h2>
@@ -534,7 +940,221 @@ const ProductForm = () => {
                                 </div>
                             )}
                         </div>
+                        )}
                     </div>
+                </div>
+
+                {/* ── Product Variants Section ── */}
+                <div className="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all hover:shadow-[0_20px_40px_rgba(15,23,42,0.12)] sm:p-7">
+                    <div className="mb-5 flex items-center justify-between">
+                        <h2 className="text-xl font-black text-slate-900">Product Variants</h2>
+                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200 bg-gradient-to-br from-indigo-100 to-purple-100 text-indigo-700">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                            </svg>
+                        </span>
+                    </div>
+
+                    <div className="mb-5 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <input
+                            type="checkbox"
+                            id="hasVariants"
+                            checked={hasVariants}
+                            onChange={e => handleHasVariantsToggle(e.target.checked)}
+                            className="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                        <label htmlFor="hasVariants" className="text-sm font-semibold text-slate-700 cursor-pointer select-none">
+                            Enable Variants <span className="font-normal text-slate-400">(e.g., Colors, Sizes)</span>
+                        </label>
+                    </div>
+
+                    {hasVariants && (
+                        <div className="space-y-6">
+                            {/* Type & Options Builder */}
+                            <div>
+                                <div className="mb-3 flex items-center justify-between">
+                                    <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">Select Variant Types &amp; Options</h3>
+                                </div>
+                                {availableVariantTypes.length === 0 ? (
+                                    <div className="rounded-xl border border-dashed border-slate-300 py-6 text-center text-sm text-slate-400">
+                                        No variant types found.{' '}
+                                        <a href="/admin/variants/types" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">Create variant types first</a>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                        {availableVariantTypes.map(type => (
+                                            <div key={type._id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                                                <div className="border-b border-slate-200 bg-slate-50 px-4 py-2.5">
+                                                    <span className="text-sm font-semibold text-slate-800">{type.displayName}</span>
+                                                </div>
+                                                <div className="min-h-[48px] px-4 py-3">
+                                                    {variantOptions[type._id] === undefined ? (
+                                                        <p className="animate-pulse text-sm text-slate-400">Loading options...</p>
+                                                    ) : (variantOptions[type._id] || []).length === 0 ? (
+                                                        <p className="text-xs text-slate-400">
+                                                            No options.{' '}
+                                                            <a href="/admin/variants/options" target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline">Add options</a>
+                                                        </p>
+                                                    ) : (
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {(variantOptions[type._id] || []).map(opt => {
+                                                                const isSelected = selectedOptionIds[type._id]?.has(opt._id);
+                                                                return (
+                                                                    <label key={opt._id}
+                                                                        className={`flex cursor-pointer select-none items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all ${
+                                                                            isSelected ? 'border-indigo-500 bg-indigo-600 text-white' : 'border-slate-300 bg-white text-slate-600 hover:border-indigo-400'
+                                                                        }`}>
+                                                                        <input type="checkbox" checked={!!isSelected} onChange={() => handleOptionToggle(type._id, opt._id)} className="hidden" />
+                                                                        {opt.hexColor && (
+                                                                            <span className="inline-block h-3 w-3 flex-shrink-0 rounded-full border border-white/50" style={{ background: opt.hexColor }} />
+                                                                        )}
+                                                                        {opt.displayValue}
+                                                                        {isSelected && <span className="ml-0.5 text-[10px] leading-none text-white/80">×</span>}
+                                                                    </label>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Generated Variants Table */}
+                            <div>
+                                <div className="mb-3 flex items-center justify-between">
+                                    <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
+                                        Generated Variants
+                                        {generatedVariants.length > 0 && (
+                                            <span className="ml-2 text-xs font-normal normal-case text-slate-400">({generatedVariants.length})</span>
+                                        )}
+                                    </h3>
+                                    <div className="flex gap-2">
+                                        {generatedVariants.length > 0 && (
+                                            <button type="button" onClick={addEmptyVariant}
+                                                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                                                + Add Row
+                                            </button>
+                                        )}
+                                        <button type="button" onClick={generateCombinations}
+                                            className="rounded-lg bg-teal-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-teal-700 transition-colors">
+                                            Generate Variants
+                                        </button>
+                                    </div>
+                                </div>
+                                {errors.variants && <p className="mb-3 text-sm text-red-600">{errors.variants}</p>}
+
+                                {generatedVariants.length === 0 ? (
+                                    <div className="rounded-xl border border-dashed border-slate-300 py-8 text-center text-sm text-slate-400">
+                                        Select types &amp; options above, then click <strong>Generate Variants</strong>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="hidden rounded-t-xl border border-b-0 border-slate-200 bg-slate-100 px-4 py-2 md:grid md:grid-cols-[2fr_1.5fr_1fr_1fr_1fr_2fr_auto] md:gap-3">
+                                            {['Variant Name', 'SKU *', 'Price (NRS) *', 'Discount (%)', 'Stock *', 'Images *', 'Action'].map(h => (
+                                                <span key={h} className="text-xs font-semibold uppercase tracking-wide text-slate-600">{h}</span>
+                                            ))}
+                                        </div>
+                                        <div className="divide-y divide-slate-200 overflow-hidden rounded-b-xl border border-slate-200">
+                                            {generatedVariants.map((variant, vi) => (
+                                                <div key={variant._tempId || vi} className="bg-white p-4 transition-colors hover:bg-slate-50/50 md:grid md:grid-cols-[2fr_1.5fr_1fr_1fr_1fr_2fr_auto] md:gap-3">
+                                                    {/* Variant Name */}
+                                                    <div className="mb-2 flex flex-wrap items-center gap-1 md:mb-0">
+                                                        {variant.options?.length > 0 ? (
+                                                            variant.options.map((opt, oi) => (
+                                                                <span key={oi} className="flex items-center gap-1 text-xs font-semibold text-indigo-700">
+                                                                    {opt.hexColor && (
+                                                                        <span className="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full border border-slate-300" style={{ background: opt.hexColor }} />
+                                                                    )}
+                                                                    {opt.typeDisplayName}: {opt.displayValue}
+                                                                    {oi < variant.options.length - 1 && <span className="mx-0.5 font-normal text-slate-300">/</span>}
+                                                                </span>
+                                                            ))
+                                                        ) : (
+                                                            <input type="text" value={variant.displayName}
+                                                                onChange={e => updateVariantField(vi, 'displayName', e.target.value)}
+                                                                placeholder="Variant name"
+                                                                className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400" />
+                                                        )}
+                                                    </div>
+                                                    {/* SKU */}
+                                                    <div className="mb-2 md:mb-0">
+                                                        <label className="mb-1 block text-xs font-semibold text-slate-500 md:hidden">SKU *</label>
+                                                        <input type="text" value={variant.sku}
+                                                            onChange={e => updateVariantField(vi, 'sku', e.target.value.toUpperCase())}
+                                                            className="w-full rounded border border-slate-300 px-2 py-1.5 font-mono text-xs uppercase focus:ring-1 focus:ring-indigo-400" />
+                                                    </div>
+                                                    {/* Price */}
+                                                    <div className="mb-2 md:mb-0">
+                                                        <label className="mb-1 block text-xs font-semibold text-slate-500 md:hidden">Price (NRS) *</label>
+                                                        <input type="number" step="0.01" min="0" value={variant.price}
+                                                            onChange={e => updateVariantField(vi, 'price', e.target.value)}
+                                                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400" />
+                                                    </div>
+                                                    {/* Discount */}
+                                                    <div className="mb-2 md:mb-0">
+                                                        <label className="mb-1 block text-xs font-semibold text-slate-500 md:hidden">Discount (%)</label>
+                                                        <input type="number" step="0.01" min="0" max="100" value={variant.discount}
+                                                            onChange={e => updateVariantField(vi, 'discount', e.target.value)}
+                                                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400" />
+                                                    </div>
+                                                    {/* Stock */}
+                                                    <div className="mb-2 md:mb-0">
+                                                        <label className="mb-1 block text-xs font-semibold text-slate-500 md:hidden">Stock *</label>
+                                                        <input type="number" min="0" value={variant.stock}
+                                                            onChange={e => updateVariantField(vi, 'stock', e.target.value)}
+                                                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400" />
+                                                    </div>
+                                                    {/* Images */}
+                                                    <div className="mb-2 md:mb-0">
+                                                        <label className="mb-1 block text-xs font-semibold text-slate-500 md:hidden">Images *</label>
+                                                        <div className="flex flex-wrap items-center gap-1.5">
+                                                            {(variant.images || []).map((img, ii) => (
+                                                                <div key={ii} className="group relative h-12 w-12 flex-shrink-0 overflow-hidden rounded border border-slate-200 bg-slate-100">
+                                                                    <img src={typeof img === 'string' ? img : (img.path?.startsWith('http') ? img.path : `${API_CONFIG.BASE_URL}/uploads/${img.path}`)} alt="" className="h-full w-full object-cover"
+                                                                        onError={e => { e.target.src = '/placeholder.png'; }} />
+                                                                    <button type="button" onClick={() => removeVariantImage(vi, ii, true)}
+                                                                        className="absolute inset-0 flex items-center justify-center bg-red-500/0 text-sm font-bold text-white opacity-0 transition-all hover:bg-red-500/70 group-hover:opacity-100">×</button>
+                                                                </div>
+                                                            ))}
+                                                            {(variantImages[vi]?.previews || []).map((src, ii) => (
+                                                                <div key={`new-${ii}`} className="group relative h-12 w-12 flex-shrink-0 overflow-hidden rounded border-2 border-cyan-400 bg-slate-100">
+                                                                    <img src={src} alt="" className="h-full w-full object-cover" />
+                                                                    <button type="button" onClick={() => removeVariantImage(vi, ii, false)}
+                                                                        className="absolute inset-0 flex items-center justify-center bg-red-500/0 text-sm font-bold text-white opacity-0 transition-all hover:bg-red-500/70 group-hover:opacity-100">×</button>
+                                                                </div>
+                                                            ))}
+                                                            <label className="flex h-12 w-12 flex-shrink-0 cursor-pointer items-center justify-center rounded border-2 border-dashed border-slate-300 text-slate-400 transition-all hover:border-cyan-400 hover:text-cyan-500">
+                                                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                                                </svg>
+                                                                <input type="file" accept="image/*" multiple onChange={e => handleVariantImageChange(e, vi)} className="hidden" />
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    {/* Action */}
+                                                    <div className="flex items-center justify-end md:justify-center">
+                                                        <button type="button" onClick={() => removeVariant(vi)}
+                                                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-500 transition-all hover:bg-red-100"
+                                                            title="Remove variant">
+                                                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <p className="mt-2 text-xs text-slate-400">
+                                            Total stock: <strong>{generatedVariants.reduce((s, v) => s + (parseInt(v.stock) || 0), 0)}</strong> units
+                                        </p>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="sticky bottom-3 z-10 flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-[0_10px_30px_rgba(15,23,42,0.12)] backdrop-blur sm:flex-row">

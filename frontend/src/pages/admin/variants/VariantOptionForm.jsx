@@ -113,11 +113,16 @@ const VariantOptionForm = () => {
             const url = isEdit
                 ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_OPTIONS}/${id}`
                 : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_OPTIONS}`;
+
+            const authToken = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+            };
+
             const response = await fetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: authHeaders,
                 credentials: 'include',
                 body: JSON.stringify(payload),
             });

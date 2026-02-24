@@ -33,31 +33,34 @@ class ApiClient {
 
     this.addErrorInterceptor(async (error) => {
       if (error.response?.status === 401) {
-        const wasAuthenticated = localStorage.getItem("auth_user");
-
-        // Clear auth state directly so callers don't depend on authService listener
-        localStorage.removeItem("auth_user");
-        localStorage.removeItem("auth_token");
-        window.dispatchEvent(new Event("auth:logout"));
-
-        if (wasAuthenticated) {
-          sessionStorage.setItem("sessionExpired", "true");
-          toast.error("Your session has expired. Please login again.", {
-            duration: 4000,
-            position: "top-center",
-            id: "session-expired",
-          });
-        }
-
-        if (!window.location.pathname.startsWith("/login")) {
-          setTimeout(() => {
-            window.location.href = "/login";
-          }, 500);
-        }
+        this.handleUnauthorizedRedirect();
       }
 
       return Promise.reject(error);
     });
+  }
+
+  handleUnauthorizedRedirect() {
+    const wasAuthenticated = localStorage.getItem("auth_user");
+
+    localStorage.removeItem("auth_user");
+    localStorage.removeItem("auth_token");
+    window.dispatchEvent(new Event("auth:logout"));
+
+    if (wasAuthenticated) {
+      sessionStorage.setItem("sessionExpired", "true");
+      toast.error("Your session has expired. Please login again.", {
+        duration: 4000,
+        position: "top-center",
+        id: "session-expired",
+      });
+    }
+
+    if (!window.location.pathname.startsWith("/login")) {
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 500);
+    }
   }
 
   addRequestInterceptor(interceptor) {
@@ -92,6 +95,13 @@ class ApiClient {
           finalConfig.withCredentials === false ? "same-origin" : "include",
         ...(finalConfig.signal && { signal: finalConfig.signal }),
       };
+
+      // Auto-attach Authorization header from localStorage token
+      const storedToken =
+        localStorage.getItem("auth_token") || localStorage.getItem("token");
+      if (storedToken && !fetchOptions.headers["Authorization"]) {
+        fetchOptions.headers["Authorization"] = `Bearer ${storedToken}`;
+      }
 
       if (finalConfig.body !== undefined) {
         if (finalConfig.body instanceof FormData) {
@@ -227,7 +237,7 @@ class ApiClient {
           }
         } else {
           if (xhr.status === 401) {
-            window.dispatchEvent(new Event("auth:logout"));
+            this.handleUnauthorizedRedirect();
           }
           try {
             const errorData = JSON.parse(xhr.responseText);

@@ -758,4 +758,91 @@
     .animate-slideInRight {
         animation: slideInRight 0.3s ease-out;
     }
+
+    /* ── Image lazy-load shimmer ─────────────────────────────── */
+    @keyframes img-shimmer {
+        0%   { background-position: -200% 0; }
+        100% { background-position:  200% 0; }
+    }
+
+    .img-shimmer {
+        background: linear-gradient(
+            90deg,
+            #f1f5f9 0%,
+            #e2e8f0 40%,
+            #f1f5f9 60%,
+            #f1f5f9 100%
+        );
+        background-size: 200% 100%;
+        animation: img-shimmer 1.5s ease-in-out infinite;
+    }
+
+    /* blur-up reveal: image starts invisible+blurred, fades in sharp */
+    .img-reveal {
+        opacity: 0;
+        filter: blur(8px);
+        transform: scale(1.03);
+        transition:
+            opacity   0.45s ease,
+            filter    0.45s ease,
+            transform 0.45s ease;
+        will-change: opacity, filter, transform;
+    }
+
+    .img-reveal--loaded {
+        opacity: 1;
+        filter: blur(0px);
+        transform: scale(1);
+    }
+
+    /* ── Scroll-performance helpers ──────────────────────────── */
+    .product-card-wrap {
+        content-visibility: auto;
+        contain-intrinsic-size: 0 320px;
+    }
+
+    /* ── Entrance & page-life animations ───────────────────────── */
+    @keyframes fadeUpIn {
+        from { opacity: 0; transform: translateY(28px) scale(0.97); }
+        to   { opacity: 1; transform: translateY(0)    scale(1);    }
+    }
+
+    @keyframes fadeInScale {
+        from { opacity: 0; transform: scale(0.93); }
+        to   { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes heroOrbDrift {
+        0%,100% { transform: translate(  0px,   0px) scale(1);    }
+        33%      { transform: translate( 14px, -20px) scale(1.1);  }
+        66%      { transform: translate(-10px,  12px) scale(0.93); }
+    }
+
+    @keyframes heroOrbDriftAlt {
+        0%,100% { transform: translate(  0px,   0px) scale(1);    }
+        40%      { transform: translate(-18px,   8px) scale(1.08); }
+        70%      { transform: translate( 10px, -14px) scale(0.92); }
+    }
+
+    .animate-fade-up {
+        animation: fadeUpIn 0.48s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    }
+
+    .animate-fade-in-scale {
+        animation: fadeInScale 0.45s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    }
+
+    .animate-hero-orb     { animation: heroOrbDrift    9s  ease-in-out infinite; }
+    .animate-hero-orb-alt { animation: heroOrbDriftAlt 12s ease-in-out infinite; }
+
+    /* Stagger delay utilities */
+    .delay-75  { animation-delay:  75ms; }
+    .delay-150 { animation-delay: 150ms; }
+    .delay-225 { animation-delay: 225ms; }
+    .delay-300 { animation-delay: 300ms; }
+    .delay-400 { animation-delay: 400ms; }
+    .delay-500 { animation-delay: 500ms; }
+    .delay-600 { animation-delay: 600ms; }
+    .delay-700 { animation-delay: 700ms; }
+    .delay-800 { animation-delay: 800ms; }
 }

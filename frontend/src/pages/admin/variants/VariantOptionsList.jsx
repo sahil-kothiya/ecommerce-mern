@@ -164,21 +164,24 @@ const VariantOptionsList = () => {
                 <table className="w-full min-w-[860px] text-sm">
                     <thead>
                         <tr className="border-b border-slate-200 text-left text-slate-600">
-                            <th className="py-3 pr-3">Type</th>
-                            <th className="py-3 pr-3">Value</th>
-                            <th className="py-3 pr-3">Display Value</th>
-                            <th className="py-3 pr-3">Hex Color</th>
-                            <th className="py-3 pr-3">Sort</th>
-                            <th className="py-3 pr-3">Status</th>
-                            <th className="py-3 pr-3 text-right">Actions</th>
+                            <th className="py-3 pr-3 text-xs font-semibold uppercase tracking-wide">S.N.</th>
+                            <th className="py-3 pr-3 text-xs font-semibold uppercase tracking-wide">Type</th>
+                            <th className="py-3 pr-3 text-xs font-semibold uppercase tracking-wide">Display Value</th>
+                            <th className="py-3 pr-3 text-xs font-semibold uppercase tracking-wide">Value</th>
+                            <th className="py-3 pr-3 text-xs font-semibold uppercase tracking-wide">Hex Color</th>
+                            <th className="py-3 pr-3 text-xs font-semibold uppercase tracking-wide">Sort Order</th>
+                            <th className="py-3 pr-3 text-xs font-semibold uppercase tracking-wide">Status</th>
+                            <th className="py-3 pr-3 text-xs font-semibold uppercase tracking-wide">Created At</th>
+                            <th className="py-3 pr-3 text-right text-xs font-semibold uppercase tracking-wide">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {items.map((item) => (
-                            <tr key={item._id} className="border-b border-slate-100">
+                        {items.map((item, index) => (
+                            <tr key={item._id} className="border-b border-slate-100 hover:bg-slate-50">
+                                <td className="py-3 pr-3 text-slate-500">{index + 1}</td>
                                 <td className="py-3 pr-3 font-semibold text-slate-900">{item.variantTypeId?.displayName || '-'}</td>
-                                <td className="py-3 pr-3 text-slate-700">{item.value}</td>
                                 <td className="py-3 pr-3 text-slate-700">{item.displayValue}</td>
+                                <td className="py-3 pr-3 text-slate-700">{item.value}</td>
                                 <td className="py-3 pr-3">
                                     {item.hexColor ? (
                                         <div className="flex items-center gap-2">
@@ -192,20 +195,39 @@ const VariantOptionsList = () => {
                                 <td className="py-3 pr-3 text-slate-700">{item.sortOrder ?? 0}</td>
                                 <td className="py-3 pr-3">
                                     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${item.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                                        {item.status}
+                                        {item.status === 'active' ? 'Active' : 'Inactive'}
                                     </span>
                                 </td>
+                                <td className="py-3 pr-3 text-slate-500 text-xs">
+                                    {item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : '-'}
+                                </td>
                                 <td className="py-3 pr-3">
-                                    <div className="flex justify-end gap-2">
-                                        <button onClick={() => navigate(`/admin/variant-option/${item._id}/edit`)} className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700">Edit</button>
-                                        <button onClick={() => setItemToDelete(item)} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Delete</button>
+                                    <div className="flex justify-end gap-1.5">
+                                        <button
+                                            onClick={() => navigate(`/admin/variant-option/${item._id}/edit`)}
+                                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                            title="Edit"
+                                        >
+                                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            onClick={() => setItemToDelete(item)}
+                                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                                            title="Delete"
+                                        >
+                                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
                         ))}
                         {items.length === 0 && (
                             <tr>
-                                <td colSpan="7" className="py-8 text-center text-slate-500">No variant options found.</td>
+                                <td colSpan="9" className="py-8 text-center text-slate-500">No variant options found.</td>
                             </tr>
                         )}
                     </tbody>

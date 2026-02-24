@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { getRandomProductImage } from '../services/imageService';
-import { formatPrice, calculateDiscountPrice } from '../utils/productUtils';
+import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
 import { API_CONFIG, PRODUCT_CONDITIONS, CURRENCY_CONFIG } from '../constants';
 import authService from '../services/authService';
 import notify from '../utils/notify';
@@ -27,6 +27,10 @@ const ProductDetailPage = () => {
             const productData = data?.data || data;
             if (productData) {
                 productData.images = Array.isArray(productData.images) ? productData.images : [];
+                const variants = Array.isArray(productData.variants) ? productData.variants : [];
+                const activeVariants = variants.filter((variant) => !variant?.status || variant.status === 'active');
+                setSelectedVariant(productData.hasVariants ? (activeVariants[0] || variants[0] || null) : null);
+                setSelectedImage(0);
                 setProduct(productData);
             }
         } catch (error) {
@@ -36,7 +40,11 @@ const ProductDetailPage = () => {
     };
 
     const formatCurrency = (price) => formatPrice(price || 0, CURRENCY_CONFIG.DEFAULT, CURRENCY_CONFIG.LOCALE);
-    const getImageUrl = (path) => { if (!path) return getRandomProductImage(); if (path.startsWith('http')) return path; return path; };
+    const getImageUrl = (path) => {
+        if (!path) return getRandomProductImage();
+        if (path.startsWith('http')) return path;
+        return path.startsWith('/') ? `${API_CONFIG.BASE_URL}${path}` : `${API_CONFIG.BASE_URL}/${path}`;
+    };
 
     const handleAddToCart = async () => {
         if (!authService.isAuthenticated()) { navigate('/login'); return false; }
@@ -75,9 +83,15 @@ const ProductDetailPage = () => {
         </div>
     );
 
-    const hasDiscount = Number(product.baseDiscount) > 0;
-    const finalPrice = calculateDiscountPrice(product.basePrice || 0, product.baseDiscount || 0);
-    const images = product.images?.length ? product.images : [{ path: getRandomProductImage(), isPrimary: true }];
+    const selectedVariantImages = Array.isArray(selectedVariant?.images) ? selectedVariant.images : [];
+    const images = selectedVariantImages.length
+        ? selectedVariantImages
+        : (product.images?.length ? product.images : [{ path: getRandomProductImage(), isPrimary: true }]);
+    const pricing = getProductDisplayPricing(product, { selectedVariantId: selectedVariant?._id });
+    const hasDiscount = pricing.hasDiscount;
+    const finalPriceLabel = pricing.isRange
+        ? `${formatCurrency(pricing.minPrice)} - ${formatCurrency(pricing.maxPrice)}`
+        : formatCurrency(pricing.finalPrice);
 
     return (
         <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
@@ -106,7 +120,7 @@ const ProductDetailPage = () => {
                             )}
                             {hasDiscount && (
                                 <span className="absolute right-4 top-4 rounded-full bg-[rgba(249,115,12,0.9)] px-3 py-1.5 text-xs font-bold text-white shadow-lg border border-[rgba(255,163,51,0.5)]">
-                                    -{Math.round(product.baseDiscount)}% OFF
+                                    -{Math.round(pricing.discount)}% OFF
                                 </span>
                             )}
                         </div>
@@ -141,13 +155,13 @@ const ProductDetailPage = () => {
                     {/* Price panel */}
                     <div className="store-surface p-5">
                         <div className="mb-2 flex items-baseline gap-3">
-                            <span className="store-display text-4xl font-bold text-[#131313]">{formatCurrency(finalPrice)}</span>
-                            {hasDiscount && <span className="text-xl text-[#999] line-through">{formatCurrency(product.basePrice)}</span>}
+                            <span className="store-display text-4xl font-bold text-[#131313]">{finalPriceLabel}</span>
+                            {hasDiscount && !pricing.isRange && <span className="text-xl text-[#999] line-through">{formatCurrency(pricing.basePrice)}</span>}
                         </div>
                         {hasDiscount && (
                             <div className="flex items-center gap-2">
-                                <span className="font-semibold text-[#27ae60]">You save {formatCurrency(product.basePrice - finalPrice)}</span>
-                                <span className="text-sm text-[#666]">({Math.round(product.baseDiscount)}% off)</span>
+                                <span className="font-semibold text-[#27ae60]">You save {formatCurrency(pricing.savings)}</span>
+                                <span className="text-sm text-[#666]">({Math.round(pricing.discount)}% off)</span>
                             </div>
                         )}
                         <div className="mt-3 flex items-center gap-3 text-sm">

@@ -5,8 +5,20 @@ import { AppError } from "./errorHandler.js";
 import { logger } from "../utils/logger.js";
 
 const extractToken = (req) => {
+  // 1. HTTP-only cookie (same-origin)
   if (req.cookies?.accessToken) {
     return req.cookies.accessToken;
+  }
+
+  // 1b. Legacy cookie fallback
+  if (req.cookies?.token) {
+    return req.cookies.token;
+  }
+
+  // 2. Authorization: Bearer <token> header (cross-origin / SPA)
+  const authHeader = req.headers?.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    return authHeader.slice(7);
   }
 
   return null;
@@ -53,6 +65,10 @@ export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
       return next(new AppError("Not authorized to access this route", 401));
+    }
+
+    if (req.user.role === "admin") {
+      return next();
     }
 
     if (!roles.includes(req.user.role)) {

@@ -9,6 +9,21 @@ applyTo: "**"
 
 **Enterprise E-Commerce Platform** is a production-ready MERN stack application optimized for handling 10M+ products. The project follows a monorepo structure with separate frontend and backend folders.
 
+## 🤖 Mandatory AI Agent Start Checklist
+
+Before any change, every coding agent (Copilot/Codex/Gemini/other) must:
+
+1. Read `.github/copilot-instructions.md` and all files in `.github/instructions/`.
+2. Confirm target app scope (`New-Enterprice-Ecommerce` MERN app vs `Enterprice-Ecommerce` Laravel app).
+3. Reuse existing modules/components/services before creating new ones.
+4. Keep backend flow as **Route → Controller → Service → Model** (no business logic in controllers).
+5. Keep frontend flow as **Page → Layout/Component → Service/API layer** (no direct API duplication across pages).
+6. Apply validation on both client and server.
+7. Run targeted verification (tests/lint/build when relevant) before finishing.
+8. Avoid creating summary/report markdown files unless explicitly requested.
+
+If a requested change affects architecture or file structure, update these instruction files in the same task.
+
 ## 📁 Project Structure
 
 ```
@@ -58,6 +73,15 @@ New-Enterprice-Ecommerce/            # Root project directory
 | **Styling**    | Tailwind CSS 3.4                                           | Utility-first CSS framework    |
 | **Auth**       | JWT + HTTP-only cookies                                    | Secure authentication system   |
 | **Validation** | React Hook Form + Yup (client), Express Validator (server) | Form validation                |
+
+## 📌 Dependency & Runtime Policy
+
+- Use **latest stable** versions by default for core runtime/frameworks.
+- Current baseline for this repository:
+  - Node.js: **25.6.1+**
+  - React / React DOM: **19.2.4+**
+  - Express: **5.2.1+**
+- When upgrading major versions, run targeted verification (build/tests/lint) before finalizing.
 
 ## 🚀 Development Commands
 

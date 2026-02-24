@@ -1,10 +1,11 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getRandomProductImage } from '../services/imageService';
-import { formatPrice, calculateDiscountPrice } from '../utils/productUtils';
+import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
 import { API_CONFIG, PRODUCT_CONDITIONS, CURRENCY_CONFIG } from '../constants';
 import authService from '../services/authService';
 import notify from '../utils/notify';
+import LazyImage from '../components/common/LazyImage';
 
 const PRODUCT_FETCH_LIMIT = 120;
 const FEATURED_CATEGORY_LIMIT = 12;
@@ -52,12 +53,60 @@ const catIcon = (t = '') => {
     return '🛍️';
 };
 
-const LoadingScreen = () => (
-    <div className="flex min-h-[400px] items-center justify-center">
-        <div className="store-surface p-12 text-center">
-            <div className="mx-auto mb-5 h-14 w-14 animate-spin rounded-full border-[3px] border-[#d2dff9] border-t-[#f9730c] shadow-[0_0_0_4px_rgba(165,187,252,0.18)]" />
-            <p className="store-display text-lg text-[#212191]">Loading amazing products…</p>
-            <p className="mt-1 text-sm text-[#666]">Preparing your shopping experience</p>
+const LoadingSkeleton = () => (
+    <div className="animate-fade-in-scale">
+        {/* Hero skeleton */}
+        <div className="store-hero mb-10 h-64 img-shimmer sm:h-80" />
+
+        {/* Stats skeleton */}
+        <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="img-shimmer h-[72px] rounded-2xl" />
+            ))}
+        </div>
+
+        {/* Categories skeleton */}
+        <div className="mb-10">
+            <div className="mb-5 space-y-2">
+                <div className="img-shimmer h-3 w-20 rounded" />
+                <div className="img-shimmer h-7 w-52 rounded" />
+            </div>
+            <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-9">
+                {Array.from({ length: 9 }).map((_, i) => (
+                    <div key={i} className="img-shimmer h-16 rounded-2xl" />
+                ))}
+            </div>
+        </div>
+
+        {/* Section heading skeleton */}
+        <div className="mb-5 flex items-end justify-between">
+            <div className="space-y-2">
+                <div className="img-shimmer h-3 w-28 rounded" />
+                <div className="img-shimmer h-7 w-56 rounded" />
+            </div>
+            <div className="img-shimmer h-9 w-32 rounded-xl" />
+        </div>
+
+        {/* Filter pills skeleton */}
+        <div className="mb-6 flex flex-wrap gap-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="img-shimmer h-8 w-24 rounded-xl" />
+            ))}
+        </div>
+
+        {/* Product grid skeleton */}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+                    <div className="img-shimmer h-44 w-full" />
+                    <div className="space-y-2 p-3.5">
+                        <div className="img-shimmer h-3 w-1/3 rounded" />
+                        <div className="img-shimmer h-4 w-3/4 rounded" />
+                        <div className="img-shimmer h-4 w-1/2 rounded" />
+                        <div className="img-shimmer mt-1 h-8 rounded-xl" />
+                    </div>
+                </div>
+            ))}
         </div>
     </div>
 );
@@ -74,19 +123,20 @@ const HeroBanner = ({ banners, onShopNow }) => {
     const b = banners[activeIdx];
     return (
         <section className="store-hero mb-10 px-8 py-16 sm:px-12 sm:py-20 lg:py-24">
-            <div className="absolute -right-10 -top-20 h-56 w-56 rounded-full bg-[#ffa336]/25 blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-16 -left-8 h-48 w-48 rounded-full bg-[#a5bbfc]/25 blur-3xl pointer-events-none" />
+            <div className="absolute -right-10 -top-20 h-56 w-56 rounded-full bg-[#ffa336]/30 blur-3xl pointer-events-none animate-hero-orb" />
+            <div className="absolute -bottom-16 -left-8 h-48 w-48 rounded-full bg-[#a5bbfc]/30 blur-3xl pointer-events-none animate-hero-orb-alt" />
+            <div className="absolute left-1/2 top-1/3 h-40 w-40 -translate-x-1/2 rounded-full bg-[#f9730c]/15 blur-2xl pointer-events-none animate-hero-orb" style={{ animationDuration: '13s' }} />
             <div className="relative max-w-2xl">
-                <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.12)] px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
+                <span className="animate-fade-up delay-75 mb-5 inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.12)] px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
                     🎉 Limited Time Offer
                 </span>
-                <h1 className="store-display mb-4 text-4xl leading-tight text-white sm:text-5xl lg:text-6xl">
+                <h1 className="animate-fade-up delay-150 store-display mb-4 text-4xl leading-tight text-white sm:text-5xl lg:text-6xl">
                     {b?.title || 'Up to 80% Off'}
                 </h1>
-                <p className="mb-7 text-base text-white/85 leading-relaxed sm:text-lg">
+                <p className="animate-fade-up delay-225 mb-7 text-base text-white/85 leading-relaxed sm:text-lg">
                     {b?.description || 'Discover amazing deals on fashion, electronics, and more! Free shipping on orders over $50.'}
                 </p>
-                <div className="flex flex-wrap gap-3">
+                <div className="animate-fade-up delay-300 flex flex-wrap gap-3">
                     <button onClick={onShopNow} className="store-btn-primary tap-bounce rounded-2xl px-7 py-3 text-sm font-bold">Shop Now →</button>
                     <Link to="/products" className="inline-flex items-center gap-2 rounded-2xl border border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.1)] px-7 py-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-[rgba(255,255,255,0.2)] transition">Browse All</Link>
                 </div>
@@ -102,15 +152,24 @@ const HeroBanner = ({ banners, onShopNow }) => {
     );
 };
 
-const ProductCard = ({ product, currentImage, isHovered, inWishlist, onHover, onLeave, onAddToCart, onWishlistToggle, formatCurrency }) => {
+const ProductCard = ({ product, currentImage, isHovered, inWishlist, onHover, onLeave, onAddToCart, onWishlistToggle, formatCurrency, animDelay = 0 }) => {
     if (!product) return null;
-    const hasDiscount = Number(product.baseDiscount) > 0;
-    const finalPrice = calculateDiscountPrice(product.basePrice || 0, product.baseDiscount || 0);
+    const pricing = getProductDisplayPricing(product);
+    const hasDiscount = pricing.hasDiscount;
+    const finalPriceLabel = pricing.isRange
+        ? `${formatCurrency(pricing.minPrice)} - ${formatCurrency(pricing.maxPrice)}`
+        : formatCurrency(pricing.finalPrice);
     return (
-        <Link to={`/products/${product._id}`} className="store-product-card group flex flex-col overflow-hidden"
+        <Link to={`/products/${product._id}`} style={{ animationDelay: `${animDelay}ms` }} className="store-product-card animate-fade-up group flex flex-col overflow-hidden"
             onMouseEnter={() => onHover(product)} onMouseLeave={() => onLeave(product)}>
             <div className="relative overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50">
-                <img src={currentImage} alt={product.title} className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                <LazyImage
+                    src={currentImage}
+                    alt={product.title}
+                    wrapperClassName="h-44 w-full"
+                    className="h-44 w-full object-cover group-hover:scale-105"
+                    fallback={<div className="flex h-44 w-full items-center justify-center bg-gradient-to-br from-slate-100 to-blue-100"><svg className="h-10 w-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>}
+                />
                 {product.condition && (
                     <span className="absolute left-3 top-3 rounded-full bg-gradient-to-r from-[#4250d5] to-[#f9730c] px-2.5 py-1 text-[10px] font-bold text-white shadow">
                         {product.condition === PRODUCT_CONDITIONS.HOT && '🔥 Hot'}
@@ -120,7 +179,7 @@ const ProductCard = ({ product, currentImage, isHovered, inWishlist, onHover, on
                 )}
                 {hasDiscount && (
                     <span className="absolute right-10 top-3 rounded-full border border-[rgba(255,163,51,0.5)] bg-[rgba(249,115,12,0.9)] px-2 py-0.5 text-[10px] font-bold text-white">
-                        -{Math.round(product.baseDiscount)}%
+                        -{Math.round(pricing.discount)}%
                     </span>
                 )}
                 <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onWishlistToggle(product); }}
@@ -146,10 +205,10 @@ const ProductCard = ({ product, currentImage, isHovered, inWishlist, onHover, on
                 <div className="mt-auto space-y-2 pt-1">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
-                            <span className="text-base font-bold text-[#131313]">{formatCurrency(finalPrice)}</span>
-                            {hasDiscount && <span className="text-xs text-[#999] line-through">{formatCurrency(product.basePrice)}</span>}
+                            <span className="text-base font-bold text-[#131313]">{finalPriceLabel}</span>
+                            {hasDiscount && !pricing.isRange && <span className="text-xs text-[#999] line-through">{formatCurrency(pricing.basePrice)}</span>}
                         </div>
-                        {hasDiscount && <span className="rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">Save {Math.round(product.baseDiscount)}%</span>}
+                        {hasDiscount && <span className="rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">Save {Math.round(pricing.discount)}%</span>}
                     </div>
                     <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddToCart(product); }}
                         className="store-btn-primary tap-bounce w-full rounded-xl py-2 text-xs font-bold flex items-center justify-center gap-1.5">
@@ -233,6 +292,11 @@ const HomePage = () => {
 
     const addToCart = async (product) => {
         if (!authService.isAuthenticated()) { navigate('/login'); return; }
+        if (product?.hasVariants) {
+            notify.info('Please choose a variant from product details');
+            navigate(`/products/${product._id}`);
+            return;
+        }
         try {
             const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
                 method: 'POST', headers: authService.getAuthHeaders(),
@@ -294,8 +358,8 @@ const HomePage = () => {
 
     const sortProducts = (list) => {
         const arr = [...list];
-        if (sortOption === 'price-low') return arr.sort((a, b) => calculateDiscountPrice(a.basePrice || 0, a.baseDiscount || 0) - calculateDiscountPrice(b.basePrice || 0, b.baseDiscount || 0));
-        if (sortOption === 'price-high') return arr.sort((a, b) => calculateDiscountPrice(b.basePrice || 0, b.baseDiscount || 0) - calculateDiscountPrice(a.basePrice || 0, a.baseDiscount || 0));
+        if (sortOption === 'price-low') return arr.sort((a, b) => getProductDisplayPricing(a).minPrice - getProductDisplayPricing(b).minPrice);
+        if (sortOption === 'price-high') return arr.sort((a, b) => getProductDisplayPricing(b).maxPrice - getProductDisplayPricing(a).maxPrice);
         if (sortOption === 'rating') return arr.sort((a, b) => (b.ratings?.average || 0) - (a.ratings?.average || 0));
         return arr;
     };
@@ -325,8 +389,8 @@ const HomePage = () => {
                     { icon: '🔄', label: 'Easy Returns', sub: '30-day hassle-free' },
                     { icon: '🔒', label: 'Secure Payment', sub: 'SSL encrypted' },
                     { icon: '🎁', label: 'Exclusive Deals', sub: 'Members get more' },
-                ].map(({ icon, label, sub }) => (
-                    <div key={label} className="store-surface flex items-center gap-3 px-4 py-3">
+                ].map(({ icon, label, sub }, i) => (
+                    <div key={label} style={{ animationDelay: `${i * 80 + 100}ms` }} className="store-surface animate-fade-up flex items-center gap-3 px-4 py-3">
                         <span className="text-xl">{icon}</span>
                         <div>
                             <p className="text-sm font-bold text-[#1f1f1f]">{label}</p>
@@ -338,7 +402,7 @@ const HomePage = () => {
 
             {/* Categories */}
             {categories.length > 0 && (
-                <section className="mb-10">
+                <section className="animate-fade-up mb-10" style={{ animationDelay: '150ms' }}>
                     <div className="mb-5 flex items-end justify-between">
                         <div>
                             <p className="store-eyebrow mb-1">Explore</p>
@@ -347,12 +411,12 @@ const HomePage = () => {
                         <Link to="/products" className="store-btn-secondary tap-bounce rounded-xl px-4 py-2 text-sm">View All →</Link>
                     </div>
                     <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-9">
-                        <button onClick={() => setSelectedCategory('all')} className={`store-category-chip flex flex-col items-center gap-1.5 px-3 py-3 text-center ${selectedCategory === 'all' ? 'active' : ''}`}>
+                        <button onClick={() => setSelectedCategory('all')} className={`store-category-chip animate-fade-up delay-75 flex flex-col items-center gap-1.5 px-3 py-3 text-center ${selectedCategory === 'all' ? 'active' : ''}`}>
                             <span className="text-xl">🛒</span>
                             <span className="text-xs font-semibold">All</span>
                         </button>
-                        {categories.slice(0, 8).map((cat) => (
-                            <button key={cat._id || cat.slug} onClick={() => setSelectedCategory(cat.slug)} className={`store-category-chip flex flex-col items-center gap-1.5 px-3 py-3 text-center ${selectedCategory === cat.slug ? 'active' : ''}`}>
+                        {categories.slice(0, 8).map((cat, i) => (
+                            <button key={cat._id || cat.slug} style={{ animationDelay: `${(i + 2) * 60}ms` }} onClick={() => setSelectedCategory(cat.slug)} className={`store-category-chip animate-fade-up flex flex-col items-center gap-1.5 px-3 py-3 text-center ${selectedCategory === cat.slug ? 'active' : ''}`}>
                                 <span className="text-xl">{catIcon(cat.title)}</span>
                                 <span className="line-clamp-2 text-xs font-semibold leading-tight">{cat.title}</span>
                             </button>
@@ -362,7 +426,7 @@ const HomePage = () => {
             )}
 
             {/* Products */}
-            <section>
+            <section className="animate-fade-up" style={{ animationDelay: '200ms' }}>
                 <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <p className="store-eyebrow mb-1">{selectedCategory === 'all' ? 'Curated for You' : 'Category'}</p>
@@ -388,28 +452,28 @@ const HomePage = () => {
 
                 {/* Category filter pills */}
                 <div className="mb-6 flex flex-wrap gap-2 overflow-x-auto pb-1">
-                    <button onClick={() => setSelectedCategory('all')} className={`store-category-chip px-4 py-1.5 text-sm ${selectedCategory === 'all' ? 'active' : ''}`}>All Products</button>
-                    {categories.slice(0, 6).map((cat) => (
-                        <button key={cat._id || cat.slug} onClick={() => setSelectedCategory(cat.slug)} className={`store-category-chip px-4 py-1.5 text-sm ${selectedCategory === cat.slug ? 'active' : ''}`}>
+                    <button onClick={() => setSelectedCategory('all')} className={`store-category-chip animate-fade-up px-4 py-1.5 text-sm ${selectedCategory === 'all' ? 'active' : ''}`}>All Products</button>
+                    {categories.slice(0, 6).map((cat, i) => (
+                        <button key={cat._id || cat.slug} style={{ animationDelay: `${(i + 1) * 55}ms` }} onClick={() => setSelectedCategory(cat.slug)} className={`store-category-chip animate-fade-up px-4 py-1.5 text-sm ${selectedCategory === cat.slug ? 'active' : ''}`}>
                             {cat.title} {cat.productCount > 0 && <span className="opacity-70">({cat.productCount})</span>}
                         </button>
                     ))}
                 </div>
 
-                {isLoading ? (<LoadingScreen />) : selectedCategory === 'all' ? (
-                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                        {featuredGridProducts.map((p) => <ProductCard key={p._id} {...cardProps(p)} />)}
+                {isLoading ? (<LoadingSkeleton />) : selectedCategory === 'all' ? (
+                    <div key="all" className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                        {featuredGridProducts.map((p, i) => <ProductCard key={p._id} {...cardProps(p)} animDelay={Math.min(i * 45, 700)} />)}
                     </div>
                 ) : !visibleCategoryProducts.length ? (
-                    <div className="store-surface py-14 text-center">
+                    <div className="store-surface animate-fade-in-scale py-14 text-center">
                         <div className="text-4xl mb-3">🛍️</div>
                         <h3 className="store-display text-lg text-[#212191] mb-1">No Products Found</h3>
                         <p className="text-sm text-[#666] mb-5">No products in this category yet.</p>
                         <button onClick={() => setSelectedCategory('all')} className="store-btn-primary tap-bounce inline-block rounded-xl px-6 py-2.5 text-sm font-bold">Browse All</button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                        {visibleCategoryProducts.map((p) => <ProductCard key={p._id} {...cardProps(p)} />)}
+                    <div key={selectedCategory} className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                        {visibleCategoryProducts.map((p, i) => <ProductCard key={p._id} {...cardProps(p)} animDelay={Math.min(i * 45, 700)} />)}
                     </div>
                 )}
 
@@ -430,8 +494,8 @@ const HomePage = () => {
                     <h2 className="store-display mb-2 text-2xl text-white sm:text-3xl">Trusted by Thousands</h2>
                     <p className="mb-8 text-sm text-white/80">Join our growing community of happy shoppers worldwide.</p>
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                        {[{ value: '10M+', label: 'Products' }, { value: '500K+', label: 'Happy Customers' }, { value: '99.8%', label: 'Satisfaction Rate' }, { value: '24/7', label: 'Support' }].map(({ value, label }) => (
-                            <div key={label} className="rounded-2xl border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.08)] px-4 py-5 backdrop-blur-sm">
+                        {[{ value: '10M+', label: 'Products' }, { value: '500K+', label: 'Happy Customers' }, { value: '99.8%', label: 'Satisfaction Rate' }, { value: '24/7', label: 'Support' }].map(({ value, label }, i) => (
+                            <div key={label} style={{ animationDelay: `${i * 90}ms` }} className="animate-fade-up rounded-2xl border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.08)] px-4 py-5 backdrop-blur-sm">
                                 <p className="store-display text-2xl font-bold text-[#ffa336]">{value}</p>
                                 <p className="mt-1 text-xs text-white/75">{label}</p>
                             </div>

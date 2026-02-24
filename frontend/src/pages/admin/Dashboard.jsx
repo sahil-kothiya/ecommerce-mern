@@ -4,6 +4,7 @@ import { API_CONFIG } from '../../constants';
 import { AdminLoadingState, AdminSurface } from '../../components/admin/AdminTheme';
 import notify from '../../utils/notify';
 import apiClient from '../../services/apiClient';
+import { getProductDisplayPricing } from '../../utils/productUtils';
 
 const Dashboard = () => {
     const [stats, setStats] = useState({
@@ -177,7 +178,13 @@ const Dashboard = () => {
                         {stats.topProducts.length === 0 ? (
                             <p className="text-sm text-slate-500">No products available.</p>
                         ) : (
-                            stats.topProducts.map((product, index) => (
+                            stats.topProducts.map((product, index) => {
+                                const pricing = getProductDisplayPricing(product);
+                                const priceLabel = pricing.isRange
+                                    ? `$${Number(pricing.minPrice || 0).toFixed(2)} - $${Number(pricing.maxPrice || 0).toFixed(2)}`
+                                    : `$${Number(pricing.finalPrice || 0).toFixed(2)}`;
+
+                                return (
                                 <div key={product._id || product.title || index} className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-cyan-50 px-3 py-2.5">
                                     <div className="flex items-center justify-between gap-3">
                                         <p className="line-clamp-1 text-sm font-semibold text-slate-900">{product.title || 'Untitled Product'}</p>
@@ -185,10 +192,11 @@ const Dashboard = () => {
                                     </div>
                                     <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
                                         <span>{product.status || 'draft'}</span>
-                                        <span>${Number(product.basePrice || 0).toFixed(2)}</span>
+                                        <span>{priceLabel}</span>
                                     </div>
                                 </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </AdminSurface>

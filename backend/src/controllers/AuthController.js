@@ -1,4 +1,3 @@
-
 import { BaseController } from "../core/BaseController.js";
 import { AuthService } from "../services/AuthService.js";
 import { logger } from "../utils/logger.js";
@@ -6,16 +5,16 @@ import { AppError } from "../middleware/errorHandler.js";
 
 export class AuthController extends BaseController {
   constructor() {
-        const authService = new AuthService();
+    const authService = new AuthService();
     super(authService);
   }
 
-register = this.catchAsync(async (req, res) => {
+  register = this.catchAsync(async (req, res) => {
     const { name, email, password } = req.body;
 
-        this.validateRequiredFields(req.body, ["name", "email", "password"]);
+    this.validateRequiredFields(req.body, ["name", "email", "password"]);
 
-        const { user, accessToken, expiresIn } = await this.service.register({
+    const { user, accessToken, expiresIn } = await this.service.register({
       name,
       email,
       password,
@@ -25,9 +24,9 @@ register = this.catchAsync(async (req, res) => {
       maxAge: 15 * 60 * 1000,
     });
 
-        this.logAction("User Registration", { email, userId: user._id });
+    this.logAction("User Registration", { email, userId: user._id });
 
-        this.sendSuccess(
+    this.sendSuccess(
       res,
       { user, expiresIn },
       201,
@@ -35,40 +34,40 @@ register = this.catchAsync(async (req, res) => {
     );
   });
 
-login = this.catchAsync(async (req, res) => {
+  login = this.catchAsync(async (req, res) => {
     const { email, password, rememberMe: rememberMeRaw } = req.body;
 
-        this.validateRequiredFields(req.body, ["email", "password"]);
+    this.validateRequiredFields(req.body, ["email", "password"]);
 
-                const rememberMe = Boolean(
+    const rememberMe = Boolean(
       rememberMeRaw === true || rememberMeRaw === "true" || rememberMeRaw === 1,
     );
 
-        const result = await this.service.login(email, password, rememberMe);
+    const result = await this.service.login(email, password, rememberMe);
 
-        this.logAction("User Login", {
+    this.logAction("User Login", {
       email,
       userId: result.user._id,
       rememberMe,
       hasRefreshToken: !!result.refreshToken,
     });
 
-        this.setTokenCookie(res, "accessToken", result.accessToken, {
+    this.setTokenCookie(res, "accessToken", result.accessToken, {
       maxAge: 15 * 60 * 1000,
     });
 
-        if (rememberMe && result.refreshToken) {
+    if (rememberMe && result.refreshToken) {
       this.setTokenCookie(res, "refreshToken", result.refreshToken, {
         maxAge: 30 * 24 * 60 * 60 * 1000,
       });
     }
 
-        this.sendSuccess(
+    this.sendSuccess(
       res,
       {
         user: result.user,
         expiresIn: result.expiresIn,
-                ...(result.refreshToken && {
+        ...(result.refreshToken && {
           refreshExpiresIn: result.refreshExpiresIn,
         }),
       },
@@ -79,32 +78,32 @@ login = this.catchAsync(async (req, res) => {
     );
   });
 
-getProfile = this.catchAsync(async (req, res) => {
-        const userId = this.getUserId(req);
+  getProfile = this.catchAsync(async (req, res) => {
+    const userId = this.getUserId(req);
 
-        const user = await this.service.getProfile(userId);
+    const user = await this.service.getProfile(userId);
 
     this.sendSuccess(res, { user });
   });
 
-updateProfile = this.catchAsync(async (req, res) => {
+  updateProfile = this.catchAsync(async (req, res) => {
     const userId = this.getUserId(req);
     const updateData = req.body;
 
-        const user = await this.service.updateProfile(userId, updateData);
+    const user = await this.service.updateProfile(userId, updateData);
 
     this.logAction("Profile Updated", { userId });
 
     this.sendSuccess(res, { user }, 200, "Profile updated successfully");
   });
 
-changePassword = this.catchAsync(async (req, res) => {
+  changePassword = this.catchAsync(async (req, res) => {
     const userId = this.getUserId(req);
     const { currentPassword, newPassword } = req.body;
 
-        this.validateRequiredFields(req.body, ["currentPassword", "newPassword"]);
+    this.validateRequiredFields(req.body, ["currentPassword", "newPassword"]);
 
-        const result = await this.service.changePassword(
+    const result = await this.service.changePassword(
       userId,
       currentPassword,
       newPassword,
@@ -115,12 +114,12 @@ changePassword = this.catchAsync(async (req, res) => {
     this.sendSuccess(res, result, 200);
   });
 
-logout = this.catchAsync(async (req, res) => {
+  logout = this.catchAsync(async (req, res) => {
     const userId = this.getUserId(req);
 
-        await this.service.revokeRefreshToken(userId);
+    await this.service.revokeRefreshToken(userId);
 
-        this.clearTokenCookie(res, "accessToken");
+    this.clearTokenCookie(res, "accessToken");
     this.clearTokenCookie(res, "refreshToken");
 
     this.logAction("User Logout", { userId });
@@ -128,16 +127,16 @@ logout = this.catchAsync(async (req, res) => {
     this.sendSuccess(res, { message: "Logged out successfully" }, 200);
   });
 
-refreshToken = this.catchAsync(async (req, res) => {
-        const refreshToken = req.cookies?.refreshToken;
+  refreshToken = this.catchAsync(async (req, res) => {
+    const refreshToken = req.cookies?.refreshToken;
 
     if (!refreshToken) {
       throw new AppError("Refresh token is required", 401);
     }
 
-        const result = await this.service.refreshAccessToken(refreshToken);
+    const result = await this.service.refreshAccessToken(refreshToken);
 
-        this.setTokenCookie(res, "accessToken", result.accessToken, {
+    this.setTokenCookie(res, "accessToken", result.accessToken, {
       maxAge: 15 * 60 * 1000,
     });
 

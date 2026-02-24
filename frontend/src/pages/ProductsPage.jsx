@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { API_CONFIG } from '../constants';
-import { calculateDiscountPrice, formatPrice } from '../utils/productUtils';
+import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
 import authService from '../services/authService';
 import StoreNav from '../components/common/StoreNav';
+import LazyImage from '../components/common/LazyImage';
 
 const RECENT_SEARCHES_KEY = 'products_recent_searches';
 const SAVED_FILTERS_KEY = 'products_saved_filters';
@@ -31,6 +32,107 @@ const parseBrandList = (payload) => {
     if (Array.isArray(payload?.data?.brands)) return payload.data.brands;
     if (Array.isArray(payload?.data)) return payload.data;
     return [];
+};
+
+const resolveImageUrl = (raw) => {
+    if (!raw) return null;
+    if (typeof raw === 'object') raw = raw.path || raw.url || null;
+    if (!raw) return null;
+    return raw.startsWith('http') ? raw : `${API_CONFIG.BASE_URL}/${raw.replace(/^\//, '')}`;
+};
+
+const getProductPrimaryImage = (product) => {
+    if (!product) return null;
+
+    const directImages = Array.isArray(product.images) ? product.images : [];
+    const directPrimary = directImages.find((img) => img?.isPrimary) || directImages[0];
+    if (directPrimary) {
+        return directPrimary;
+    }
+
+    const variants = Array.isArray(product.variants) ? product.variants : [];
+    const activeVariants = variants.filter((variant) => !variant?.status || variant.status === 'active');
+    const sourceVariants = activeVariants.length ? activeVariants : variants;
+
+    for (const variant of sourceVariants) {
+        const variantImages = Array.isArray(variant?.images) ? variant.images : [];
+        const variantPrimary = variantImages.find((img) => img?.isPrimary) || variantImages[0];
+        if (variantPrimary) {
+            return variantPrimary;
+        }
+    }
+
+    return null;
+};
+
+const SkeletonCard = () => (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="img-shimmer h-44 w-full" />
+        <div className="space-y-2 p-3.5">
+            <div className="img-shimmer h-3 w-1/3 rounded" />
+            <div className="img-shimmer h-4 w-3/4 rounded" />
+            <div className="img-shimmer h-4 w-1/2 rounded" />
+            <div className="img-shimmer h-3 w-1/4 rounded" />
+        </div>
+    </div>
+);
+
+const HeroBanner = ({ banners }) => {
+    const [idx, setIdx] = useState(0);
+    const timerRef = useRef(null);
+
+    useEffect(() => {
+        clearInterval(timerRef.current);
+        if (banners.length > 1) {
+            timerRef.current = setInterval(() => setIdx((p) => (p + 1) % banners.length), 4500);
+        }
+        return () => clearInterval(timerRef.current);
+    }, [banners.length]);
+
+    if (!banners.length) return null;
+    const b = banners[idx];
+    const imgUrl = resolveImageUrl(b.image);
+
+    return (
+        <div className="relative mb-8 overflow-hidden rounded-2xl shadow-lg" style={{ minHeight: 220 }}>
+            <LazyImage
+                src={imgUrl}
+                alt={b.title}
+                wrapperClassName="h-56 w-full"
+                className="h-56 w-full object-cover"
+                rootMargin="0px"
+                fallback={<div className="h-56 w-full bg-gradient-to-r from-[#0a2156] via-[#212191] to-[#4250d5]" />}
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
+            <div className="absolute bottom-0 left-0 p-6">
+                <h2 className="text-2xl font-bold text-white drop-shadow">{b.title}</h2>
+                {b.description && (
+                    <p className="mt-1 max-w-md text-sm text-white/85">{b.description}</p>
+                )}
+                {b.link && (
+                    <Link
+                        to={b.link}
+                        className="mt-3 inline-block rounded-xl bg-[#ffa336] px-5 py-2 text-sm font-bold text-white shadow hover:bg-[#f9730c] transition"
+                    >
+                        Shop Now →
+                    </Link>
+                )}
+            </div>
+            {banners.length > 1 && (
+                <div className="absolute bottom-4 right-5 flex items-center gap-2">
+                    {banners.map((_, i) => (
+                        <button
+                            key={i}
+                            onClick={() => setIdx(i)}
+                            className={`h-2 rounded-full transition-all ${
+                                i === idx ? 'w-6 bg-[#ffa336]' : 'w-2 bg-white/50 hover:bg-white/80'
+                            }`}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 };
 
 const parsePositiveInt = (value, fallback) => {
@@ -62,6 +164,7 @@ const ProductsPage = () => {
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [brands, setBrands] = useState([]);
+    const [banners, setBanners] = useState([]);
     const [filters, setFilters] = useState(initialFilters);
     const [recentSearches, setRecentSearches] = useState([]);
     const [savedFilters, setSavedFilters] = useState([]);
@@ -104,18 +207,27 @@ const ProductsPage = () => {
     useEffect(() => {
         const loadTaxonomy = async () => {
             try {
-                const [categoriesResponse, brandsResponse] = await Promise.all([
+                const [categoriesResponse, brandsResponse, bannersResponse] = await Promise.all([
                     fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`),
                     fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}`),
+                    fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}?status=active&limit=5`).catch(() => null),
                 ]);
 
-                const [categoriesData, brandsData] = await Promise.all([
+                const [categoriesData, brandsData, bannersData] = await Promise.all([
                     categoriesResponse.json(),
                     brandsResponse.json(),
+                    bannersResponse ? bannersResponse.json().catch(() => null) : Promise.resolve(null),
                 ]);
 
                 setCategories(parseCategoryList(categoriesData));
                 setBrands(parseBrandList(brandsData));
+
+                if (bannersData?.data) {
+                    const bArr = Array.isArray(bannersData.data)
+                        ? bannersData.data
+                        : (bannersData.data?.banners || []);
+                    setBanners(bArr.slice(0, 5));
+                }
             } catch {
                 setCategories([]);
                 setBrands([]);
@@ -288,6 +400,7 @@ const ProductsPage = () => {
 
     return (
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <HeroBanner banners={banners} />
             <div className="mb-6 flex flex-col gap-3">
                 <h1 className="text-2xl font-bold text-slate-900">Products Discovery</h1>
                 <p className="text-sm text-slate-600">
@@ -442,7 +555,9 @@ const ProductsPage = () => {
             </div>
 
             {isLoading ? (
-                <p className="text-slate-500">Loading products...</p>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
+                </div>
             ) : products.length === 0 ? (
                 <p className="text-slate-500">No products found for selected filters.</p>
             ) : (
@@ -498,23 +613,52 @@ const ProductsPage = () => {
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         {products.map((product) => {
-                            const finalPrice = calculateDiscountPrice(product.basePrice || 0, product.baseDiscount || 0);
+                            const pricing = getProductDisplayPricing(product);
+                            const hasDiscount = pricing.hasDiscount;
+                            const finalPriceLabel = pricing.isRange
+                                ? `${formatPrice(pricing.minPrice)} - ${formatPrice(pricing.maxPrice)}`
+                                : formatPrice(pricing.finalPrice);
+                            const imgUrl = resolveImageUrl(getProductPrimaryImage(product));
                             return (
                                 <Link
                                     key={product._id}
                                     to={`/products/${product.slug || product._id}`}
-                                    className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-cyan-300 hover:shadow-md"
+                                    className="product-card-wrap group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-cyan-300 hover:shadow-md"
                                 >
-                                    <h2 className="line-clamp-2 text-sm font-semibold text-slate-900">{product.title}</h2>
-                                    <p className="mt-1 text-xs text-slate-500">{product.brand?.title || 'Brand'}</p>
-                                    <p className="mt-2 text-sm font-semibold text-slate-700">
-                                        {formatPrice(finalPrice)}
-                                    </p>
-                                    {Number(product.baseDiscount || 0) > 0 && (
-                                        <p className="text-xs text-slate-500 line-through">
-                                            {formatPrice(product.basePrice || 0)}
-                                        </p>
+                                    <LazyImage
+                                        src={imgUrl}
+                                        alt={product.title}
+                                        wrapperClassName="h-44 w-full bg-gradient-to-br from-slate-50 to-blue-50"
+                                        className="h-44 w-full object-cover group-hover:scale-105"
+                                        fallback={
+                                            <div className="flex h-44 w-full items-center justify-center bg-gradient-to-br from-slate-100 to-blue-100">
+                                                <svg className="h-12 w-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                            </div>
+                                        }
+                                    />
+                                    {hasDiscount && (
+                                        <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-[#f9730c] px-2 py-0.5 text-[10px] font-bold text-white">
+                                            -{Math.round(pricing.discount)}%
+                                        </span>
                                     )}
+                                    <div className="p-3.5">
+                                        <p className="text-[11px] font-semibold text-[#4250d5]">{product.brand?.title || 'Brand'}</p>
+                                        <h2 className="mt-1 line-clamp-2 text-sm font-semibold text-slate-900 group-hover:text-[#212191]">{product.title}</h2>
+                                        <div className="mt-2 flex items-center gap-2">
+                                            <span className="text-sm font-bold text-slate-800">{finalPriceLabel}</span>
+                                            {hasDiscount && !pricing.isRange && (
+                                                <span className="text-xs text-slate-400 line-through">{formatPrice(pricing.basePrice)}</span>
+                                            )}
+                                        </div>
+                                        {product.ratings?.count > 0 && (
+                                            <div className="mt-1 flex items-center gap-1">
+                                                <span className="text-[11px] text-[#ffa336]">{'★'.repeat(Math.min(5, Math.floor(product.ratings.average || 0)))}</span>
+                                                <span className="text-[10px] text-slate-400">({product.ratings.count})</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </Link>
                             );
                         })}
