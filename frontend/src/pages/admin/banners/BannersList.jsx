@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { API_CONFIG } from '../../../constants';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import notify from '../../../utils/notify';
+import authFetch from '../../../utils/authFetch.js';
 
 const BannersList = () => {
     const navigate = useNavigate();
@@ -27,9 +28,7 @@ const BannersList = () => {
     const loadBanners = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}`, {
-                credentials: 'include',
-            });
+            const response = await authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}`);
             const data = await response.json();
 
             if (!response.ok || !data.success) {
@@ -58,9 +57,8 @@ const BannersList = () => {
 
         try {
             setIsDeleting(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}/${bannerToDelete._id}`, {
+            const response = await authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}/${bannerToDelete._id}`, {
                 method: 'DELETE',
-                credentials: 'include',
             });
             const data = await response.json();
 

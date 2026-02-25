@@ -1,31 +1,30 @@
-
-
 import mongoose from "mongoose";
 import { config } from "./index.js";
 import { logger } from "../utils/logger.js";
 
 const connectionOptions = {
-    maxPoolSize: 100,
+  maxPoolSize: 100,
   minPoolSize: 10,
   maxIdleTimeMS: 300000,
 
-    serverSelectionTimeoutMS: 5000,
+  serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
   connectTimeoutMS: 10000,
 
-    heartbeatFrequencyMS: 10000,
+  heartbeatFrequencyMS: 10000,
   monitorCommands: true,
 
-    autoIndex: false,
+  autoIndex: false,
   retryWrites: true,
   retryReads: true,
 
-    compressors: ["zlib"],
+  compressors: ["zlib"],
   zlibCompressionLevel: 6,
 
-    readPreference: "secondaryPreferred",
+  // "primary" is required for transactions; secondaryPreferred is incompatible
+  readPreference: "primary",
 
-    w: "majority",
+  w: "majority",
   wtimeoutMS: 5000,
 };
 
@@ -33,16 +32,16 @@ let isSlowQueryMonitoringAttached = false;
 
 export const connectDB = async () => {
   try {
-        const mongoUri =
+    const mongoUri =
       config.nodeEnv === "test" ? config.mongodbTestUri : config.mongodbUri;
 
-        if (!mongoUri) {
+    if (!mongoUri) {
       throw new Error("MongoDB URI is not defined in environment variables");
     }
 
-        await mongoose.connect(mongoUri, connectionOptions);
+    await mongoose.connect(mongoUri, connectionOptions);
 
-        setupEventListeners();
+    setupEventListeners();
 
     logger.info(`✅ MongoDB connected successfully to ${maskUri(mongoUri)}`);
     logger.info(`📊 Database: ${mongoose.connection.name}`);
@@ -50,7 +49,7 @@ export const connectDB = async () => {
   } catch (error) {
     logger.error("❌ MongoDB connection error:", error.message);
 
-        if (config.nodeEnv === "production") {
+    if (config.nodeEnv === "production") {
       logger.info("🔄 Retrying connection in 5 seconds...");
       setTimeout(connectDB, 5000);
     } else {
@@ -64,27 +63,27 @@ const setupEventListeners = () => {
 
   setupSlowQueryMonitoring(connection);
 
-    connection.on("connected", () => {
+  connection.on("connected", () => {
     logger.info("🔗 MongoDB connection established");
   });
 
-    connection.on("error", (err) => {
+  connection.on("error", (err) => {
     logger.error("❌ MongoDB connection error:", err);
   });
 
-    connection.on("disconnected", () => {
+  connection.on("disconnected", () => {
     logger.warn("⚠️  MongoDB disconnected");
 
-        if (config.nodeEnv === "production") {
+    if (config.nodeEnv === "production") {
       logger.info("🔄 Attempting to reconnect...");
     }
   });
 
-    connection.on("reconnected", () => {
+  connection.on("reconnected", () => {
     logger.info("🔄 MongoDB reconnected successfully");
   });
 
-    process.on("SIGINT", async () => {
+  process.on("SIGINT", async () => {
     await gracefulShutdown("SIGINT");
   });
 
@@ -92,7 +91,7 @@ const setupEventListeners = () => {
     await gracefulShutdown("SIGTERM");
   });
 
-    process.on("unhandledRejection", (err) => {
+  process.on("unhandledRejection", (err) => {
     logger.error("🚨 Unhandled Promise Rejection:", err);
     if (config.nodeEnv === "production") {
       gracefulShutdown("unhandledRejection");
@@ -182,7 +181,7 @@ export const getConnectionStats = () => {
 };
 
 const maskUri = (uri) => {
-    return uri.replace(/:[^:@]+@/, ":****@");
+  return uri.replace(/:[^:@]+@/, ":****@");
 };
 
 export const dropDatabase = async () => {
@@ -203,9 +202,9 @@ export const createIndexes = async () => {
   try {
     logger.info("📊 Creating database indexes...");
 
-        const models = mongoose.modelNames();
+    const models = mongoose.modelNames();
 
-        for (const modelName of models) {
+    for (const modelName of models) {
       const model = mongoose.model(modelName);
       await model.createIndexes();
       logger.info(`✅ Indexes created for ${modelName}`);

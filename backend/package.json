@@ -17,6 +17,8 @@
         "seed:development": "node scripts/seed.js -- --development",
         "seed:production": "node scripts/seed.js -- --production",
         "seed:products": "node scripts/seed.js -- --skip-users",
+        "migrate:coupons": "node scripts/migrate-coupons-canonical.js",
+        "migrate:coupons:dry": "node scripts/migrate-coupons-canonical.js --dry-run",
         "queue:start": "node src/queues/worker.js"
     },
     "keywords": [

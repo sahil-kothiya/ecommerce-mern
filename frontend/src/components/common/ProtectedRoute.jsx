@@ -6,11 +6,12 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
     const location = useLocation();
 
     if (!authService.isAuthenticated()) {
-                return <Navigate to="/login" state={{ from: location }} replace />;
+        return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
+    // Non-admin trying to access admin-only routes → send to their account panel
     if (requireAdmin && !authService.isAdmin()) {
-                return <Navigate to="/" replace />;
+        return <Navigate to="/account" replace />;
     }
 
     return children;

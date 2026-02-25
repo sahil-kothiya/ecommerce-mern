@@ -28,7 +28,7 @@ export class AuthController extends BaseController {
 
     this.sendSuccess(
       res,
-      { user, expiresIn },
+      { user, accessToken, expiresIn },
       201,
       "User registered successfully",
     );
@@ -66,6 +66,7 @@ export class AuthController extends BaseController {
       res,
       {
         user: result.user,
+        accessToken: result.accessToken,
         expiresIn: result.expiresIn,
         ...(result.refreshToken && {
           refreshExpiresIn: result.refreshExpiresIn,

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { useNavigate, useParams } from 'react-router-dom';
 import notify from '../../../utils/notify';
 import couponService from '../../../services/couponService';
-import { applyServerFieldErrors, clearFieldError, getFieldBorderClass, hasValidationErrors } from '../../../utils/formValidation';
 
 const toLocalInputDateTime = (value) => {
     if (!value) return '';
@@ -13,26 +15,68 @@ const toLocalInputDateTime = (value) => {
     return localDate.toISOString().slice(0, 16);
 };
 
+const getDefaultCouponDateRange = () => {
+    const start = new Date();
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    return {
+        startDate: toLocalInputDateTime(start),
+        expiryDate: toLocalInputDateTime(end),
+    };
+};
+
+const nullableNumber = (min, msg) =>
+    yup.number().nullable()
+        .transform((v, orig) => (orig === '' || orig === null || orig === undefined || Number.isNaN(v) ? null : v))
+        .min(min, msg);
+
+const schema = yup.object({
+    code: yup.string().trim().required('Coupon code is required').min(3, 'Code must be at least 3 characters'),
+    type: yup.string().oneOf(['percent', 'fixed']).required(),
+    value: yup.number()
+        .typeError('Value must be a number')
+        .required('Value is required')
+        .positive('Value must be greater than 0')
+        .when('type', { is: 'percent', then: (s) => s.max(100, 'Percent discount cannot exceed 100') }),
+    minPurchase: nullableNumber(0, 'Minimum purchase cannot be negative'),
+    maxDiscount: nullableNumber(0, 'Maximum discount cannot be negative'),
+    usageLimit: nullableNumber(1, 'Usage limit must be at least 1').integer('Usage limit must be an integer'),
+    startDate: yup.string().nullable().default(''),
+    expiryDate: yup.string().nullable().default('').test('after-start', 'Expiry date must be later than start date', function (v) {
+        const { startDate } = this.parent;
+        if (!v || !startDate) return true;
+        return new Date(v) > new Date(startDate);
+    }),
+    status: yup.string().oneOf(['active', 'inactive']).required(),
+    description: yup.string().default(''),
+});
+
 const CouponForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const isEdit = Boolean(id);
 
-    const [formData, setFormData] = useState({
-        code: '',
-        description: '',
-        type: 'percent',
-        value: '',
-        minPurchase: '',
-        maxDiscount: '',
-        usageLimit: '',
-        startDate: '',
-        expiryDate: '',
-        status: 'active',
-    });
-    const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [defaultDateRange] = useState(() => getDefaultCouponDateRange());
+
+    const { register, handleSubmit, formState: { errors }, reset, setError, watch } = useForm({
+        resolver: yupResolver(schema),
+        defaultValues: {
+            code: '',
+            description: '',
+            type: 'percent',
+            value: '',
+            minPurchase: '',
+            maxDiscount: '',
+            usageLimit: '',
+            startDate: defaultDateRange.startDate,
+            expiryDate: defaultDateRange.expiryDate,
+            status: 'active'
+        },
+        mode: 'onBlur',
+    });
+
+    const watchType = watch('type');
 
     useEffect(() => {
         if (!isEdit) return;
@@ -46,7 +90,7 @@ const CouponForm = () => {
                     navigate('/admin/coupons');
                     return;
                 }
-                setFormData({
+                reset({
                     code: coupon.code || '',
                     description: coupon.description || '',
                     type: coupon.type || 'percent',
@@ -54,8 +98,8 @@ const CouponForm = () => {
                     minPurchase: coupon.minPurchase ?? '',
                     maxDiscount: coupon.maxDiscount ?? '',
                     usageLimit: coupon.usageLimit ?? '',
-                    startDate: toLocalInputDateTime(coupon.startDate),
-                    expiryDate: toLocalInputDateTime(coupon.expiryDate),
+                    startDate: toLocalInputDateTime(coupon.startDate) || defaultDateRange.startDate,
+                    expiryDate: toLocalInputDateTime(coupon.expiryDate) || defaultDateRange.expiryDate,
                     status: coupon.status || 'active',
                 });
             } catch (error) {
@@ -66,70 +110,22 @@ const CouponForm = () => {
             }
         };
         loadCoupon();
-    }, [id, isEdit, navigate]);
+    }, [id, isEdit, navigate, reset, defaultDateRange]);
 
-    const handleChange = (event) => {
-        const { name, value } = event.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
-        clearFieldError(setErrors, name);
-    };
-
-    const validate = () => {
-        const nextErrors = {};
-        const code = formData.code.trim().toUpperCase();
-        const value = Number(formData.value);
-        const minPurchase = formData.minPurchase === '' ? null : Number(formData.minPurchase);
-        const maxDiscount = formData.maxDiscount === '' ? null : Number(formData.maxDiscount);
-        const usageLimit = formData.usageLimit === '' ? null : Number(formData.usageLimit);
-        const startDate = formData.startDate ? new Date(formData.startDate) : null;
-        const expiryDate = formData.expiryDate ? new Date(formData.expiryDate) : null;
-
-        if (!code) nextErrors.code = 'Coupon code is required';
-        else if (code.length < 3) nextErrors.code = 'Code must be at least 3 characters';
-
-        if (!Number.isFinite(value) || value <= 0) nextErrors.value = 'Value must be greater than 0';
-        if (formData.type === 'percent' && Number.isFinite(value) && value > 100) {
-            nextErrors.value = 'Percent discount cannot exceed 100';
-        }
-
-        if (minPurchase !== null && (!Number.isFinite(minPurchase) || minPurchase < 0)) {
-            nextErrors.minPurchase = 'Minimum purchase cannot be negative';
-        }
-        if (maxDiscount !== null && (!Number.isFinite(maxDiscount) || maxDiscount < 0)) {
-            nextErrors.maxDiscount = 'Maximum discount cannot be negative';
-        }
-        if (usageLimit !== null && (!Number.isFinite(usageLimit) || usageLimit < 1)) {
-            nextErrors.usageLimit = 'Usage limit must be at least 1';
-        }
-        if (startDate && Number.isNaN(startDate.getTime())) nextErrors.startDate = 'Start date is invalid';
-        if (expiryDate && Number.isNaN(expiryDate.getTime())) nextErrors.expiryDate = 'Expiry date is invalid';
-        if (startDate && expiryDate && startDate >= expiryDate) nextErrors.expiryDate = 'Expiry date must be later than start date';
-
-        setErrors(nextErrors);
-        return nextErrors;
-    };
-
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        const validationErrors = validate();
-        if (hasValidationErrors(validationErrors)) {
-            notify.error('Please fix form validation errors');
-            return;
-        }
-
+    const onSubmit = async (data) => {
         try {
             setIsSaving(true);
             const payload = {
-                code: formData.code.trim().toUpperCase(),
-                description: formData.description.trim(),
-                type: formData.type,
-                value: Number(formData.value),
-                minPurchase: formData.minPurchase === '' ? null : Number(formData.minPurchase),
-                maxDiscount: formData.maxDiscount === '' ? null : Number(formData.maxDiscount),
-                usageLimit: formData.usageLimit === '' ? null : Number(formData.usageLimit),
-                startDate: formData.startDate || null,
-                expiryDate: formData.expiryDate || null,
-                status: formData.status,
+                code: data.code.trim().toUpperCase(),
+                description: data.description?.trim() || '',
+                type: data.type,
+                value: Number(data.value),
+                minPurchase: data.minPurchase === '' || data.minPurchase == null ? null : Number(data.minPurchase),
+                maxDiscount: data.maxDiscount === '' || data.maxDiscount == null ? null : Number(data.maxDiscount),
+                usageLimit: data.usageLimit === '' || data.usageLimit == null ? null : Number(data.usageLimit),
+                startDate: data.startDate || null,
+                expiryDate: data.expiryDate || null,
+                status: data.status,
             };
 
             if (isEdit) {
@@ -142,8 +138,9 @@ const CouponForm = () => {
 
             navigate('/admin/coupons');
         } catch (error) {
-            const mapped = applyServerFieldErrors(setErrors, error?.errors || error?.data?.errors || error?.response?.data?.errors);
-            if (hasValidationErrors(mapped)) {
+            const serverErrors = error?.errors || error?.data?.errors || error?.response?.data?.errors;
+            if (Array.isArray(serverErrors) && serverErrors.length > 0) {
+                serverErrors.forEach(({ field, message }) => { if (field) setError(field, { message }); });
                 notify.error('Please fix form validation errors');
             } else {
                 notify.error(error, `Failed to ${isEdit ? 'update' : 'create'} coupon`);
@@ -152,6 +149,8 @@ const CouponForm = () => {
             setIsSaving(false);
         }
     };
+
+    const fc = (field) => `w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${errors[field] ? 'border-red-400 focus:ring-red-100 bg-red-50' : 'border-slate-300 focus:ring-cyan-100'}`;
 
     if (isLoading) {
         return (
@@ -172,60 +171,62 @@ const CouponForm = () => {
                 <p className="mt-2 text-slate-200/90">Configure checkout coupon rules and validity window.</p>
             </div>
 
-            <form onSubmit={handleSubmit} noValidate className="space-y-6 rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] sm:p-7">
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6 rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] sm:p-7">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Code *</label>
-                        <input name="code" value={formData.code} onChange={handleChange} placeholder="SAVE20" className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'code')}`} />
-                        {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
+                        <input {...register('code')} placeholder="SAVE20" className={fc('code')} />
+                        {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code.message}</p>}
                     </div>
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Type *</label>
-                        <select name="type" value={formData.type} onChange={handleChange} className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'type')}`}>
+                        <select {...register('type')} className={fc('type')}>
                             <option value="percent">Percent</option>
                             <option value="fixed">Fixed</option>
                         </select>
+                        {errors.type && <p className="mt-1 text-sm text-red-600">{errors.type.message}</p>}
                     </div>
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Value *</label>
-                        <input type="number" name="value" value={formData.value} onChange={handleChange} min="0" step={formData.type === 'percent' ? '1' : '0.01'} className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'value')}`} />
-                        {errors.value && <p className="mt-1 text-sm text-red-600">{errors.value}</p>}
+                        <input {...register('value')} type="number" min="0" step={watchType === 'percent' ? '1' : '0.01'} className={fc('value')} />
+                        {errors.value && <p className="mt-1 text-sm text-red-600">{errors.value.message}</p>}
                     </div>
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Status *</label>
-                        <select name="status" value={formData.status} onChange={handleChange} className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'status')}`}>
+                        <select {...register('status')} className={fc('status')}>
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                         </select>
+                        {errors.status && <p className="mt-1 text-sm text-red-600">{errors.status.message}</p>}
                     </div>
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Min Purchase</label>
-                        <input type="number" name="minPurchase" value={formData.minPurchase} onChange={handleChange} min="0" step="0.01" className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'minPurchase')}`} />
-                        {errors.minPurchase && <p className="mt-1 text-sm text-red-600">{errors.minPurchase}</p>}
+                        <input {...register('minPurchase')} type="number" min="0" step="0.01" className={fc('minPurchase')} />
+                        {errors.minPurchase && <p className="mt-1 text-sm text-red-600">{errors.minPurchase.message}</p>}
                     </div>
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Max Discount</label>
-                        <input type="number" name="maxDiscount" value={formData.maxDiscount} onChange={handleChange} min="0" step="0.01" className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'maxDiscount')}`} />
-                        {errors.maxDiscount && <p className="mt-1 text-sm text-red-600">{errors.maxDiscount}</p>}
+                        <input {...register('maxDiscount')} type="number" min="0" step="0.01" className={fc('maxDiscount')} />
+                        {errors.maxDiscount && <p className="mt-1 text-sm text-red-600">{errors.maxDiscount.message}</p>}
                     </div>
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Usage Limit</label>
-                        <input type="number" name="usageLimit" value={formData.usageLimit} onChange={handleChange} min="1" step="1" className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'usageLimit')}`} />
-                        {errors.usageLimit && <p className="mt-1 text-sm text-red-600">{errors.usageLimit}</p>}
+                        <input {...register('usageLimit')} type="number" min="1" step="1" className={fc('usageLimit')} />
+                        {errors.usageLimit && <p className="mt-1 text-sm text-red-600">{errors.usageLimit.message}</p>}
                     </div>
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Start Date</label>
-                        <input type="datetime-local" name="startDate" value={formData.startDate} onChange={handleChange} className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'startDate')}`} />
-                        {errors.startDate && <p className="mt-1 text-sm text-red-600">{errors.startDate}</p>}
+                        <input {...register('startDate')} type="datetime-local" className={fc('startDate')} />
+                        {errors.startDate && <p className="mt-1 text-sm text-red-600">{errors.startDate.message}</p>}
                     </div>
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Expiry Date</label>
-                        <input type="datetime-local" name="expiryDate" value={formData.expiryDate} onChange={handleChange} className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'expiryDate')}`} />
-                        {errors.expiryDate && <p className="mt-1 text-sm text-red-600">{errors.expiryDate}</p>}
+                        <input {...register('expiryDate')} type="datetime-local" className={fc('expiryDate')} />
+                        {errors.expiryDate && <p className="mt-1 text-sm text-red-600">{errors.expiryDate.message}</p>}
                     </div>
                     <div className="md:col-span-2">
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Description</label>
-                        <textarea name="description" value={formData.description} onChange={handleChange} rows="3" className="w-full rounded-xl border border-slate-300 px-4 py-3" placeholder="Optional description for admin reference" />
+                        <textarea {...register('description')} rows="3" className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-100" placeholder="Optional description for admin reference" />
                     </div>
                 </div>
 

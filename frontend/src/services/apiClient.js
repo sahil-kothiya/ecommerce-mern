@@ -33,7 +33,13 @@ class ApiClient {
 
     this.addErrorInterceptor(async (error) => {
       if (error.response?.status === 401) {
-        this.handleUnauthorizedRedirect();
+        // Skip session-expired handling for auth endpoints (login/register failures)
+        const url = error.response?.config?.url || error.config?.url || "";
+        const isAuthEndpoint =
+          url.includes("/auth/login") || url.includes("/auth/register");
+        if (!isAuthEndpoint) {
+          this.handleUnauthorizedRedirect();
+        }
       }
 
       return Promise.reject(error);

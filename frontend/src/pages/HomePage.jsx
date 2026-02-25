@@ -2,6 +2,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { getRandomProductImage } from '../services/imageService';
 import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
+import { getPrimaryProductImage, resolveImageUrl } from '../utils/imageUrl';
 import { API_CONFIG, PRODUCT_CONDITIONS, CURRENCY_CONFIG } from '../constants';
 import authService from '../services/authService';
 import notify from '../utils/notify';
@@ -347,11 +348,14 @@ const HomePage = () => {
 
     const getProductImage = (product) => {
         const imgs = product.images || [];
-        if (!imgs.length) return getRandomProductImage();
+        if (!imgs.length) {
+            const primary = getPrimaryProductImage(product);
+            const resolvedPrimary = resolveImageUrl(primary, { placeholder: null });
+            return resolvedPrimary || getRandomProductImage();
+        }
         const raw = imgs[currentImageIndex[product._id] || 0] || imgs[0];
-        const path = raw?.path || raw?.url || (typeof raw === 'string' ? raw : null);
-        if (!path) return getRandomProductImage();
-        return path.startsWith('http') ? path : `${API_CONFIG.BASE_URL}/${path.replace(/^\//, '')}`;
+        const resolved = resolveImageUrl(raw, { placeholder: null });
+        return resolved || getRandomProductImage();
     };
 
     const formatCurrency = (price) => formatPrice(price || 0, CURRENCY_CONFIG.DEFAULT, CURRENCY_CONFIG.LOCALE);

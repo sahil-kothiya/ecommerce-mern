@@ -267,29 +267,6 @@ export class ProductController {
     }
   }
 
-  async adminShow(req, res) {
-    try {
-      const { id } = req.params;
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Invalid product ID" });
-      }
-      const product = await Product.findById(id);
-      if (!product) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Product not found" });
-      }
-      res.json({ success: true, data: product });
-    } catch (error) {
-      console.error("Admin product show error:", error);
-      res
-        .status(500)
-        .json({ success: false, message: "Failed to fetch product" });
-    }
-  }
-
   async showBySlug(req, res) {
     try {
       const { slug } = req.params;

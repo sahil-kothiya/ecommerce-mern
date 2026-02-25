@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { API_CONFIG } from '../constants';
 import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
+import { getPrimaryProductImage, resolveImageUrl } from '../utils/imageUrl';
 import authService from '../services/authService';
 import StoreNav from '../components/common/StoreNav';
 import LazyImage from '../components/common/LazyImage';
@@ -32,37 +33,6 @@ const parseBrandList = (payload) => {
     if (Array.isArray(payload?.data?.brands)) return payload.data.brands;
     if (Array.isArray(payload?.data)) return payload.data;
     return [];
-};
-
-const resolveImageUrl = (raw) => {
-    if (!raw) return null;
-    if (typeof raw === 'object') raw = raw.path || raw.url || null;
-    if (!raw) return null;
-    return raw.startsWith('http') ? raw : `${API_CONFIG.BASE_URL}/${raw.replace(/^\//, '')}`;
-};
-
-const getProductPrimaryImage = (product) => {
-    if (!product) return null;
-
-    const directImages = Array.isArray(product.images) ? product.images : [];
-    const directPrimary = directImages.find((img) => img?.isPrimary) || directImages[0];
-    if (directPrimary) {
-        return directPrimary;
-    }
-
-    const variants = Array.isArray(product.variants) ? product.variants : [];
-    const activeVariants = variants.filter((variant) => !variant?.status || variant.status === 'active');
-    const sourceVariants = activeVariants.length ? activeVariants : variants;
-
-    for (const variant of sourceVariants) {
-        const variantImages = Array.isArray(variant?.images) ? variant.images : [];
-        const variantPrimary = variantImages.find((img) => img?.isPrimary) || variantImages[0];
-        if (variantPrimary) {
-            return variantPrimary;
-        }
-    }
-
-    return null;
 };
 
 const SkeletonCard = () => (

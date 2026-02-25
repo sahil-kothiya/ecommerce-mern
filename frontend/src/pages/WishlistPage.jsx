@@ -3,31 +3,8 @@ import { Link } from 'react-router-dom';
 import authService from '../services/authService';
 import { API_CONFIG } from '../constants';
 import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
-
-const resolveImageUrl = (raw) => {
-    if (!raw) return '/images/placeholder.webp';
-    if (typeof raw === 'object') raw = raw.path || raw.url || null;
-    if (!raw) return '/images/placeholder.webp';
-    return raw.startsWith('http') ? raw : `${API_CONFIG.BASE_URL}/${raw.replace(/^\//, '')}`;
-};
-
-const getWishlistProductImage = (product) => {
-    const directImages = Array.isArray(product?.images) ? product.images : [];
-    const directPrimary = directImages.find((img) => img?.isPrimary) || directImages[0];
-    if (directPrimary) return directPrimary;
-
-    const variants = Array.isArray(product?.variants) ? product.variants : [];
-    const activeVariants = variants.filter((variant) => !variant?.status || variant.status === 'active');
-    const sourceVariants = activeVariants.length ? activeVariants : variants;
-
-    for (const variant of sourceVariants) {
-        const variantImages = Array.isArray(variant?.images) ? variant.images : [];
-        const variantPrimary = variantImages.find((img) => img?.isPrimary) || variantImages[0];
-        if (variantPrimary) return variantPrimary;
-    }
-
-    return null;
-};
+import { getPrimaryProductImage, resolveImageUrl } from '../utils/imageUrl';
+import notify from '../utils/notify';
 
 const WishlistPage = () => {
     const [items, setItems] = useState([]);
@@ -47,19 +24,39 @@ const WishlistPage = () => {
     const removeItem = async (id) => {
         try {
             setIsBusy(true);
-            await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${id}`, { method: 'DELETE', headers: authService.getAuthHeaders(), credentials: 'include' });
+            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${id}`, {
+                method: 'DELETE',
+                headers: authService.getAuthHeaders(),
+                credentials: 'include',
+            });
+            if (!res.ok) {
+                const payload = await res.json().catch(() => ({}));
+                throw new Error(payload?.message || 'Failed to remove item');
+            }
+            notify.success('Removed from wishlist');
             window.dispatchEvent(new Event('wishlist:changed'));
             loadWishlist();
+        } catch (err) {
+            notify.error(err.message || 'Failed to remove item');
         } finally { setIsBusy(false); }
     };
 
     const moveToCart = async (id) => {
         try {
             setIsBusy(true);
-            await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${id}/move-to-cart`, { method: 'POST', headers: authService.getAuthHeaders(), credentials: 'include' });
+            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${id}/move-to-cart`, {
+                method: 'POST',
+                headers: authService.getAuthHeaders(),
+                credentials: 'include',
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(payload?.message || 'Failed to move to cart');
+            notify.success('Item moved to cart!');
             window.dispatchEvent(new Event('wishlist:changed'));
             window.dispatchEvent(new Event('cart:changed'));
             loadWishlist();
+        } catch (err) {
+            notify.error(err.message || 'Failed to move to cart');
         } finally { setIsBusy(false); }
     };
 
@@ -94,7 +91,7 @@ const WishlistPage = () => {
                         const product = item.productId;
                         if (!product) return null;
                         const pricing = getProductDisplayPricing(product);
-                        const imgUrl = resolveImageUrl(getWishlistProductImage(product));
+                        const imgUrl = resolveImageUrl(getPrimaryProductImage(product));
                         const priceLabel = pricing.isRange
                             ? `${formatPrice(pricing.minPrice)} - ${formatPrice(pricing.maxPrice)}`
                             : formatPrice(pricing.finalPrice);

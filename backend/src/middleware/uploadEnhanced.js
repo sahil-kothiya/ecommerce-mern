@@ -137,7 +137,7 @@ export const uploadProductMultiField = multer({
 // Accepts any file field - used for product + per-variant image uploads
 export const uploadProductAnyField = multer({
   storage: productStorage,
-  limits: { fileSize: config.upload.maxFileSize, files: 100 },
+  limits: { files: 100 },
   fileFilter: imageFileFilter,
 }).any();
 

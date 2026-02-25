@@ -3,6 +3,43 @@ import { Coupon } from "../models/Coupon.js";
 import { AppError } from "../middleware/errorHandler.js";
 
 export class CouponController {
+  normalizeCouponPayload(rawCoupon = {}) {
+    const minPurchase = this.parseNumber(
+      rawCoupon.minPurchase,
+      this.parseNumber(rawCoupon.minOrderAmount, 0),
+    );
+    const startDate = rawCoupon.startDate || rawCoupon.validFrom || null;
+    const expiryDate = rawCoupon.expiryDate || rawCoupon.validUntil || null;
+    const usedCount = this.parseNumber(
+      rawCoupon.usedCount,
+      this.parseNumber(rawCoupon.usageCount, 0),
+    );
+
+    return {
+      ...rawCoupon,
+      minPurchase,
+      startDate,
+      expiryDate,
+      usedCount,
+    };
+  }
+
+  async syncExpiredCouponsStatus() {
+    const now = new Date();
+    await Coupon.updateMany(
+      {
+        status: "active",
+        $or: [
+          { expiryDate: { $ne: null, $lt: now } },
+          { validUntil: { $ne: null, $lt: now } },
+        ],
+      },
+      {
+        $set: { status: "inactive" },
+      },
+    );
+  }
+
   createFieldError(field, message) {
     return { field, message };
   }
@@ -117,14 +154,6 @@ export class CouponController {
       );
     }
 
-    if (payload.startDate && !payload.expiryDate) {
-      errors.push(
-        this.createFieldError(
-          "expiryDate",
-          "Expiry date is required when start date is set",
-        ),
-      );
-    }
     if (
       payload.startDate &&
       payload.expiryDate &&
@@ -149,6 +178,14 @@ export class CouponController {
 
   async index(req, res, next) {
     try {
+      await this.syncExpiredCouponsStatus();
+      res.set(
+        "Cache-Control",
+        "no-store, no-cache, must-revalidate, proxy-revalidate",
+      );
+      res.set("Pragma", "no-cache");
+      res.set("Expires", "0");
+
       const page = Math.max(1, Number(req.query.page) || 1);
       const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 20));
       const skip = (page - 1) * limit;
@@ -180,10 +217,14 @@ export class CouponController {
         Coupon.countDocuments(query),
       ]);
 
+      const normalizedCoupons = coupons.map((coupon) =>
+        this.normalizeCouponPayload(coupon),
+      );
+
       res.json({
         success: true,
         data: {
-          coupons,
+          coupons: normalizedCoupons,
           pagination: {
             page,
             limit,
@@ -199,6 +240,14 @@ export class CouponController {
 
   async show(req, res, next) {
     try {
+      await this.syncExpiredCouponsStatus();
+      res.set(
+        "Cache-Control",
+        "no-store, no-cache, must-revalidate, proxy-revalidate",
+      );
+      res.set("Pragma", "no-cache");
+      res.set("Expires", "0");
+
       const { id } = req.params;
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return next(new AppError("Invalid coupon ID", 400));
@@ -209,7 +258,7 @@ export class CouponController {
         return next(new AppError("Coupon not found", 404));
       }
 
-      res.json({ success: true, data: coupon });
+      res.json({ success: true, data: this.normalizeCouponPayload(coupon) });
     } catch (error) {
       next(new AppError("Failed to fetch coupon", 500));
     }
@@ -217,6 +266,19 @@ export class CouponController {
 
   async create(req, res, next) {
     try {
+      const minPurchaseValue = this.parseNumber(
+        req.body.minPurchase,
+        this.parseNumber(req.body.minOrderAmount, 0),
+      );
+      const startDateValue = this.parseDate(
+        req.body.startDate ?? req.body.validFrom,
+        null,
+      );
+      const expiryDateValue = this.parseDate(
+        req.body.expiryDate ?? req.body.validUntil,
+        null,
+      );
+
       const payload = {
         code: String(req.body.code || "")
           .trim()
@@ -225,11 +287,14 @@ export class CouponController {
           .trim()
           .toLowerCase(),
         value: this.parseNumber(req.body.value),
-        minPurchase: this.parseNumber(req.body.minPurchase, 0),
+        minPurchase: minPurchaseValue,
+        minOrderAmount: minPurchaseValue,
         maxDiscount: this.parseNumber(req.body.maxDiscount, null),
         usageLimit: this.parseNumber(req.body.usageLimit, null),
-        startDate: this.parseDate(req.body.startDate, null),
-        expiryDate: this.parseDate(req.body.expiryDate, null),
+        startDate: startDateValue,
+        validFrom: startDateValue,
+        expiryDate: expiryDateValue,
+        validUntil: expiryDateValue,
         status: String(req.body.status || "active")
           .trim()
           .toLowerCase(),
@@ -245,7 +310,7 @@ export class CouponController {
       return res.status(201).json({
         success: true,
         message: "Coupon created successfully",
-        data: created,
+        data: this.normalizeCouponPayload(created.toObject()),
       });
     } catch (error) {
       if (error?.code === 11000) {
@@ -280,6 +345,26 @@ export class CouponController {
         return next(new AppError("Coupon not found", 404));
       }
 
+      const minPurchaseValue =
+        req.body.minPurchase !== undefined ||
+        req.body.minOrderAmount !== undefined
+          ? this.parseNumber(
+              req.body.minPurchase,
+              this.parseNumber(req.body.minOrderAmount, 0),
+            )
+          : this.parseNumber(
+              coupon.minPurchase,
+              this.parseNumber(coupon.minOrderAmount, 0),
+            );
+      const startDateValue =
+        req.body.startDate !== undefined || req.body.validFrom !== undefined
+          ? this.parseDate(req.body.startDate ?? req.body.validFrom, null)
+          : coupon.startDate || coupon.validFrom;
+      const expiryDateValue =
+        req.body.expiryDate !== undefined || req.body.validUntil !== undefined
+          ? this.parseDate(req.body.expiryDate ?? req.body.validUntil, null)
+          : coupon.expiryDate || coupon.validUntil;
+
       const payload = {
         code:
           req.body.code !== undefined
@@ -297,10 +382,8 @@ export class CouponController {
           req.body.value !== undefined
             ? this.parseNumber(req.body.value)
             : coupon.value,
-        minPurchase:
-          req.body.minPurchase !== undefined
-            ? this.parseNumber(req.body.minPurchase, 0)
-            : coupon.minPurchase,
+        minPurchase: minPurchaseValue,
+        minOrderAmount: minPurchaseValue,
         maxDiscount:
           req.body.maxDiscount !== undefined
             ? this.parseNumber(req.body.maxDiscount, null)
@@ -309,14 +392,10 @@ export class CouponController {
           req.body.usageLimit !== undefined
             ? this.parseNumber(req.body.usageLimit, null)
             : coupon.usageLimit,
-        startDate:
-          req.body.startDate !== undefined
-            ? this.parseDate(req.body.startDate, null)
-            : coupon.startDate,
-        expiryDate:
-          req.body.expiryDate !== undefined
-            ? this.parseDate(req.body.expiryDate, null)
-            : coupon.expiryDate,
+        startDate: startDateValue,
+        validFrom: startDateValue,
+        expiryDate: expiryDateValue,
+        validUntil: expiryDateValue,
         status:
           req.body.status !== undefined
             ? String(req.body.status || "")
@@ -340,7 +419,7 @@ export class CouponController {
       return res.json({
         success: true,
         message: "Coupon updated successfully",
-        data: coupon,
+        data: this.normalizeCouponPayload(coupon.toObject()),
       });
     } catch (error) {
       if (error?.code === 11000) {
@@ -387,6 +466,8 @@ export class CouponController {
 
   async validate(req, res, next) {
     try {
+      await this.syncExpiredCouponsStatus();
+
       const code = String(req.body.code || req.body.couponCode || "")
         .trim()
         .toUpperCase();
@@ -409,44 +490,58 @@ export class CouponController {
         );
       }
 
+      const normalizedCoupon = this.normalizeCouponPayload(coupon);
+
       const now = new Date();
-      if (coupon.status !== "active") {
+      if (normalizedCoupon.status !== "active") {
         return next(new AppError("Coupon is inactive", 400));
       }
-      if (coupon.startDate && new Date(coupon.startDate) > now) {
+      if (
+        normalizedCoupon.startDate &&
+        new Date(normalizedCoupon.startDate) > now
+      ) {
         return next(new AppError("Coupon is not yet valid", 400));
       }
-      if (coupon.expiryDate && new Date(coupon.expiryDate) < now) {
+      if (
+        normalizedCoupon.expiryDate &&
+        new Date(normalizedCoupon.expiryDate) < now
+      ) {
         return next(new AppError("Coupon has expired", 400));
       }
-      if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+      if (
+        normalizedCoupon.usageLimit &&
+        normalizedCoupon.usedCount >= normalizedCoupon.usageLimit
+      ) {
         return next(new AppError("Coupon usage limit reached", 400));
       }
-      if (coupon.minPurchase && total < coupon.minPurchase) {
+      if (
+        normalizedCoupon.minPurchase &&
+        total < normalizedCoupon.minPurchase
+      ) {
         return next(
           new AppError(
-            `Minimum order amount of $${coupon.minPurchase} required`,
+            `Minimum order amount of $${normalizedCoupon.minPurchase} required`,
             400,
           ),
         );
       }
 
       const discount =
-        coupon.type === "percent"
+        normalizedCoupon.type === "percent"
           ? Math.min(
-              (total * coupon.value) / 100,
-              coupon.maxDiscount || Number.MAX_SAFE_INTEGER,
+              (total * normalizedCoupon.value) / 100,
+              normalizedCoupon.maxDiscount || Number.MAX_SAFE_INTEGER,
             )
-          : coupon.value;
+          : normalizedCoupon.value;
 
       return res.json({
         success: true,
         message: "Coupon is valid",
         data: {
-          couponId: coupon._id,
-          code: coupon.code,
-          type: coupon.type,
-          value: coupon.value,
+          couponId: normalizedCoupon._id,
+          code: normalizedCoupon.code,
+          type: normalizedCoupon.type,
+          value: normalizedCoupon.value,
           discount: Math.min(Math.round(discount * 100) / 100, total),
         },
       });

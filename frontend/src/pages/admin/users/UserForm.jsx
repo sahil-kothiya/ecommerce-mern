@@ -1,30 +1,41 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import notify from '../../../utils/notify';
 import { API_CONFIG } from '../../../constants';
+import authFetch from '../../../utils/authFetch.js';
 import { AdminLoadingState, AdminPageHeader, AdminSurface } from '../../../components/admin/AdminTheme';
-import { applyServerFieldErrors, clearFieldError, getFieldBorderClass, hasValidationErrors } from '../../../utils/formValidation';
 
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const buildSchema = (isEdit) => yup.object({
+    name: yup.string().trim().required('Name is required').min(2, 'Name must be at least 2 characters'),
+    email: yup.string().trim().required('Email is required').email('Email format is invalid'),
+    password: isEdit
+        ? yup.string().test('min-if-set', 'Password must be at least 8 characters', (v) => !v || v.length >= 8)
+        : yup.string().required('Password is required').min(8, 'Password must be at least 8 characters'),
+    role: yup.string().oneOf(['admin', 'user'], 'Role must be admin or user').required(),
+    status: yup.string().oneOf(['active', 'inactive'], 'Status must be active or inactive').required(),
+});
 
 const UserForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const isEdit = Boolean(id);
 
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        password: '',
-        role: 'user',
-        status: 'active',
-    });
-    const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [selectedPhotoFile, setSelectedPhotoFile] = useState(null);
     const [photoPreview, setPhotoPreview] = useState('');
+
+    const { register, handleSubmit, reset, setError, formState: { errors } } = useForm({
+        resolver: yupResolver(buildSchema(isEdit)),
+        defaultValues: { name: '', email: '', password: '', role: 'user', status: 'active' },
+        mode: 'onBlur',
+    });
+
+    const fc = (field) => `w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${errors[field] ? 'border-red-400 focus:ring-red-100 bg-red-50' : 'border-slate-200 focus:ring-cyan-100'}`;
 
     useEffect(() => {
         if (isEdit) {
@@ -52,16 +63,14 @@ const UserForm = () => {
     const loadUser = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}/${id}`, {
-                credentials: 'include',
-            });
+            const response = await authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}/${id}`);
             const data = await response.json();
             if (!response.ok || !data?.success) {
                 notify.error(data, 'Failed to load user');
                 return;
             }
             const user = data?.data || {};
-            setFormData({
+            reset({
                 name: user.name || '',
                 email: user.email || '',
                 password: '',
@@ -75,12 +84,6 @@ const UserForm = () => {
         } finally {
             setIsLoading(false);
         }
-    };
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
-        clearFieldError(setErrors, name);
     };
 
     const handlePhotoChange = (event) => {
@@ -108,64 +111,38 @@ const UserForm = () => {
         clearFieldError(setErrors, 'photo');
     };
 
-    const validate = () => {
-        const nextErrors = {};
-        const name = formData.name.trim();
-        const email = formData.email.trim().toLowerCase();
-        const password = formData.password || '';
-
-        if (name.length < 2) nextErrors.name = 'Name must be at least 2 characters';
-        if (!email) nextErrors.email = 'Email is required';
-        else if (!emailRegex.test(email)) nextErrors.email = 'Email format is invalid';
-        if (!['admin', 'user'].includes(formData.role)) nextErrors.role = 'Role must be admin or user';
-        if (!['active', 'inactive'].includes(formData.status)) nextErrors.status = 'Status must be active or inactive';
-        if (!isEdit && password.length < 8) nextErrors.password = 'Password must be at least 8 characters';
-        if (isEdit && password && password.length < 8) nextErrors.password = 'Password must be at least 8 characters';
-
-        return nextErrors;
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        const clientErrors = validate();
-        setErrors(clientErrors);
-        if (hasValidationErrors(clientErrors)) {
-            notify.error('Please fix form validation errors');
-            return;
-        }
-
+    const onSubmit = async (data) => {
         try {
             setIsSaving(true);
             const payload = new FormData();
-            payload.append('name', formData.name.trim());
-            payload.append('email', formData.email.trim().toLowerCase());
-            payload.append('role', formData.role);
-            payload.append('status', formData.status);
-            if (formData.password) payload.append('password', formData.password);
+            payload.append('name', data.name.trim());
+            payload.append('email', data.email.trim().toLowerCase());
+            payload.append('role', data.role);
+            payload.append('status', data.status);
+            if (data.password) payload.append('password', data.password);
             if (selectedPhotoFile) payload.append('avatar', selectedPhotoFile);
 
             const url = isEdit
                 ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}/${id}`
                 : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}`;
-            const response = await fetch(url, {
+            const response = await authFetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
-                credentials: 'include',
                 body: payload,
             });
-            const data = await response.json();
+            const resData = await response.json();
 
-            if (!response.ok || !data?.success) {
-                const mapped = applyServerFieldErrors(setErrors, data?.errors, clientErrors);
-                const fallbackMessage = String(data?.message || '').toLowerCase();
-                if (!mapped.email && fallbackMessage.includes('already exists') && fallbackMessage.includes('email')) {
-                    mapped.email = 'User already exists with this email';
-                    setErrors((prev) => ({ ...prev, email: mapped.email }));
+            if (!response.ok || !resData?.success) {
+                const serverErrors = resData?.errors;
+                if (Array.isArray(serverErrors)) {
+                    serverErrors.forEach(({ field, message }) => { if (field) setError(field, { message }); });
+                    notify.error('Please fix form validation errors');
+                } else {
+                    const msg = String(resData?.message || '').toLowerCase();
+                    if (msg.includes('already exists') && msg.includes('email')) {
+                        setError('email', { message: 'User already exists with this email' });
+                    }
+                    notify.error(resData?.message || `Failed to ${isEdit ? 'update' : 'create'} user`);
                 }
-                if (hasValidationErrors(mapped)) {
-                    notify.error(data?.message || 'Please fix form validation errors');
-                    return;
-                }
-                notify.error(data?.message || `Failed to ${isEdit ? 'update' : 'create'} user`);
                 return;
             }
 
@@ -191,42 +168,36 @@ const UserForm = () => {
             />
 
             <AdminSurface>
-                <form onSubmit={handleSubmit} noValidate className="space-y-5">
+                <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
                 <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">Name *</label>
                     <input
+                        {...register('name')}
                         type="text"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'name')}`}
+                        className={fc('name')}
                         placeholder="Enter full name"
                     />
-                    {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+                    {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
                 </div>
 
                 <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">Email *</label>
                     <input
+                        {...register('email')}
                         type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'email')}`}
+                        className={fc('email')}
                         placeholder="user@example.com"
                     />
-                    {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
+                    {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
                 </div>
 
                 <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">Password {!isEdit && '*'}</label>
                     <div className="relative">
                         <input
+                            {...register('password')}
                             type={showPassword ? 'text' : 'password'}
-                            name="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            className={`w-full rounded-xl border px-4 py-3 pr-12 ${getFieldBorderClass(errors, 'password')}`}
+                            className={`${fc('password')} pr-12`}
                             placeholder={isEdit ? 'Leave blank to keep current password' : 'Enter password'}
                         />
                         <button
@@ -237,7 +208,7 @@ const UserForm = () => {
                             {showPassword ? 'Hide' : 'Show'}
                         </button>
                     </div>
-                    {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
+                    {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
                 </div>
 
                 <div>
@@ -249,7 +220,7 @@ const UserForm = () => {
                                 name="avatar"
                                 accept="image/jpeg,image/png,image/gif,image/webp"
                                 onChange={handlePhotoChange}
-                                className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'photo')}`}
+                                className="w-full rounded-xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-100"
                             />
                             <p className="mt-1 text-xs text-slate-500">Allowed: JPG, PNG, GIF, WEBP. Max file size: 2MB.</p>
                             {errors.photo && <p className="mt-1 text-sm text-red-600">{errors.photo}</p>}
@@ -276,29 +247,19 @@ const UserForm = () => {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Role *</label>
-                        <select
-                            name="role"
-                            value={formData.role}
-                            onChange={handleChange}
-                            className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'role')}`}
-                        >
+                        <select {...register('role')} className={fc('role')}>
                             <option value="user">User</option>
                             <option value="admin">Admin</option>
                         </select>
-                        {errors.role && <p className="mt-1 text-sm text-red-600">{errors.role}</p>}
+                        {errors.role && <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>}
                     </div>
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Status *</label>
-                        <select
-                            name="status"
-                            value={formData.status}
-                            onChange={handleChange}
-                            className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'status')}`}
-                        >
+                        <select {...register('status')} className={fc('status')}>
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                         </select>
-                        {errors.status && <p className="mt-1 text-sm text-red-600">{errors.status}</p>}
+                        {errors.status && <p className="mt-1 text-sm text-red-600">{errors.status.message}</p>}
                     </div>
                 </div>
 

@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import notify from '../../../utils/notify';
 import { FieldError } from '../../../components/common';
 import discountService from '../../../services/discountService';
-import { clearFieldError, getFieldBorderClass, hasValidationErrors, mapServerFieldErrors } from '../../../utils/formValidation';
 
 const toLocalInputDateTime = (value) => {
     if (!value) return '';
@@ -25,54 +27,55 @@ const getDefaultDateRange = () => {
     };
 };
 
-const createInitialForm = () => {
-    const { startsAt, endsAt } = getDefaultDateRange();
-    return {
-        title: '',
-        type: 'percentage',
-        value: '',
-        startsAt,
-        endsAt,
-        categories: [],
-        products: [],
-        isActive: true,
-    };
-};
 
 const buildFieldMapFromArray = (errors = []) => {
     const fieldMap = {};
-    const messages = [];
-
     errors.forEach((error) => {
-        if (typeof error === 'string') {
-            messages.push(error);
-            return;
-        }
-
-        if (error?.field && error?.message) {
-            if (!fieldMap[error.field]) fieldMap[error.field] = error.message;
-            messages.push(error.message);
-            return;
-        }
-
-        if (error?.message) {
-            messages.push(error.message);
+        if (error?.field && error?.message && !fieldMap[error.field]) {
+            fieldMap[error.field] = error.message;
         }
     });
-
-    return { fieldMap, messages: [...new Set(messages)] };
+    return fieldMap;
 };
 
 const extractApiErrors = (error) => {
     const data = error?.data || error?.response?.data || null;
     const message = data?.message || error?.message || 'Something went wrong';
-
-    const fieldMap = mapServerFieldErrors(Array.isArray(data?.errors) ? data.errors : []);
-    const messages = [...new Set(Object.values(fieldMap).filter(Boolean))];
-
-    const finalMessages = messages.length > 0 ? messages : [message];
-    return { fieldMap, messages: finalMessages, message };
+    const fieldMap = {};
+    (Array.isArray(data?.errors) ? data.errors : []).forEach(({ field, message: msg }) => {
+        if (field && !fieldMap[field]) fieldMap[field] = msg;
+    });
+    return { fieldMap, message };
 };
+
+const schema = yup.object({
+    title: yup.string().trim().required('Title is required'),
+    type: yup.string().oneOf(['percentage', 'fixed']).required(),
+    value: yup.number()
+        .typeError('Discount value is required')
+        .required('Discount value is required')
+        .test('valid-value', 'Invalid value', function (val) {
+            const { type } = this.parent;
+            if (type === 'percentage') {
+                if (!Number.isInteger(val)) return this.createError({ message: 'Percentage must be an integer' });
+                if (val < 1 || val > 100) return this.createError({ message: 'Percentage must be between 1 and 100' });
+            } else if (val <= 0) {
+                return this.createError({ message: 'Fixed amount must be greater than 0' });
+            }
+            return true;
+        }),
+    startsAt: yup.string().required('Start date is required'),
+    endsAt: yup.string()
+        .required('End date is required')
+        .test('after-start', 'End date must be later than start date', function (val) {
+            const { startsAt } = this.parent;
+            if (!val || !startsAt) return true;
+            return new Date(val) > new Date(startsAt);
+        }),
+    isActive: yup.boolean().default(true),
+    categories: yup.array().of(yup.string()).default([]),
+    products: yup.array().of(yup.string()).default([]),
+});
 
 const SelectionPanel = ({
     title,
@@ -211,17 +214,29 @@ const DiscountForm = () => {
 
     const [categories, setCategories] = useState([]);
     const [products, setProducts] = useState([]);
-
-    const [formData, setFormData] = useState(createInitialForm());
-    const [fieldErrors, setFieldErrors] = useState({});
-
     const [categorySearch, setCategorySearch] = useState('');
     const [productSearch, setProductSearch] = useState('');
-
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
+    const { register, handleSubmit, reset, setError, watch, setValue, formState: { errors } } = useForm({
+        resolver: yupResolver(schema),
+        defaultValues: {
+            title: '', type: 'percentage', value: 100,
+            startsAt: '', endsAt: '', isActive: true,
+            categories: [], products: [],
+        },
+        mode: 'onBlur',
+    });
+
+    const watchType = watch('type', 'percentage');
+    const watchIsActive = watch('isActive', true);
+    const selectedCategories = watch('categories', []);
+    const selectedProducts = watch('products', []);
+
     useEffect(() => {
+        const { startsAt, endsAt } = getDefaultDateRange();
+        reset((prev) => ({ ...prev, startsAt, endsAt }));
         loadData();
     }, [id]);
 
@@ -238,14 +253,12 @@ const DiscountForm = () => {
             if (isEdit) {
                 const discountResponse = await discountService.getDiscountById(id);
                 const discount = discountResponse?.data;
-
                 if (!discount) {
                     notify.error('Discount not found');
                     navigate('/admin/discounts');
                     return;
                 }
-
-                setFormData({
+                reset({
                     title: discount.title || '',
                     type: discount.type || 'percentage',
                     value: discount.value ?? '',
@@ -256,7 +269,8 @@ const DiscountForm = () => {
                     isActive: Boolean(discount.isActive),
                 });
             } else {
-                setFormData(createInitialForm());
+                const { startsAt, endsAt } = getDefaultDateRange();
+                reset({ title: '', type: 'percentage', value: 100, startsAt, endsAt, isActive: true, categories: [], products: [] });
             }
         } catch (error) {
             const parsed = extractApiErrors(error);
@@ -267,129 +281,40 @@ const DiscountForm = () => {
         }
     };
 
-    const setFieldValue = (field, value) => {
-        setFormData((prev) => ({ ...prev, [field]: value }));
-        clearFieldError(setFieldErrors, field);
-    };
-
     const handleDiscountTypeChange = (nextType) => {
-        if (nextType === 'percentage') {
-            setFormData((prev) => ({ ...prev, type: nextType, value: 100 }));
-        } else {
-            setFormData((prev) => ({ ...prev, type: nextType, value: '' }));
-        }
-
-        if (fieldErrors.type || fieldErrors.value) {
-            clearFieldError(setFieldErrors, 'type');
-            clearFieldError(setFieldErrors, 'value');
-        }
+        setValue('type', nextType);
+        setValue('value', nextType === 'percentage' ? 100 : '');
     };
 
     const handleDiscountValueChange = (rawValue) => {
-        if (rawValue === '') {
-            setFieldValue('value', '');
-            return;
-        }
-
+        if (rawValue === '') { setValue('value', ''); return; }
         let numericValue = Number(rawValue);
-        if (!Number.isFinite(numericValue)) {
-            setFieldValue('value', '');
-            return;
-        }
-
-        if (formData.type === 'percentage') {
+        if (!Number.isFinite(numericValue)) { setValue('value', ''); return; }
+        if (watchType === 'percentage') {
             numericValue = Math.floor(numericValue);
             if (numericValue > 100) numericValue = 100;
             if (numericValue < 1) numericValue = 1;
         }
-
-        setFieldValue('value', numericValue);
+        setValue('value', numericValue);
     };
 
     const toggleSelection = (field, value) => {
-        setFormData((prev) => {
-            const exists = prev[field].includes(value);
-            const next = exists
-                ? prev[field].filter((item) => item !== value)
-                : [...prev[field], value];
-            return { ...prev, [field]: next };
-        });
-
-        if (fieldErrors[field]) {
-            clearFieldError(setFieldErrors, field);
-        }
+        const current = (field === 'categories' ? selectedCategories : selectedProducts) || [];
+        const next = current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
+        setValue(field, next);
     };
 
-    const validateClient = () => {
-        const errors = [];
-
-        if (!formData.title.trim()) {
-            errors.push({ field: 'title', message: 'Title is required' });
-        }
-
-        const numeric = Number(formData.value);
-        if (!Number.isFinite(numeric)) {
-            errors.push({ field: 'value', message: 'Discount value is required' });
-        } else if (formData.type === 'percentage') {
-            if (!Number.isInteger(numeric)) {
-                errors.push({ field: 'value', message: 'Percentage must be an integer' });
-            }
-            if (numeric < 1 || numeric > 100) {
-                errors.push({ field: 'value', message: 'Percentage must be between 1 and 100' });
-            }
-        } else if (numeric <= 0) {
-            errors.push({ field: 'value', message: 'Fixed amount must be greater than 0' });
-        }
-
-        const start = new Date(formData.startsAt);
-        const end = new Date(formData.endsAt);
-
-        if (!formData.startsAt || Number.isNaN(start.getTime())) {
-            errors.push({ field: 'startsAt', message: 'Start date is required' });
-        }
-
-        if (!formData.endsAt || Number.isNaN(end.getTime())) {
-            errors.push({ field: 'endsAt', message: 'End date is required' });
-        }
-
-        if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && start >= end) {
-            errors.push({ field: 'endsAt', message: 'End date must be later than start date' });
-        }
-
-        if (formData.categories.length === 0 && formData.products.length === 0) {
-            const message = 'Select at least one category or product';
-            errors.push({ field: 'categories', message });
-            errors.push({ field: 'products', message });
-        }
-
-        return errors;
-    };
-
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-
-        const validationErrors = validateClient();
-        if (validationErrors.length > 0) {
-            const parsed = buildFieldMapFromArray(validationErrors);
-            setFieldErrors(parsed.fieldMap);
+    const onSubmit = async (data) => {
+        if (data.categories.length === 0 && data.products.length === 0) {
+            setError('categories', { message: 'Select at least one category or product' });
+            setError('products', { message: 'Select at least one category or product' });
             notify.error('Please fix form validation errors');
             return;
         }
 
         setIsSaving(true);
-
         try {
-            const payload = {
-                title: formData.title.trim(),
-                type: formData.type,
-                value: Number(formData.value),
-                startsAt: formData.startsAt,
-                endsAt: formData.endsAt,
-                categories: formData.categories,
-                products: formData.products,
-                isActive: formData.isActive,
-            };
-
+            const payload = { ...data, value: Number(data.value) };
             if (isEdit) {
                 await discountService.updateDiscount(id, payload);
                 notify.success('Discount updated successfully');
@@ -397,16 +322,11 @@ const DiscountForm = () => {
                 await discountService.createDiscount(payload);
                 notify.success('Discount created successfully');
             }
-
             navigate('/admin/discounts');
         } catch (error) {
             const parsed = extractApiErrors(error);
-            setFieldErrors(parsed.fieldMap);
-            if (hasValidationErrors(parsed.fieldMap)) {
-                notify.error('Please fix form validation errors');
-            } else {
-                notify.error(parsed.message, 'Failed to save discount');
-            }
+            Object.entries(parsed.fieldMap).forEach(([field, message]) => setError(field, { message }));
+            notify.error(parsed.message, 'Failed to save discount');
         } finally {
             setIsSaving(false);
         }
@@ -439,11 +359,11 @@ const DiscountForm = () => {
                         <p className="mt-2 text-slate-200/90">Configure percentage/fixed discount and apply to categories or products.</p>
                     </div>
                     <span className={`inline-flex items-center px-3 py-1.5 text-xs font-bold rounded-full border ${
-                        formData.isActive
+                        watchIsActive
                             ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
                             : 'bg-amber-100 text-amber-800 border-amber-200'
                     }`}>
-                        {formData.isActive ? 'Active' : 'Inactive'}
+                        {watchIsActive ? 'Active' : 'Inactive'}
                     </span>
                 </div>
             </div>
@@ -455,62 +375,60 @@ const DiscountForm = () => {
                 </div>
                 <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-2xl p-4 shadow-sm">
                     <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Type</p>
-                    <p className="mt-1 text-lg font-black text-slate-900 capitalize">{formData.type}</p>
+                    <p className="mt-1 text-lg font-black text-slate-900 capitalize">{watchType}</p>
                 </div>
                 <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-2xl p-4 shadow-sm">
                     <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Targets</p>
-                    <p className="mt-1 text-lg font-black text-slate-900">{(formData.categories || []).length + (formData.products || []).length} Selected</p>
+                    <p className="mt-1 text-lg font-black text-slate-900">{(selectedCategories || []).length + (selectedProducts || []).length} Selected</p>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} noValidate className="space-y-6 rounded-3xl border border-slate-200 bg-white/95 backdrop-blur p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] sm:p-7">
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6 rounded-3xl border border-slate-200 bg-white/95 backdrop-blur p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] sm:p-7">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Title <span className="text-rose-500">*</span></label>
                         <input
                             type="text"
-                            value={formData.title}
-                            onChange={(event) => setFieldValue('title', event.target.value)}
+                            {...register('title')}
                             placeholder="Enter discount title"
-                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${getFieldBorderClass(fieldErrors, 'title')}`}
+                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${errors.title ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
                         />
-                        <FieldError error={fieldErrors.title} />
+                        <FieldError error={errors.title?.message} />
                     </div>
 
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Discount Type <span className="text-rose-500">*</span></label>
                         <select
-                            value={formData.type}
+                            value={watchType}
                             onChange={(event) => handleDiscountTypeChange(event.target.value)}
-                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${getFieldBorderClass(fieldErrors, 'type')}`}
+                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${errors.type ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
                         >
                             <option value="percentage">Percentage</option>
                             <option value="fixed">Fixed Amount</option>
                         </select>
-                        <FieldError error={fieldErrors.type} />
+                        <FieldError error={errors.type?.message} />
                     </div>
 
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Discount Value <span className="text-rose-500">*</span></label>
                         <input
                             type="number"
-                            value={formData.value}
+                            value={watch('value')}
                             onChange={(event) => handleDiscountValueChange(event.target.value)}
-                            step={formData.type === 'percentage' ? '1' : '0.01'}
-                            min={formData.type === 'percentage' ? '1' : '0.01'}
-                            max={formData.type === 'percentage' ? '100' : undefined}
-                            placeholder={formData.type === 'percentage' ? 'Enter integer percentage (1-100)' : 'Enter fixed amount'}
-                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${getFieldBorderClass(fieldErrors, 'value')}`}
+                            step={watchType === 'percentage' ? '1' : '0.01'}
+                            min={watchType === 'percentage' ? '1' : '0.01'}
+                            max={watchType === 'percentage' ? '100' : undefined}
+                            placeholder={watchType === 'percentage' ? 'Enter integer percentage (1-100)' : 'Enter fixed amount'}
+                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${errors.value ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
                         />
-                        <FieldError error={fieldErrors.value} />
+                        <FieldError error={errors.value?.message} />
                     </div>
 
                     <div className="flex items-center gap-2 pt-8">
                         <input
                             id="discount-active"
                             type="checkbox"
-                            checked={formData.isActive}
-                            onChange={(event) => setFieldValue('isActive', event.target.checked)}
+                            {...register('isActive')}
                             className="h-4 w-4"
                         />
                         <label htmlFor="discount-active" className="text-sm font-semibold text-slate-700">Active</label>
@@ -520,22 +438,20 @@ const DiscountForm = () => {
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Starts At <span className="text-rose-500">*</span></label>
                         <input
                             type="datetime-local"
-                            value={formData.startsAt}
-                            onChange={(event) => setFieldValue('startsAt', event.target.value)}
-                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${getFieldBorderClass(fieldErrors, 'startsAt')}`}
+                            {...register('startsAt')}
+                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${errors.startsAt ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
                         />
-                        <FieldError error={fieldErrors.startsAt} />
+                        <FieldError error={errors.startsAt?.message} />
                     </div>
 
                     <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Ends At <span className="text-rose-500">*</span></label>
                         <input
                             type="datetime-local"
-                            value={formData.endsAt}
-                            onChange={(event) => setFieldValue('endsAt', event.target.value)}
-                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${getFieldBorderClass(fieldErrors, 'endsAt')}`}
+                            {...register('endsAt')}
+                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${errors.endsAt ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
                         />
-                        <FieldError error={fieldErrors.endsAt} />
+                        <FieldError error={errors.endsAt?.message} />
                     </div>
                 </div>
 
@@ -544,11 +460,11 @@ const DiscountForm = () => {
                         title="Categories"
                         subtitle="Apply discount to selected categories"
                         items={categories}
-                        selected={formData.categories}
+                        selected={selectedCategories}
                         onToggle={(itemId) => toggleSelection('categories', itemId)}
                         searchValue={categorySearch}
                         onSearch={setCategorySearch}
-                        error={fieldErrors.categories}
+                        error={errors.categories?.message}
                         accent="cyan"
                     />
 
@@ -556,11 +472,11 @@ const DiscountForm = () => {
                         title="Products"
                         subtitle="Active products from product index list"
                         items={products}
-                        selected={formData.products}
+                        selected={selectedProducts}
                         onToggle={(itemId) => toggleSelection('products', itemId)}
                         searchValue={productSearch}
                         onSearch={setProductSearch}
-                        error={fieldErrors.products}
+                        error={errors.products?.message}
                         accent="amber"
                         showItemId={true}
                         showProductMeta={true}

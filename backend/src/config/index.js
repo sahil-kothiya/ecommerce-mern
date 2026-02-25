@@ -55,7 +55,7 @@ const parseTrustProxy = (value, nodeEnv) => {
 };
 
 export const config = {
-    nodeEnv: process.env.NODE_ENV || "development",
+  nodeEnv: process.env.NODE_ENV || "development",
   port: Number.isNaN(parsedPort) ? 5000 : parsedPort,
   apiUrl: process.env.API_URL || "http://localhost:5001",
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:5173",
@@ -64,21 +64,21 @@ export const config = {
     process.env.NODE_ENV || "development",
   ),
 
-    mongodbUri:
+  mongodbUri:
     process.env.MONGODB_URI || "mongodb://localhost:27017/enterprise-ecommerce",
   mongodbTestUri:
     process.env.MONGODB_TEST_URI ||
     process.env.MONGODB_URI ||
     "mongodb://localhost:27017/enterprise-ecommerce-test",
 
-    jwt: {
+  jwt: {
     secret: process.env.JWT_SECRET || "default-secret-change-in-production",
     expire: process.env.JWT_EXPIRE || "7d",
     refreshSecret: process.env.JWT_REFRESH_SECRET || "default-refresh-secret",
     refreshExpire: process.env.JWT_REFRESH_EXPIRE || "30d",
   },
 
-    email: {
+  email: {
     host: process.env.SMTP_HOST || "smtp.gmail.com",
     port: Number.isNaN(parsedEmailPort) ? 587 : parsedEmailPort,
     user: process.env.SMTP_USER || "",
@@ -86,7 +86,7 @@ export const config = {
     from: process.env.EMAIL_FROM || "noreply@example.com",
   },
 
-    stripe: {
+  stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY || "",
     publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
   },
@@ -96,7 +96,7 @@ export const config = {
     mode: process.env.PAYPAL_MODE || "sandbox",
   },
 
-    oauth: {
+  oauth: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
@@ -107,7 +107,7 @@ export const config = {
     },
   },
 
-    upload: {
+  upload: {
     maxFileSize: Number.isNaN(parsedMaxFileSize) ? 5242880 : parsedMaxFileSize,
     allowedTypes: (
       process.env.ALLOWED_FILE_TYPES || "jpg,jpeg,png,gif,webp"
@@ -115,19 +115,19 @@ export const config = {
     uploadPath: process.env.UPLOAD_PATH || "uploads",
   },
 
-    admin: {
+  admin: {
     email: process.env.ADMIN_EMAIL || "admin@enterprise-ecommerce.com",
     password: process.env.ADMIN_PASSWORD || "admin123!",
   },
 
-    rateLimit: {
+  rateLimit: {
     windowMs: Number.isNaN(parsedRateWindow) ? 900000 : parsedRateWindow,
     maxRequests: Number.isNaN(parsedRateMax) ? 100 : parsedRateMax,
   },
 
-    logLevel: process.env.LOG_LEVEL || "info",
+  logLevel: process.env.LOG_LEVEL || "info",
 
-    performance: {
+  performance: {
     enableMonitoring: parseBoolean(
       process.env.ENABLE_PERFORMANCE_MONITORING,
       true,

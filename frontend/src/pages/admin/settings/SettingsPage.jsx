@@ -1,48 +1,59 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import notify from '../../../utils/notify';
 import settingsService from '../../../services/settingsService';
 import { API_CONFIG } from '../../../constants';
-import { clearFieldError, getFieldBorderClass, mapServerFieldErrors } from '../../../utils/formValidation';
 
-const defaultState = {
-    siteName: '',
-    siteTagline: '',
-    siteUrl: '',
-    websiteEmail: '',
-    supportEmail: '',
-    phone: '',
-    whatsapp: '',
-    address: '',
-    currencyCode: 'USD',
-    currencySymbol: '$',
-    timezone: 'UTC',
-    maintenanceMode: false,
-    metaTitle: '',
-    metaDescription: '',
-    facebook: '',
-    instagram: '',
-    twitter: '',
-    youtube: '',
-    smtpHost: '',
-    smtpPort: 587,
-    smtpUser: '',
-    smtpPassword: '',
-    smtpFrom: '',
-    stripePublicKey: '',
-    stripeSecretKey: '',
-    paypalClientId: '',
-    paypalClientSecret: '',
-    logo: null,
-    favicon: null,
+const urlTest = (msg) => (v) => !v || /^https?:\/\/.+/i.test(v) || msg;
+const emailTest = (msg) => (v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || msg;
+
+const schema = yup.object({
+    siteName: yup.string().trim().min(2, 'Site name must be at least 2 characters').required('Site name is required'),
+    siteTagline: yup.string().default(''),
+    siteUrl: yup.string().test('url', 'Website URL must start with http:// or https://', urlTest('Website URL must start with http:// or https://')).default(''),
+    websiteEmail: yup.string().test('email', 'Invalid website email', emailTest('Invalid website email')).default(''),
+    supportEmail: yup.string().test('email', 'Invalid support email', emailTest('Invalid support email')).default(''),
+    phone: yup.string().test('phone', 'Invalid phone/mobile number', (v) => !v || /^[+\d\s\-()]{7,20}$/.test(v)).default(''),
+    whatsapp: yup.string().default(''),
+    address: yup.string().default(''),
+    currencyCode: yup.string().default('USD'),
+    currencySymbol: yup.string().default('$'),
+    timezone: yup.string().default('UTC'),
+    maintenanceMode: yup.boolean().default(false),
+    metaTitle: yup.string().default(''),
+    metaDescription: yup.string().default(''),
+    facebook: yup.string().test('url', 'Facebook URL must start with http:// or https://', urlTest('Facebook URL must start with http:// or https://')).default(''),
+    instagram: yup.string().test('url', 'Instagram URL must start with http:// or https://', urlTest('Instagram URL must start with http:// or https://')).default(''),
+    twitter: yup.string().test('url', 'Twitter URL must start with http:// or https://', urlTest('Twitter URL must start with http:// or https://')).default(''),
+    youtube: yup.string().test('url', 'YouTube URL must start with http:// or https://', urlTest('YouTube URL must start with http:// or https://')).default(''),
+    smtpHost: yup.string().default(''),
+    smtpPort: yup.number().min(1).max(65535, 'SMTP port must be between 1 and 65535').default(587),
+    smtpUser: yup.string().default(''),
+    smtpPassword: yup.string().default(''),
+    smtpFrom: yup.string().test('email', 'Invalid SMTP from email', emailTest('Invalid SMTP from email')).default(''),
+    stripePublicKey: yup.string().default(''),
+    stripeSecretKey: yup.string().default(''),
+    stripeWebhookSecret: yup.string().default(''),
+    stripeEnabled: yup.boolean().default(false),
+    paypalClientId: yup.string().default(''),
+    paypalClientSecret: yup.string().default(''),
+    logo: yup.mixed().nullable().default(null),
+    favicon: yup.mixed().nullable().default(null),
+});
+
+const defaultValues = {
+    siteName: '', siteTagline: '', siteUrl: '', websiteEmail: '', supportEmail: '',
+    phone: '', whatsapp: '', address: '', currencyCode: 'USD', currencySymbol: '$',
+    timezone: 'UTC', maintenanceMode: false, metaTitle: '', metaDescription: '',
+    facebook: '', instagram: '', twitter: '', youtube: '',
+    smtpHost: '', smtpPort: 587, smtpUser: '', smtpPassword: '', smtpFrom: '',
+    stripePublicKey: '', stripeSecretKey: '', stripeWebhookSecret: '', stripeEnabled: false, paypalClientId: '', paypalClientSecret: '',
+    logo: null, favicon: null,
 };
 
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const urlPattern = /^https?:\/\/.+/i;
-const phonePattern = /^[+\d\s\-()]{7,20}$/;
-
 const SettingsPage = () => {
-    const [formData, setFormData] = useState(defaultState);
-    const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [logoFile, setLogoFile] = useState(null);
@@ -50,6 +61,33 @@ const SettingsPage = () => {
     const [testEmailAddress, setTestEmailAddress] = useState('');
     const [isSendingTest, setIsSendingTest] = useState(false);
     const [smtpPasswordVisible, setSmtpPasswordVisible] = useState(false);
+    const [stripeSecretVisible, setStripeSecretVisible] = useState(false);
+    const [stripeWebhookVisible, setStripeWebhookVisible] = useState(false);
+    const [webhookCopied, setWebhookCopied] = useState(false);
+
+    const { register, handleSubmit, reset, setError, watch, formState: { errors } } = useForm({
+        resolver: yupResolver(schema),
+        defaultValues,
+        mode: 'onBlur',
+    });
+
+    const fc = (field) =>
+        `w-full rounded-xl border px-4 py-3 ${errors[field] ? 'border-red-400 bg-red-50' : 'border-slate-300'}`;
+
+    const watchLogo = watch('logo');
+    const watchFavicon = watch('favicon');
+    const watchMaintenance = watch('maintenanceMode');
+    const watchStripeEnabled = watch('stripeEnabled');
+    const watchStripePublicKey = watch('stripePublicKey');
+    const watchStripeSecretKey = watch('stripeSecretKey');
+
+    const copyWebhookUrl = () => {
+        const url = `${API_CONFIG.BASE_URL}/api/payments/webhook`;
+        navigator.clipboard.writeText(url).then(() => {
+            setWebhookCopied(true);
+            setTimeout(() => setWebhookCopied(false), 2000);
+        });
+    };
 
     const toAssetUrl = (path) => {
         if (!path) return '';
@@ -58,22 +96,19 @@ const SettingsPage = () => {
     };
 
     const stats = useMemo(() => ({
-        hasLogo: Boolean(formData.logo || logoFile),
-        hasFavicon: Boolean(formData.favicon || faviconFile),
-        maintenance: Boolean(formData.maintenanceMode),
-    }), [formData.logo, logoFile, formData.favicon, faviconFile, formData.maintenanceMode]);
+        hasLogo: Boolean(watchLogo || logoFile),
+        hasFavicon: Boolean(watchFavicon || faviconFile),
+        maintenance: Boolean(watchMaintenance),
+    }), [watchLogo, logoFile, watchFavicon, faviconFile, watchMaintenance]);
 
-    useEffect(() => {
-        loadSettings();
-    }, []);
+    useEffect(() => { loadSettings(); }, []);
 
     const loadSettings = async () => {
         try {
             setIsLoading(true);
             const response = await settingsService.getSettings();
             const settings = response?.data || {};
-            setFormData((prev) => ({ ...prev, ...settings }));
-            setErrors({});
+            reset({ ...defaultValues, ...settings });
         } catch (error) {
             notify.error(error, 'Failed to load settings');
         } finally {
@@ -81,39 +116,8 @@ const SettingsPage = () => {
         }
     };
 
-    const handleChange = (event) => {
-        const { name, value, type, checked } = event.target;
-        setFormData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-        clearFieldError(setErrors, name);
-    };
-
-    const validate = () => {
-        const nextErrors = {};
-        const trimmedName = String(formData.siteName || '').trim();
-
-        if (trimmedName.length < 2) nextErrors.siteName = 'Site name must be at least 2 characters';
-        if (formData.websiteEmail && !emailPattern.test(formData.websiteEmail)) nextErrors.websiteEmail = 'Invalid website email';
-        if (formData.supportEmail && !emailPattern.test(formData.supportEmail)) nextErrors.supportEmail = 'Invalid support email';
-        if (formData.smtpFrom && !emailPattern.test(formData.smtpFrom)) nextErrors.smtpFrom = 'Invalid SMTP from email';
-        if (formData.siteUrl && !urlPattern.test(formData.siteUrl)) nextErrors.siteUrl = 'Website URL must start with http:// or https://';
-        if (formData.facebook && !urlPattern.test(formData.facebook)) nextErrors.facebook = 'Facebook URL must start with http:// or https://';
-        if (formData.instagram && !urlPattern.test(formData.instagram)) nextErrors.instagram = 'Instagram URL must start with http:// or https://';
-        if (formData.twitter && !urlPattern.test(formData.twitter)) nextErrors.twitter = 'Twitter URL must start with http:// or https://';
-        if (formData.youtube && !urlPattern.test(formData.youtube)) nextErrors.youtube = 'YouTube URL must start with http:// or https://';
-        if (formData.phone && !phonePattern.test(formData.phone)) nextErrors.phone = 'Invalid phone/mobile number';
-
-        const smtpPort = Number(formData.smtpPort);
-        if (!Number.isInteger(smtpPort) || smtpPort < 1 || smtpPort > 65535) {
-            nextErrors.smtpPort = 'SMTP port must be between 1 and 65535';
-        }
-
-        setErrors(nextErrors);
-        return Object.keys(nextErrors).length === 0;
-    };
-
     const handleTestEmail = async () => {
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!testEmailAddress || !emailPattern.test(testEmailAddress)) {
+        if (!testEmailAddress || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testEmailAddress)) {
             notify.error('Enter a valid email address to send the test to');
             return;
         }
@@ -128,32 +132,27 @@ const SettingsPage = () => {
         }
     };
 
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        if (!validate()) {
-            notify.error('Please fix form validation errors');
-            return;
-        }
-
+    const onSubmit = async (data) => {
         try {
             setIsSaving(true);
             const payload = new FormData();
-            Object.entries(formData).forEach(([key, value]) => {
+            Object.entries(data).forEach(([key, value]) => {
                 if (value !== undefined && value !== null) payload.append(key, String(value));
             });
-
             if (logoFile) payload.append('logo', logoFile);
             if (faviconFile) payload.append('favicon', faviconFile);
 
             const response = await settingsService.updateSettings(payload);
-            setFormData((prev) => ({ ...prev, ...(response?.data || {}) }));
+            reset({ ...defaultValues, ...(response?.data || {}) });
             setLogoFile(null);
             setFaviconFile(null);
-            setErrors({});
             notify.success('Settings updated successfully');
         } catch (error) {
-            const mapped = mapServerFieldErrors(error?.data?.errors);
-            if (Object.keys(mapped).length > 0) setErrors((prev) => ({ ...prev, ...mapped }));
+            if (error?.data?.errors) {
+                error.data.errors.forEach(({ field, message }) => {
+                    if (field) setError(field, { message });
+                });
+            }
             notify.error(error, 'Failed to update settings');
         } finally {
             setIsSaving(false);
@@ -201,32 +200,32 @@ const SettingsPage = () => {
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} noValidate className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
                 <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                     <h2 className="mb-4 text-xl font-black text-slate-900">Branding</h2>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Site Name *</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'siteName')}`} name="siteName" value={formData.siteName || ''} onChange={handleChange} />
-                            {errors.siteName && <p className="mt-1 text-sm text-red-600">{errors.siteName}</p>}
+                            <input className={fc('siteName')} {...register('siteName')} />
+                            {errors.siteName && <p className="mt-1 text-sm text-red-600">{errors.siteName.message}</p>}
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Site Tagline</label>
-                            <input className="w-full rounded-xl border border-slate-300 px-4 py-3" name="siteTagline" value={formData.siteTagline || ''} onChange={handleChange} />
+                            <input className="w-full rounded-xl border border-slate-300 px-4 py-3" {...register('siteTagline')} />
                         </div>
                         <div className="md:col-span-2">
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Website URL</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'siteUrl')}`} name="siteUrl" value={formData.siteUrl || ''} onChange={handleChange} />
-                            {errors.siteUrl && <p className="mt-1 text-sm text-red-600">{errors.siteUrl}</p>}
+                            <input className={fc('siteUrl')} {...register('siteUrl')} />
+                                    {errors.siteUrl && <p className="mt-1 text-sm text-red-600">{errors.siteUrl.message}</p>}
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Website Logo</label>
-                            {formData.logo && <img src={toAssetUrl(formData.logo)} alt="Logo" className="mb-3 h-16 rounded border border-slate-200 bg-slate-50 object-contain p-1" />}
+                            {watchLogo && <img src={toAssetUrl(String(watchLogo))} alt="Logo" className="mb-3 h-16 rounded border border-slate-200 bg-slate-50 object-contain p-1" />}
                             <input type="file" accept="image/*" onChange={(e) => setLogoFile(e.target.files?.[0] || null)} className="w-full rounded-xl border border-slate-300 px-3 py-2" />
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Website Favicon</label>
-                            {formData.favicon && <img src={toAssetUrl(formData.favicon)} alt="Favicon" className="mb-3 h-12 w-12 rounded border border-slate-200 bg-slate-50 object-contain p-1" />}
+                            {watchFavicon && <img src={toAssetUrl(String(watchFavicon))} alt="Favicon" className="mb-3 h-12 w-12 rounded border border-slate-200 bg-slate-50 object-contain p-1" />}
                             <input type="file" accept="image/*" onChange={(e) => setFaviconFile(e.target.files?.[0] || null)} className="w-full rounded-xl border border-slate-300 px-3 py-2" />
                         </div>
                     </div>
@@ -237,26 +236,26 @@ const SettingsPage = () => {
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Website Email</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'websiteEmail')}`} name="websiteEmail" value={formData.websiteEmail || ''} onChange={handleChange} />
-                            {errors.websiteEmail && <p className="mt-1 text-sm text-red-600">{errors.websiteEmail}</p>}
+                            <input className={fc('websiteEmail')} {...register('websiteEmail')} />
+                            {errors.websiteEmail && <p className="mt-1 text-sm text-red-600">{errors.websiteEmail.message}</p>}
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Support Email</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'supportEmail')}`} name="supportEmail" value={formData.supportEmail || ''} onChange={handleChange} />
-                            {errors.supportEmail && <p className="mt-1 text-sm text-red-600">{errors.supportEmail}</p>}
+                            <input className={fc('supportEmail')} {...register('supportEmail')} />
+                            {errors.supportEmail && <p className="mt-1 text-sm text-red-600">{errors.supportEmail.message}</p>}
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Mobile Number</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'phone')}`} name="phone" value={formData.phone || ''} onChange={handleChange} />
-                            {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
+                            <input className={fc('phone')} {...register('phone')} />
+                            {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>}
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">WhatsApp</label>
-                            <input className="w-full rounded-xl border border-slate-300 px-4 py-3" name="whatsapp" value={formData.whatsapp || ''} onChange={handleChange} />
+                            <input className="w-full rounded-xl border border-slate-300 px-4 py-3" {...register('whatsapp')} />
                         </div>
                         <div className="md:col-span-2">
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Address</label>
-                            <textarea className="w-full rounded-xl border border-slate-300 px-4 py-3" rows="3" name="address" value={formData.address || ''} onChange={handleChange} />
+                            <textarea className="w-full rounded-xl border border-slate-300 px-4 py-3" rows="3" {...register('address')} />
                         </div>
                     </div>
                 </div>
@@ -266,29 +265,29 @@ const SettingsPage = () => {
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Currency Code</label>
-                            <input className="w-full rounded-xl border border-slate-300 px-4 py-3" name="currencyCode" value={formData.currencyCode || ''} onChange={handleChange} />
+                            <input className="w-full rounded-xl border border-slate-300 px-4 py-3" {...register('currencyCode')} />
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Currency Symbol</label>
-                            <input className="w-full rounded-xl border border-slate-300 px-4 py-3" name="currencySymbol" value={formData.currencySymbol || ''} onChange={handleChange} />
+                            <input className="w-full rounded-xl border border-slate-300 px-4 py-3" {...register('currencySymbol')} />
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Timezone</label>
-                            <input className="w-full rounded-xl border border-slate-300 px-4 py-3" name="timezone" value={formData.timezone || ''} onChange={handleChange} />
+                            <input className="w-full rounded-xl border border-slate-300 px-4 py-3" {...register('timezone')} />
                         </div>
                         <div className="flex items-end">
                             <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
-                                <input type="checkbox" name="maintenanceMode" checked={Boolean(formData.maintenanceMode)} onChange={handleChange} />
+                                <input type="checkbox" {...register('maintenanceMode')} />
                                 Maintenance Mode
                             </label>
                         </div>
                         <div className="md:col-span-2">
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Meta Title</label>
-                            <input className="w-full rounded-xl border border-slate-300 px-4 py-3" name="metaTitle" value={formData.metaTitle || ''} onChange={handleChange} />
+                            <input className="w-full rounded-xl border border-slate-300 px-4 py-3" {...register('metaTitle')} />
                         </div>
                         <div className="md:col-span-2">
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Meta Description</label>
-                            <textarea className="w-full rounded-xl border border-slate-300 px-4 py-3" rows="3" name="metaDescription" value={formData.metaDescription || ''} onChange={handleChange} />
+                            <textarea className="w-full rounded-xl border border-slate-300 px-4 py-3" rows="3" {...register('metaDescription')} />
                         </div>
                     </div>
                 </div>
@@ -298,23 +297,23 @@ const SettingsPage = () => {
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Facebook URL</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'facebook')}`} name="facebook" value={formData.facebook || ''} onChange={handleChange} />
-                            {errors.facebook && <p className="mt-1 text-sm text-red-600">{errors.facebook}</p>}
+                            <input className={fc('facebook')} {...register('facebook')} />
+                            {errors.facebook && <p className="mt-1 text-sm text-red-600">{errors.facebook.message}</p>}
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Instagram URL</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'instagram')}`} name="instagram" value={formData.instagram || ''} onChange={handleChange} />
-                            {errors.instagram && <p className="mt-1 text-sm text-red-600">{errors.instagram}</p>}
+                            <input className={fc('instagram')} {...register('instagram')} />
+                            {errors.instagram && <p className="mt-1 text-sm text-red-600">{errors.instagram.message}</p>}
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Twitter URL</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'twitter')}`} name="twitter" value={formData.twitter || ''} onChange={handleChange} />
-                            {errors.twitter && <p className="mt-1 text-sm text-red-600">{errors.twitter}</p>}
+                            <input className={fc('twitter')} {...register('twitter')} />
+                            {errors.twitter && <p className="mt-1 text-sm text-red-600">{errors.twitter.message}</p>}
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">YouTube URL</label>
-                            <input className={`w-full rounded-xl border px-4 py-3 ${getFieldBorderClass(errors, 'youtube')}`} name="youtube" value={formData.youtube || ''} onChange={handleChange} />
-                            {errors.youtube && <p className="mt-1 text-sm text-red-600">{errors.youtube}</p>}
+                            <input className={fc('youtube')} {...register('youtube')} />
+                            {errors.youtube && <p className="mt-1 text-sm text-red-600">{errors.youtube.message}</p>}
                         </div>
                     </div>
                 </div>
@@ -333,16 +332,16 @@ const SettingsPage = () => {
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
                                 <label className="mb-2 block text-sm font-semibold text-slate-700">SMTP Host</label>
-                                <input className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" name="smtpHost" value={formData.smtpHost || ''} onChange={handleChange} placeholder="sandbox.smtp.mailtrap.io" />
+                                <input className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" {...register('smtpHost')} placeholder="sandbox.smtp.mailtrap.io" />
                             </div>
                             <div>
                                 <label className="mb-2 block text-sm font-semibold text-slate-700">SMTP Port</label>
-                                <input className={`w-full rounded-xl border bg-white px-4 py-3 ${getFieldBorderClass(errors, 'smtpPort')}`} name="smtpPort" value={formData.smtpPort || ''} onChange={handleChange} placeholder="2525" />
-                                {errors.smtpPort && <p className="mt-1 text-sm text-red-600">{errors.smtpPort}</p>}
+                                <input className={`w-full rounded-xl border bg-white px-4 py-3 ${errors.smtpPort ? 'border-red-400 bg-red-50' : 'border-slate-300'}`} {...register('smtpPort')} placeholder="2525" />
+                                {errors.smtpPort && <p className="mt-1 text-sm text-red-600">{errors.smtpPort.message}</p>}
                             </div>
                             <div>
                                 <label className="mb-2 block text-sm font-semibold text-slate-700">SMTP Username</label>
-                                <input className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" name="smtpUser" value={formData.smtpUser || ''} onChange={handleChange} placeholder="your-smtp-username" autoComplete="off" />
+                                <input className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" {...register('smtpUser')} placeholder="your-smtp-username" autoComplete="off" />
                             </div>
                             <div>
                                 <label className="mb-2 block text-sm font-semibold text-slate-700">SMTP Password</label>
@@ -350,9 +349,7 @@ const SettingsPage = () => {
                                     <input
                                         type={smtpPasswordVisible ? 'text' : 'password'}
                                         className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 pr-11"
-                                        name="smtpPassword"
-                                        value={formData.smtpPassword || ''}
-                                        onChange={handleChange}
+                                        {...register('smtpPassword')}
                                         placeholder="••••••••••••"
                                         autoComplete="new-password"
                                     />
@@ -366,8 +363,8 @@ const SettingsPage = () => {
                             </div>
                             <div className="md:col-span-2">
                                 <label className="mb-2 block text-sm font-semibold text-slate-700">From Email Address</label>
-                                <input className={`w-full rounded-xl border bg-white px-4 py-3 ${getFieldBorderClass(errors, 'smtpFrom')}`} name="smtpFrom" value={formData.smtpFrom || ''} onChange={handleChange} placeholder="noreply@yourdomain.com" />
-                                {errors.smtpFrom && <p className="mt-1 text-sm text-red-600">{errors.smtpFrom}</p>}
+                                <input className={`w-full rounded-xl border bg-white px-4 py-3 ${errors.smtpFrom ? 'border-red-400 bg-red-50' : 'border-slate-300'}`} {...register('smtpFrom')} placeholder="noreply@yourdomain.com" />
+                                {errors.smtpFrom && <p className="mt-1 text-sm text-red-600">{errors.smtpFrom.message}</p>}
                             </div>
                         </div>
 
@@ -405,22 +402,87 @@ const SettingsPage = () => {
                             </svg>
                             <h3 className="text-base font-bold text-slate-800">Payment Gateway</h3>
                         </div>
+
+                        {/* ── Stripe Section ── */}
+                        <div className="mb-5 rounded-xl border border-purple-200 bg-purple-50/40 p-4">
+                            <div className="mb-3 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <svg className="h-4 w-4 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z" />
+                                    </svg>
+                                    <span className="text-sm font-bold text-purple-800">Stripe</span>
+                                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${watchStripePublicKey && watchStripeSecretKey ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+                                        {watchStripePublicKey && watchStripeSecretKey ? '✓ Configured' : 'Not configured'}
+                                    </span>
+                                </div>
+                                {/* Stripe enabled toggle */}
+                                <label className="flex cursor-pointer items-center gap-2">
+                                    <span className="text-xs font-semibold text-slate-600">{watchStripeEnabled ? 'Enabled' : 'Disabled'}</span>
+                                    <div className="relative">
+                                        <input type="checkbox" className="sr-only" {...register('stripeEnabled')} />
+                                        <div className={`h-5 w-9 rounded-full transition-colors ${watchStripeEnabled ? 'bg-purple-600' : 'bg-slate-300'}`} />
+                                        <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${watchStripeEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div>
+                                    <label className="mb-1.5 block text-xs font-semibold text-slate-600">Public Key</label>
+                                    <input className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm" {...register('stripePublicKey')} placeholder="pk_live_..." />
+                                </div>
+                                <div>
+                                    <label className="mb-1.5 block text-xs font-semibold text-slate-600">Secret Key</label>
+                                    <div className="relative">
+                                        <input
+                                            type={stripeSecretVisible ? 'text' : 'password'}
+                                            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 pr-10 text-sm"
+                                            {...register('stripeSecretKey')}
+                                            placeholder="sk_live_..."
+                                            autoComplete="new-password"
+                                        />
+                                        <button type="button" onClick={() => setStripeSecretVisible(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                            {stripeSecretVisible ? '🙈' : '👁'}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="mb-1.5 block text-xs font-semibold text-slate-600">Webhook Secret</label>
+                                    <div className="relative">
+                                        <input
+                                            type={stripeWebhookVisible ? 'text' : 'password'}
+                                            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 pr-10 text-sm"
+                                            {...register('stripeWebhookSecret')}
+                                            placeholder="whsec_..."
+                                            autoComplete="new-password"
+                                        />
+                                        <button type="button" onClick={() => setStripeWebhookVisible(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                            {stripeWebhookVisible ? '🙈' : '👁'}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="mb-1.5 block text-xs font-semibold text-slate-600">Webhook Endpoint URL</label>
+                                    <div className="flex items-center gap-2 rounded-xl border border-dashed border-purple-300 bg-white px-4 py-2.5">
+                                        <code className="flex-1 truncate text-xs text-purple-700">{API_CONFIG.BASE_URL}/api/payments/webhook</code>
+                                        <button type="button" onClick={copyWebhookUrl} className="shrink-0 rounded-lg bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700 hover:bg-purple-200">
+                                            {webhookCopied ? '✓ Copied' : 'Copy'}
+                                        </button>
+                                    </div>
+                                    <p className="mt-1 text-xs text-slate-500">Paste this URL in your Stripe Dashboard → Webhooks → Add endpoint.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ── PayPal Section ── */}
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
-                                <label className="mb-2 block text-sm font-semibold text-slate-700">Stripe Public Key</label>
-                                <input className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" name="stripePublicKey" value={formData.stripePublicKey || ''} onChange={handleChange} placeholder="pk_live_..." />
-                            </div>
-                            <div>
-                                <label className="mb-2 block text-sm font-semibold text-slate-700">Stripe Secret Key</label>
-                                <input type="password" className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" name="stripeSecretKey" value={formData.stripeSecretKey || ''} onChange={handleChange} placeholder="sk_live_..." autoComplete="new-password" />
-                            </div>
-                            <div>
                                 <label className="mb-2 block text-sm font-semibold text-slate-700">PayPal Client ID</label>
-                                <input className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" name="paypalClientId" value={formData.paypalClientId || ''} onChange={handleChange} placeholder="AZ..." />
+                                <input className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" {...register('paypalClientId')} placeholder="AZ..." />
                             </div>
                             <div>
                                 <label className="mb-2 block text-sm font-semibold text-slate-700">PayPal Client Secret</label>
-                                <input type="password" className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" name="paypalClientSecret" value={formData.paypalClientSecret || ''} onChange={handleChange} placeholder="••••••••••••" autoComplete="new-password" />
+                                <input type="password" className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3" {...register('paypalClientSecret')} placeholder="••••••••••••" autoComplete="new-password" />
                             </div>
                         </div>
                     </div>

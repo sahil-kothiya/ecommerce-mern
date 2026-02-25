@@ -1,8 +1,29 @@
 ﻿import { logger } from '../../../utils/logger.js';
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { API_CONFIG } from '../../../constants';
 import notify from '../../../utils/notify';
+
+const schema = yup.object({
+    title: yup.string().trim().required('Title is required'),
+    summary: yup.string().default(''),
+    description: yup.string().default(''),
+    basePrice: yup.string().default(''),
+    baseDiscount: yup.number().transform((v, orig) => (orig === '' ? 0 : v)).min(0).max(100).default(0),
+    baseStock: yup.number().transform((v, orig) => (orig === '' ? 0 : v)).min(0).default(0),
+    baseSku: yup.string().default(''),
+    categoryId: yup.string().default(''),
+    childCategoryId: yup.string().default(''),
+    brandId: yup.string().default(''),
+    condition: yup.string().default('new'),
+    status: yup.string().default('draft'),
+    isFeatured: yup.boolean().default(false),
+    tags: yup.array().of(yup.string()).default([]),
+    size: yup.array().of(yup.string()).default([]),
+});
 
 // ── Helpers
 
@@ -41,6 +62,81 @@ const getComboKey = (combo = []) => {
     return parts.length ? parts.join('|') : '';
 };
 
+// All image filenames available under /images (served by backend)
+const PROJECT_IMAGES = [
+    '404-error-cyberpunk-5120x2880-18226.jpg',
+    'alucard-guns-5120x2880-22588.png',
+    'attack-on-titan-shingeki-no-kyojin-mikasa-ackerman-anime-3840x2160-2073.jpg',
+    'be-yourself-be-you-inspirational-quotes-dark-background-5120x2880-1486.jpg',
+    'bee-happy-clear-sky-sky-blue-clouds-bee-2560x2560-1407.jpg',
+    'butterfly-samsung-galaxy-fold-black-background-stock-4600x2560-1401.jpg',
+    'captain-america-6200x3429-21470.png',
+    'challenge-yourself-make-your-dream-become-reality-work-3840x2160-1933.png',
+    'cute-panda-love-heart-colorful-hearts-white-background-4000x2366-6575.jpg',
+    'cyberpunk-2077-john-wick-keanu-reeves-3500x5000-1005.jpg',
+    'death-darksiders-5120x2880-19314.jpg',
+    'dont-waste-time-popular-quotes-inspirational-quotes-dark-3840x2160-6179.png',
+    'dope-sukuna-pink-5120x2880-16935.png',
+    'eat-sleep-create-repeat-inspirational-quotes-neon-pink-2560x1440-1948.jpg',
+    'emoji-smileys-yellow-box-cheerful-smiling-emoticons-5412x3811-2302.jpg',
+    'giyu-tomioka-amoled-3840x2160-22604.png',
+    'goku-fusion-attack-dragon-ball-z-anime-series-black-8000x4961-1920.jpg',
+    'goku-ultra-instinct-5120x2880-21414.png',
+    'goku-ultra-instinct-5120x2880-22575.png',
+    'gon-freecss-green-5120x2880-22503.jpg',
+    'guts-berserk-dark-5120x2880-19127.jpg',
+    'guts-black-5120x2880-21420.png',
+    'guts-neon-iconic-5120x2880-21415.png',
+    'hacker-laptop-hoodie-modern-malware-cyber-security-5k-5472x3648-1651.jpg',
+    'i-am-groot-tv-series-2022-series-baby-groot-marvel-comics-3840x2160-8555.jpg',
+    'i-love-coding-dark-3840x2160-16016.png',
+    'jinx-arcane-neon-5120x2880-19860.jpg',
+    'kazutora-hanemiya-5120x2880-21416.png',
+    'kratos-jason-momoa-god-of-war-dark-3840x2160-1481.jpg',
+    'life-seasons-spring-summer-autumn-winter-blue-background-6000x3375-2348.jpg',
+    'lost-in-space-404-5120x2880-18155.png',
+    'miles-morales-spider-man-dark-black-background-artwork-5k-8k-8000x4518-1902.png',
+    'mob-psycho-100-3840x2160-16205.png',
+    'monkey-d-luffy-one-piece-minimal-art-red-background-5k-8k-8000x4500-9031.jpg',
+    'neonlight-red-background-neon-sign-glowing-the-world-is-3850x2888-2149.jpg',
+    'pexels-anshu-35588565.jpg',
+    'pexels-giancarlo-principe-outdoor-adventures-2158906038-35743219.jpg',
+    'pexels-gonchifacello-20271088.jpg',
+    'pexels-jean-pixels-427051121-22644127.jpg',
+    'pexels-njeromin-35223500.jpg',
+    'pubg-survive-loot-repeat-black-background-pubg-helmet-3840x2160-1174.png',
+    'roronoa-zoro-5120x2880-18692.jpg',
+    'roronoa-zoro-neon-5120x2880-19829.png',
+    'samurai-katana-warrior-immortal-sun-silhouette-black-4082x8556-7471.png',
+    'sasuke-uchiha-dark-7680x4320-19881.jpg',
+    'sasuke-uchiha-neon-5120x2880-22582.png',
+    'satoru-gojo-neon-5120x2880-22583.png',
+    'scorpion-mortal-kombat-artwork-black-background-3840x2160-1586.jpg',
+    'shinobu-kocho-demon-slayer-kimetsu-no-yaiba-3840x2160-7913.jpg',
+    'son-goku-amoled-7680x4320-18688.jpg',
+    'son-goku-dragon-ball-z-anime-series-black-background-amoled-8000x4961-1921.jpg',
+    'spider-man-miles-morales-playstation-5-dark-background-2020-3840x2160-1490.jpg',
+    'spooky-devil-amoled-3840x2160-16276.png',
+    'sukuna-purple-5120x2880-16958.png',
+    'sukuna-x-gojo-3840x2160-21530.png',
+    'sukuna-x-gojo-5120x2880-21530.png',
+    'tanjiro-kamado-5120x6402-18414.jpeg',
+    'turbo-granny-okarun-3840x2160-19414.jpg',
+    'ultra-instinct-goku-5120x2880-19856.jpg',
+    'ultra-instinct-goku-black-background-dragon-ball-z-amoled-3840x2160-1817.jpg',
+    'v-cyberpunk-action-3840x2160-16280.jpg',
+    'v-cyberpunk-johnny-3840x2160-16282.jpg',
+    'vegeta-dragon-ball-z-anime-series-black-background-amoled-8000x4961-1913.jpg',
+    'work-harder-neon-lights-blue-background-motivational-4240x2384-2453.jpg',
+];
+
+const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+const pickRandomImages = (count) => {
+    const shuffled = [...PROJECT_IMAGES].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+};
+
 const buildVariantFromCombo = (combo = []) => ({
     _tempId: `tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`,
     sku: combo.map(c => c.option.value.toUpperCase()).join('-'),
@@ -67,29 +163,52 @@ const getImageUrl = (path) => {
     return `${API_CONFIG.BASE_URL}/uploads/${path.replace(/^\//, '')}`;
 };
 
+const getAuthHeaders = () => {
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const authFetch = (url, options = {}) => {
+    const { headers = {}, ...rest } = options;
+    return fetch(url, {
+        credentials: 'include',
+        ...rest,
+        headers: { ...getAuthHeaders(), ...headers },
+    });
+};
+
 const ProductFormEnhanced = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const isEdit = Boolean(id);
 
-    // â”€â”€ Core form data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    const [formData, setFormData] = useState({
-        title: '',
-        summary: '',
-        description: '',
-        basePrice: '',
-        baseDiscount: 0,
-        baseStock: 0,
-        baseSku: '',
-        categoryId: '',
-        childCategoryId: '',
-        brandId: '',
-        condition: 'new',
-        status: 'draft',
-        isFeatured: false,
-        tags: [],
-        size: [],
+    const { register, handleSubmit, reset, setError, watch, setValue, formState: { errors } } = useForm({
+        resolver: yupResolver(schema),
+        defaultValues: {
+            title: '',
+            summary: '',
+            description: '',
+            basePrice: '',
+            baseDiscount: 0,
+            baseStock: 0,
+            baseSku: '',
+            categoryId: '',
+            childCategoryId: '',
+            brandId: '',
+            condition: 'new',
+            status: 'draft',
+            isFeatured: false,
+            tags: [],
+            size: [],
+        },
+        mode: 'onBlur',
     });
+
+    const watchTags = watch('tags', []);
+    const watchSize = watch('size', []);
+    const watchBasePrice = watch('basePrice', '');
+    const watchBaseDiscount = watch('baseDiscount', 0);
+    const watchSummary = watch('summary', '');
 
     // â”€â”€ Product images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const [images, setImages] = useState([]);
@@ -105,23 +224,26 @@ const ProductFormEnhanced = () => {
     const [hasVariants, setHasVariants] = useState(false);
     const [availableVariantTypes, setAvailableVariantTypes] = useState([]);
     const [variantOptions, setVariantOptions] = useState({});         // typeId -> options[]
+    const [isFilling, setIsFilling] = useState(false);
     const [selectedOptionIds, setSelectedOptionIds] = useState({});   // typeId -> Set<optionId>
     const [generatedVariants, setGeneratedVariants] = useState([]);
     const [variantImages, setVariantImages] = useState({});           // variantIdx -> {files,previews}
 
     // â”€â”€ UI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(Boolean(isEdit));
     const [isSaving, setIsSaving] = useState(false);
-    const [errors, setErrors] = useState({});
 
     // =========================================================================
     // LIFECYCLE
     // =========================================================================
 
     useEffect(() => {
-        loadSelectOptions();
         loadVariantTypes();
-        if (isEdit) loadProduct();
+        if (isEdit) {
+            loadProduct();
+        } else {
+            loadSelectOptions();
+        }
     }, [id]);
 
     // =========================================================================
@@ -145,16 +267,15 @@ const ProductFormEnhanced = () => {
 
     const loadVariantTypes = async () => {
         try {
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}/active`, { credentials: 'include' });
+            const res = await authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}/active`);
             const data = await res.json();
             if (data.success) {
                 const types = Array.isArray(data.data) ? data.data : [];
                 setAvailableVariantTypes(types);
                 // Auto-load options for all types immediately
                 types.forEach(t => {
-                    fetch(
-                        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_OPTIONS}?variantTypeId=${t._id}&status=active&limit=100`,
-                        { credentials: 'include' }
+                    authFetch(
+                        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_OPTIONS}?variantTypeId=${t._id}&status=active&limit=100`
                     )
                         .then(r => r.json())
                         .then(d => {
@@ -173,12 +294,29 @@ const ProductFormEnhanced = () => {
     const loadProduct = async () => {
         try {
             setIsLoading(true);
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/admin/${id}`, { credentials: 'include' });
-            const data = await res.json();
+
+            // Load product + categories + brands concurrently so reset() fires
+            // only after select options are available (prevents blank dropdowns).
+            const [res, catRes, brandRes] = await Promise.all([
+                authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/admin/${id}`),
+                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}?limit=200`),
+                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}?limit=200`),
+            ]);
+
+            const [data, catData, brandData] = await Promise.all([
+                res.json(), catRes.json(), brandRes.json(),
+            ]);
+
+            // Populate selects BEFORE calling reset so RHF can match option values
+            const cats = Array.isArray(catData?.data) ? catData.data : catData?.data?.categories || [];
+            const brds = Array.isArray(brandData?.data) ? brandData.data : brandData?.data?.items || brandData?.data?.brands || [];
+            setCategories(cats);
+            setBrands(brds);
+
             if (!data.success) { notify.error('Failed to load product'); return; }
             const p = data.data;
 
-            setFormData({
+            reset({
                 title: p.title || '',
                 summary: p.summary || '',
                 description: p.description || '',
@@ -241,19 +379,6 @@ const ProductFormEnhanced = () => {
     // FORM HANDLERS â€“ basic fields
     // =========================================================================
 
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-        if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
-    };
-
-    const handleTagsChange = (e) => {
-        setFormData(prev => ({ ...prev, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) }));
-    };
-
-    const handleSizeChange = (e) => {
-        setFormData(prev => ({ ...prev, size: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }));
-    };
 
     // â”€â”€ Product images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -343,30 +468,93 @@ const ProductFormEnhanced = () => {
             }
         });
 
-        setGeneratedVariants((prev) => {
-            const existingByKey = new Map();
-            prev.forEach((variant) => {
-                const key = getOptionsKey(variant.options || []);
-                if (key && !existingByKey.has(key)) {
-                    existingByKey.set(key, variant);
-                }
-            });
-
-            return Array.from(comboByKey.entries()).map(([key, combo]) => {
-                const existingVariant = existingByKey.get(key);
-                if (existingVariant) {
-                    return {
-                        ...existingVariant,
-                        options: existingVariant.options?.length ? existingVariant.options : buildVariantFromCombo(combo).options,
-                        _tempId: existingVariant._tempId || existingVariant._id || `tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-                    };
-                }
-
-                return buildVariantFromCombo(combo);
-            });
+        const existingByKey = new Map();
+        generatedVariants.forEach((variant) => {
+            const key = getOptionsKey(variant.options || []);
+            if (key && !existingByKey.has(key)) existingByKey.set(key, variant);
         });
 
+        const newVariants = Array.from(comboByKey.entries()).map(([key, combo]) => {
+            const existingVariant = existingByKey.get(key);
+            if (existingVariant) {
+                // Fill random defaults for any missing/zero fields from DB
+                const hasPrice = existingVariant.price && String(existingVariant.price).trim() !== '';
+                const hasStock = existingVariant.stock != null && existingVariant.stock !== '';
+                return {
+                    ...existingVariant,
+                    price: hasPrice ? existingVariant.price : String(randomInt(50, 1000)),
+                    discount: existingVariant.discount != null ? existingVariant.discount : randomInt(0, 50),
+                    stock: hasStock ? existingVariant.stock : randomInt(0, 100),
+                    options: existingVariant.options?.length ? existingVariant.options : buildVariantFromCombo(combo).options,
+                    _tempId: existingVariant._tempId || existingVariant._id || `tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                };
+            }
+            // Brand new variant — auto-fill random price/discount/stock
+            return {
+                ...buildVariantFromCombo(combo),
+                price: String(randomInt(50, 1000)),
+                discount: randomInt(0, 50),
+                stock: randomInt(0, 100),
+            };
+        });
+
+        setGeneratedVariants(newVariants);
         setVariantImages({});
+        // Auto-load random local images for all variants
+        loadRandomImagesForVariants(newVariants);
+    };
+
+    // Load random images from /images for the given variants array
+    const loadRandomImagesForVariants = async (variants) => {
+        if (!variants.length) return;
+        setIsFilling(true);
+        try {
+            const newImages = {};
+            await Promise.all(
+                variants.map(async (variant, vi) => {
+                    // Skip if the variant already has saved DB images
+                    if (variant.images?.length > 0) return;
+                    const count = randomInt(1, 5);
+                    const selected = pickRandomImages(count);
+                    const files = [];
+                    const previews = [];
+                    await Promise.allSettled(
+                        selected.map(async (imgName) => {
+                            const res = await fetch(`/images/${encodeURIComponent(imgName)}`);
+                            if (!res.ok) return;
+                            const blob = await res.blob();
+                            const ext = imgName.split('.').pop().toLowerCase();
+                            const mime = ext === 'png' ? 'image/png' : ext === 'jpeg' ? 'image/jpeg' : 'image/jpeg';
+                            const file = new File([blob], imgName, { type: mime });
+                            const preview = URL.createObjectURL(blob);
+                            files.push(file);
+                            previews.push(preview);
+                        })
+                    );
+                    if (files.length) newImages[vi] = { files, previews };
+                })
+            );
+            setVariantImages(prev => ({ ...prev, ...newImages }));
+            notify.success(`Generated ${variants.length} variant(s) with random data & images`);
+        } catch (err) {
+            notify.error('Failed to load random images');
+        } finally {
+            setIsFilling(false);
+        }
+    };
+
+    // Re-randomize price/discount/stock + fresh random images for all current variants
+    const fillRandomVariantData = async () => {
+        if (!generatedVariants.length) return;
+        setGeneratedVariants(prev =>
+            prev.map(v => ({
+                ...v,
+                price: String(randomInt(50, 1000)),
+                discount: randomInt(0, 50),
+                stock: randomInt(0, 100),
+            }))
+        );
+        await loadRandomImagesForVariants(generatedVariants);
     };
 
     const updateVariantField = (index, field, value) => {
@@ -432,72 +620,68 @@ const ProductFormEnhanced = () => {
     // VALIDATION
     // =========================================================================
 
-    const validateForm = () => {
-        const errs = {};
-        if (!formData.title.trim()) errs.title = 'Title is required';
+
+    const onSubmit = async (data) => {
         if (!hasVariants) {
-            if (!formData.basePrice || parseFloat(formData.basePrice) <= 0) errs.basePrice = 'Valid price is required';
-            if (!isEdit && !formData.baseSku.trim()) errs.baseSku = 'SKU is required';
+            if (!data.basePrice || parseFloat(data.basePrice) <= 0) {
+                setError('basePrice', { message: 'Valid price is required' });
+                notify.error('Please fix form errors');
+                return;
+            }
+            if (!isEdit && !data.baseSku.trim()) {
+                setError('baseSku', { message: 'SKU is required' });
+                notify.error('Please fix form errors');
+                return;
+            }
         } else {
-            if (!generatedVariants.length) errs.variants = 'Add at least one variant';
-            else if (generatedVariants.some(v => !v.price || parseFloat(v.price) <= 0)) errs.variants = 'All variants need a valid price';
-            else if (generatedVariants.some(v => !v.sku?.trim())) errs.variants = 'All variants need a SKU';
-            else {
-                const seenOptionKeys = new Set();
-                const seenSkus = new Set();
-
-                for (const variant of generatedVariants) {
-                    const sku = String(variant?.sku || '').trim().toUpperCase();
-                    if (sku) {
-                        if (seenSkus.has(sku)) {
-                            errs.variants = 'Duplicate SKU found. Each variant SKU must be unique';
-                            break;
-                        }
-                        seenSkus.add(sku);
-                    }
-
-                    const optionKey = getOptionsKey(variant?.options || []);
-                    if (optionKey) {
-                        if (seenOptionKeys.has(optionKey)) {
-                            errs.variants = 'Duplicate variant combination found. Keep only one row per option combination';
-                            break;
-                        }
-                        seenOptionKeys.add(optionKey);
-                    }
+            if (!generatedVariants.length) {
+                setError('variants', { message: 'Add at least one variant' });
+                notify.error('Please fix form errors');
+                return;
+            }
+            if (generatedVariants.some(v => !v.price || parseFloat(v.price) <= 0)) {
+                setError('variants', { message: 'All variants need a valid price' });
+                notify.error('Please fix form errors');
+                return;
+            }
+            if (generatedVariants.some(v => !v.sku?.trim())) {
+                setError('variants', { message: 'All variants need a SKU' });
+                notify.error('Please fix form errors');
+                return;
+            }
+            const seenOptionKeys = new Set();
+            const seenSkus = new Set();
+            for (const variant of generatedVariants) {
+                const sku = String(variant?.sku || '').trim().toUpperCase();
+                if (sku) {
+                    if (seenSkus.has(sku)) { setError('variants', { message: 'Duplicate SKU found. Each variant SKU must be unique' }); notify.error('Please fix form errors'); return; }
+                    seenSkus.add(sku);
+                }
+                const optionKey = getOptionsKey(variant?.options || []);
+                if (optionKey) {
+                    if (seenOptionKeys.has(optionKey)) { setError('variants', { message: 'Duplicate variant combination found' }); notify.error('Please fix form errors'); return; }
+                    seenOptionKeys.add(optionKey);
                 }
             }
         }
-        setErrors(errs);
-        return Object.keys(errs).length === 0;
-    };
 
-    // =========================================================================
-    // SUBMIT
-    // =========================================================================
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!validateForm()) { notify.error('Please fix form errors'); return; }
         setIsSaving(true);
         try {
             const fd = new FormData();
 
-            // Basic fields
-            Object.entries(formData).forEach(([key, val]) => {
+            Object.entries(data).forEach(([key, val]) => {
                 if (Array.isArray(val)) val.forEach(item => fd.append(`${key}[]`, item));
                 else fd.append(key, val == null ? '' : val);
             });
 
             fd.append('hasVariants', hasVariants);
 
-            // Product images
             images.forEach((file, i) => {
                 fd.append('images', file);
                 fd.append(`imageData[${i}][isPrimary]`, imagePreviews[i]?.isPrimary || false);
             });
             if (isEdit) fd.append('existingImages', JSON.stringify(existingImages));
 
-            // Variants
             if (hasVariants) {
                 const variantsPayload = generatedVariants.map(v => ({
                     ...(v._id ? { _id: v._id } : {}),
@@ -511,10 +695,8 @@ const ProductFormEnhanced = () => {
                     images: v.images || [],
                 }));
                 fd.append('variants', JSON.stringify(variantsPayload));
-
-                // Per-variant image files: field names like variantImages_0, variantImages_1 ...
-                Object.entries(variantImages).forEach(([idx, data]) => {
-                    (data.files || []).forEach(file => fd.append(`variantImages_${idx}`, file));
+                Object.entries(variantImages).forEach(([idx, imgData]) => {
+                    (imgData.files || []).forEach(file => fd.append(`variantImages_${idx}`, file));
                 });
             }
 
@@ -522,15 +704,17 @@ const ProductFormEnhanced = () => {
                 ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/${id}`
                 : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}`;
 
-            const res = await fetch(url, { method: isEdit ? 'PUT' : 'POST', credentials: 'include', body: fd });
-            const data = await res.json();
+            const res = await authFetch(url, { method: isEdit ? 'PUT' : 'POST', body: fd });
+            const resData = await res.json();
 
-            if (data.success || res.ok) {
+            if (resData.success || res.ok) {
                 notify.success(`Product ${isEdit ? 'updated' : 'created'} successfully!`);
                 navigate('/admin/products');
             } else {
-                notify.error(data.message || 'Failed to save product');
-                if (data.errors) setErrors(data.errors);
+                notify.error(resData.message || 'Failed to save product');
+                if (Array.isArray(resData?.errors)) {
+                    resData.errors.forEach(({ field, message }) => { if (field) setError(field, { message }); });
+                }
             }
         } catch (error) {
             logger.error('Submit error:', error);
@@ -541,8 +725,8 @@ const ProductFormEnhanced = () => {
     };
 
     const finalPrice = () => {
-        const p = parseFloat(formData.basePrice) || 0;
-        const d = parseFloat(formData.baseDiscount) || 0;
+        const p = parseFloat(watchBasePrice) || 0;
+        const d = parseFloat(watchBaseDiscount) || 0;
         return (p - p * d / 100).toFixed(2);
     };
 
@@ -568,7 +752,7 @@ const ProductFormEnhanced = () => {
                 <p className="text-gray-500 text-sm">{isEdit ? 'Update product details, images, and variants' : 'Add a new product with all details'}</p>
             </div>
 
-            <form onSubmit={handleSubmit} noValidate className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
 
                 {/* â”€â”€ 1. Basic Information â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
@@ -579,21 +763,21 @@ const ProductFormEnhanced = () => {
                     <div className="space-y-5">
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Product Title *</label>
-                            <input type="text" name="title" value={formData.title} onChange={handleChange}
+                            <input {...register('title')}
                                 className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 transition-all ${errors.title ? 'border-red-500' : 'border-gray-300'}`}
                                 placeholder="Enter product title" />
-                            {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
+                            {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Summary</label>
-                            <textarea name="summary" value={formData.summary} onChange={handleChange} rows={2} maxLength={500}
+                            <textarea {...register('summary')} rows={2} maxLength={500}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all"
                                 placeholder="Brief product summary (max 500 chars)" />
-                            <p className="mt-1 text-xs text-gray-400">{formData.summary.length}/500</p>
+                            <p className="mt-1 text-xs text-gray-400">{(watchSummary || '').length}/500</p>
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
-                            <textarea name="description" value={formData.description} onChange={handleChange} rows={6}
+                            <textarea {...register('description')} rows={6}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all"
                                 placeholder="Detailed product description" />
                         </div>
@@ -612,15 +796,15 @@ const ProductFormEnhanced = () => {
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Base Price *</label>
                             <div className="relative">
                                 <span className="absolute left-4 top-3.5 text-gray-500">$</span>
-                                <input type="number" name="basePrice" value={formData.basePrice} onChange={handleChange} step="0.01" min="0"
+                                <input {...register('basePrice')} type="number" step="0.01" min="0"
                                     className={`w-full pl-8 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 transition-all ${errors.basePrice ? 'border-red-500' : 'border-gray-300'}`}
                                     placeholder="0.00" />
                             </div>
-                            {errors.basePrice && <p className="mt-1 text-sm text-red-600">{errors.basePrice}</p>}
+                            {errors.basePrice && <p className="mt-1 text-sm text-red-600">{errors.basePrice.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Discount (%)</label>
-                            <input type="number" name="baseDiscount" value={formData.baseDiscount} onChange={handleChange} step="0.01" min="0" max="100"
+                            <input {...register('baseDiscount')} type="number" step="0.01" min="0" max="100"
                                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all" />
                         </div>
                         <div>
@@ -629,15 +813,15 @@ const ProductFormEnhanced = () => {
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Stock Qty</label>
-                            <input type="number" name="baseStock" value={formData.baseStock} onChange={handleChange} min="0"
+                            <input {...register('baseStock')} type="number" min="0"
                                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all" />
                         </div>
                         <div className="md:col-span-2">
                             <label className="block text-sm font-semibold text-gray-700 mb-1">SKU *</label>
-                            <input type="text" name="baseSku" value={formData.baseSku} onChange={handleChange}
+                            <input {...register('baseSku')}
                                 className={`w-full px-4 py-3 border rounded-xl uppercase focus:ring-2 focus:ring-blue-500 transition-all ${errors.baseSku ? 'border-red-500' : 'border-gray-300'}`}
                                 placeholder="e.g., PROD-12345" />
-                            {errors.baseSku && <p className="mt-1 text-sm text-red-600">{errors.baseSku}</p>}
+                            {errors.baseSku && <p className="mt-1 text-sm text-red-600">{errors.baseSku.message}</p>}
                         </div>
                     </div>
                 </div>
@@ -659,7 +843,6 @@ const ProductFormEnhanced = () => {
                             </div>
                             <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" />
                         </label>
-                        {errors.images && <p className="text-sm text-red-600">{errors.images}</p>}
 
                         {existingImages.length > 0 && (
                             <div>
@@ -713,7 +896,7 @@ const ProductFormEnhanced = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Category</label>
-                            <select name="categoryId" value={formData.categoryId} onChange={handleChange}
+                            <select {...register('categoryId')}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all">
                                 <option value="">Select Category</option>
                                 {categories.map(cat => <option key={cat._id} value={cat._id}>{cat.title}</option>)}
@@ -721,7 +904,7 @@ const ProductFormEnhanced = () => {
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Brand</label>
-                            <select name="brandId" value={formData.brandId} onChange={handleChange}
+                            <select {...register('brandId')}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all">
                                 <option value="">Select Brand</option>
                                 {brands.map(b => <option key={b._id} value={b._id}>{b.title}</option>)}
@@ -729,7 +912,7 @@ const ProductFormEnhanced = () => {
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Condition</label>
-                            <select name="condition" value={formData.condition} onChange={handleChange}
+                            <select {...register('condition')}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all">
                                 <option value="new">New</option>
                                 <option value="hot">Hot</option>
@@ -738,7 +921,7 @@ const ProductFormEnhanced = () => {
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
-                            <select name="status" value={formData.status} onChange={handleChange}
+                            <select {...register('status')}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all">
                                 <option value="draft">Draft</option>
                                 <option value="active">Active</option>
@@ -747,18 +930,18 @@ const ProductFormEnhanced = () => {
                         </div>
                         <div className="md:col-span-2">
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Tags (comma-separated)</label>
-                            <input type="text" value={formData.tags.join(', ')} onChange={handleTagsChange}
+                            <input type="text" value={watchTags.join(', ')} onChange={(e) => setValue('tags', e.target.value.split(',').map(t => t.trim()).filter(Boolean))}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all"
                                 placeholder="e.g., summer, sale, trending" />
                         </div>
                         <div className="md:col-span-2">
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Sizes (comma-separated)</label>
-                            <input type="text" value={formData.size.join(', ')} onChange={handleSizeChange}
+                            <input type="text" value={watchSize.join(', ')} onChange={(e) => setValue('size', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all"
                                 placeholder="e.g., S, M, L, XL" />
                         </div>
                         <div className="md:col-span-2 flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
-                            <input type="checkbox" name="isFeatured" id="isFeatured" checked={formData.isFeatured} onChange={handleChange}
+                            <input {...register('isFeatured')} type="checkbox" id="isFeatured"
                                 className="w-5 h-5 text-blue-600 border-gray-300 rounded" />
                             <label htmlFor="isFeatured" className="text-sm font-medium text-gray-700 cursor-pointer">
                                 â˜… Mark as Featured Product (display on homepage)
@@ -850,11 +1033,32 @@ const ProductFormEnhanced = () => {
                                             <span className="ml-2 text-xs font-normal text-gray-400 normal-case">({generatedVariants.length})</span>
                                         )}
                                     </h3>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 flex-wrap">
                                         {generatedVariants.length > 0 && (
                                             <button type="button" onClick={addEmptyVariant}
                                                 className="text-xs px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-all">
                                                 + Add Row
+                                            </button>
+                                        )}
+                                        {generatedVariants.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={fillRandomVariantData}
+                                                disabled={isFilling}
+                                                className="text-xs px-4 py-1.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-all flex items-center gap-1.5"
+                                                title="Re-randomize price (50-1000), discount (0-50%), stock (0-100) and 1-5 local images per variant"
+                                            >
+                                                {isFilling ? (
+                                                    <>
+                                                        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                        </svg>
+                                                        Fetching images…
+                                                    </>
+                                                ) : (
+                                                    <>🎲 Randomize Data</>
+                                                )}
                                             </button>
                                         )}
                                         <button type="button" onClick={generateCombinations}
@@ -863,7 +1067,7 @@ const ProductFormEnhanced = () => {
                                         </button>
                                     </div>
                                 </div>
-                                {errors.variants && <p className="text-sm text-red-600 mb-3">{errors.variants}</p>}
+                                {errors.variants && <p className="text-sm text-red-600 mb-3">{errors.variants.message}</p>}
                                 {generatedVariants.length === 0 ? (
                                     <div className="text-center py-8 border border-dashed border-gray-300 rounded-xl text-gray-400 text-sm">
                                         Select types &amp; options above, then click <strong>Generate Variants</strong>

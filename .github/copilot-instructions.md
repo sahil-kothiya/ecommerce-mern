@@ -214,6 +214,8 @@ export class MyService extends BaseService {
 
 **ALWAYS validate on BOTH client and server sides** - see [validation-best-practices.instructions.md](.github/instructions/validation-best-practices.instructions.md) for complete guide.
 
+> **MANDATORY:** All client-side form validation **MUST** use **React Hook Form + Yup** (`useForm`, `yupResolver`, `yup.object().shape({})`). Manual `useState` validation functions are **FORBIDDEN**. Always show field errors inline below the input with `text-red-600` and use `notify.success()` / `notify.error()` for toast feedback.
+
 **Client-side validation** (React Hook Form + Yup):
 
 ```javascript

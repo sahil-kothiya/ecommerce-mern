@@ -27,6 +27,7 @@ import discountRoutes from "./routes/discount.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import variantTypeRoutes from "./routes/variantType.routes.js";
 import variantOptionRoutes from "./routes/variantOption.routes.js";
+import paymentRoutes, { handleStripeWebhook } from "./routes/payment.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,6 +74,13 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
     exposedHeaders: ["Content-Length", "Content-Type"],
   }),
+);
+
+// Stripe webhook — must use raw body, registered before express.json()
+app.post(
+  "/api/payments/webhook",
+  express.raw({ type: "application/json" }),
+  handleStripeWebhook,
 );
 
 app.use(express.json({ limit: "10mb" }));
@@ -165,6 +173,7 @@ app.use("/api/discounts", discountRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/variant-types", variantTypeRoutes);
 app.use("/api/variant-options", variantOptionRoutes);
+app.use("/api/payments", paymentRoutes);
 
 app.use(
   "/uploads",

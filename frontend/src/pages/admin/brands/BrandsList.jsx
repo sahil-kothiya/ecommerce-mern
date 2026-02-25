@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { API_CONFIG } from '../../../constants';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import notify from '../../../utils/notify';
+import authFetch from '../../../utils/authFetch.js';
 
 const BrandsList = () => {
     const navigate = useNavigate();
@@ -27,9 +28,7 @@ const BrandsList = () => {
     const loadBrands = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}`, {
-                credentials: 'include',
-            });
+            const response = await authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}`);
             const data = await response.json();
             
             if (data.success) {
@@ -51,9 +50,8 @@ const BrandsList = () => {
         if (!brandToDelete?._id) return;
         try {
             setIsDeleting(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}/${brandToDelete._id}`, {
+            const response = await authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}/${brandToDelete._id}`, {
                 method: 'DELETE',
-                credentials: 'include',
             });
 
             const data = await response.json();

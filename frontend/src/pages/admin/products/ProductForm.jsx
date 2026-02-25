@@ -1,8 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_CONFIG } from '../../../constants';
-import { toast } from 'react-hot-toast';
-import { applyServerFieldErrors, clearFieldError, getFieldBorderClass, hasValidationErrors } from '../../../utils/formValidation';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
+import notify from '../../../utils/notify';
+import authFetch from '../../../utils/authFetch.js';
+
+const schema = yup.object({
+    title: yup.string().trim().required('Title is required'),
+    description: yup.string().default(''),
+    basePrice: yup.string().default(''),
+    baseDiscount: yup.number().transform((v, orig) => (orig === '' ? 0 : v)).min(0).max(100).default(0),
+    categoryId: yup.string().required('Category is required').default(''),
+    brandId: yup.string().required('Brand is required').default(''),
+    condition: yup.string().default('new'),
+    status: yup.string().default('active'),
+    isFeatured: yup.boolean().default(false),
+});
 
 const cartesian = (arrays) => {
     if (arrays.length === 0) return [[]];
@@ -39,6 +54,36 @@ const getComboKey = (combo = []) => {
     return parts.length ? parts.join('|') : '';
 };
 
+const RANDOM_VARIANT_IMAGE_FILES = [
+    '404-error-cyberpunk-5120x2880-18226.jpg',
+    'alucard-guns-5120x2880-22588.png',
+    'attack-on-titan-shingeki-no-kyojin-mikasa-ackerman-anime-3840x2160-2073.jpg',
+    'be-yourself-be-you-inspirational-quotes-dark-background-5120x2880-1486.jpg',
+    'bee-happy-clear-sky-sky-blue-clouds-bee-2560x2560-1407.jpg',
+    'captain-america-6200x3429-21470.png',
+    'challenge-yourself-make-your-dream-become-reality-work-3840x2160-1933.png',
+    'cute-panda-love-heart-colorful-hearts-white-background-4000x2366-6575.jpg',
+    'cyberpunk-2077-john-wick-keanu-reeves-3500x5000-1005.jpg',
+    'dope-sukuna-pink-5120x2880-16935.png',
+    'goku-ultra-instinct-5120x2880-22575.png',
+    'guts-neon-iconic-5120x2880-21415.png',
+    'i-love-coding-dark-3840x2160-16016.png',
+    'miles-morales-spider-man-dark-black-background-artwork-5k-8k-8000x4518-1902.png',
+    'pubg-survive-loot-repeat-black-background-pubg-helmet-3840x2160-1174.png',
+    'roronoa-zoro-neon-5120x2880-19829.png',
+    'sasuke-uchiha-neon-5120x2880-22582.png',
+    'satoru-gojo-neon-5120x2880-22583.png',
+    'spooky-devil-amoled-3840x2160-16276.png',
+    'ultra-instinct-goku-5120x2880-19856.jpg',
+];
+
+const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+const pickRandomVariantImageNames = (count) => {
+    const shuffled = [...RANDOM_VARIANT_IMAGE_FILES].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+};
+
 const buildVariantFromCombo = (combo = []) => ({
     _tempId: `tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`,
     sku: combo.map(c => c.option.value.toUpperCase()).join('-'),
@@ -64,27 +109,35 @@ const ProductForm = () => {
     const navigate = useNavigate();
     const isEdit = Boolean(id);
 
-    const [formData, setFormData] = useState({
-        title: '',
-        description: '',
-        basePrice: '',
-        baseDiscount: 0,
-        categoryId: '',
-        brandId: '',
-        condition: 'new',
-        status: 'active',
-        isFeatured: false,
+    const { register, handleSubmit: rhfHandleSubmit, reset, setError, watch, formState: { errors } } = useForm({
+        resolver: yupResolver(schema),
+        defaultValues: {
+            title: '',
+            description: '',
+            basePrice: '',
+            baseDiscount: 0,
+            categoryId: '',
+            brandId: '',
+            condition: 'new',
+            status: 'active',
+            isFeatured: false,
+        },
+        mode: 'onBlur',
     });
+
+    const watchBasePrice = watch('basePrice');
+    const watchStatus = watch('status');
+    const watchIsFeatured = watch('isFeatured');
 
     const [images, setImages] = useState([]);
     const [imagePreviews, setImagePreviews] = useState([]);
     const [existingImages, setExistingImages] = useState([]);
+    const [imagesError, setImagesError] = useState('');
 
     const [categories, setCategories] = useState([]);
     const [brands, setBrands] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [errors, setErrors] = useState({});
 
     // ── Variant state
     const [hasVariants, setHasVariants] = useState(false);
@@ -93,6 +146,7 @@ const ProductForm = () => {
     const [selectedOptionIds, setSelectedOptionIds] = useState({});
     const [generatedVariants, setGeneratedVariants] = useState([]);
     const [variantImages, setVariantImages] = useState({});
+    const [isFillingVariantData, setIsFillingVariantData] = useState(false);
 
     useEffect(() => {
         loadSelectOptions();
@@ -141,21 +195,20 @@ const ProductForm = () => {
             setBrands(brandsList);
         } catch (error) {
             console.error('Error loading options:', error);
-            toast.error('Failed to load categories and brands');
+            notify.error('Failed to load categories and brands');
         }
     };
 
     const loadVariantTypes = async () => {
         try {
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}/active`, { credentials: 'include' });
+            const res = await authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}/active`);
             const data = await res.json();
             if (data.success) {
                 const types = Array.isArray(data.data) ? data.data : [];
                 setAvailableVariantTypes(types);
                 types.forEach(t => {
-                    fetch(
-                        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_OPTIONS}?variantTypeId=${t._id}&status=active&limit=100`,
-                        { credentials: 'include' }
+                    authFetch(
+                        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_OPTIONS}?variantTypeId=${t._id}&status=active&limit=100`
                     )
                         .then(r => r.json())
                         .then(d => {
@@ -175,16 +228,14 @@ const ProductForm = () => {
         try {
             setIsLoading(true);
             // Use admin endpoint so draft/inactive products can be edited
-            const authToken = localStorage.getItem('auth_token') || localStorage.getItem('token');
-            const response = await fetch(
-                `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/admin/${id}`,
-                { credentials: 'include', headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} }
+            const response = await authFetch(
+                `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/admin/${id}`
             );
             const data = await response.json();
 
             if (data.success) {
                 const product = data.data;
-                setFormData({
+reset({
                     title: product.title || '',
                     description: product.description || '',
                     basePrice: product.basePrice || '',
@@ -202,7 +253,7 @@ const ProductForm = () => {
 
                 if (product.hasVariants && product.variants?.length) {
                     setHasVariants(true);
-                    setGeneratedVariants(product.variants.map(v => ({ ...v, _tempId: v._id || String(Math.random()) })));
+                    setGeneratedVariants(product.variants.map(v => ({ ...v, _tempId: v._id || String(Math.random()), images: Array.isArray(v.images) ? v.images : [] })));
 
                     const selectedByType = product.variants.reduce((acc, variant) => {
                         const options = Array.isArray(variant?.options) ? variant.options : [];
@@ -234,7 +285,7 @@ const ProductForm = () => {
             }
         } catch (error) {
             console.error('Error loading product:', error);
-            toast.error('Failed to load product');
+            notify.error('Failed to load product');
         } finally {
             setIsLoading(false);
         }
@@ -254,9 +305,71 @@ const ProductForm = () => {
         });
     };
 
-    const generateCombinations = () => {
+    const loadRandomImagesForVariants = async (variants) => {
+        if (!Array.isArray(variants) || variants.length === 0) return;
+
+        setIsFillingVariantData(true);
+        try {
+            const nextImages = {};
+
+            await Promise.all(
+                variants.map(async (variant, variantIndex) => {
+                    if (Array.isArray(variant.images) && variant.images.length > 0) {
+                        return;
+                    }
+
+                    const randomImageNames = pickRandomVariantImageNames(randomInt(1, 3));
+                    const files = [];
+                    const previews = [];
+
+                    await Promise.allSettled(
+                        randomImageNames.map(async (imageName) => {
+                            const response = await fetch(`/images/${encodeURIComponent(imageName)}`);
+                            if (!response.ok) return;
+
+                            const blob = await response.blob();
+                            const file = new File([blob], imageName, {
+                                type: blob.type || 'image/webp',
+                            });
+
+                            files.push(file);
+                            previews.push(URL.createObjectURL(blob));
+                        })
+                    );
+
+                    if (files.length > 0) {
+                        nextImages[variantIndex] = { files, previews };
+                    }
+                })
+            );
+
+            setVariantImages(nextImages);
+            notify.success(`Generated ${variants.length} variant(s) with random values and images`);
+        } catch (error) {
+            notify.error('Unable to auto-load random variant images');
+        } finally {
+            setIsFillingVariantData(false);
+        }
+    };
+
+    const fillRandomVariantData = async () => {
+        if (!generatedVariants.length) return;
+
+        const randomizedVariants = generatedVariants.map((variant) => ({
+            ...variant,
+            price: String(randomInt(50, 1000)),
+            discount: randomInt(0, 50),
+            stock: randomInt(0, 100),
+        }));
+
+        setGeneratedVariants(randomizedVariants);
+        setVariantImages({});
+        await loadRandomImagesForVariants(randomizedVariants);
+    };
+
+    const generateCombinations = async () => {
         const activeTypes = availableVariantTypes.filter(t => selectedOptionIds[t._id]?.size > 0);
-        if (!activeTypes.length) { toast.error('Select at least one option from a variant type'); return; }
+        if (!activeTypes.length) { notify.error('Select at least one option from a variant type'); return; }
         const typeOptionSets = activeTypes.map(type =>
             (variantOptions[type._id] || [])
                 .filter(o => selectedOptionIds[type._id].has(o._id))
@@ -272,31 +385,41 @@ const ProductForm = () => {
             }
         });
 
-        setGeneratedVariants((prev) => {
-            const existingByKey = new Map();
-            prev.forEach((variant) => {
-                const key = getOptionsKey(variant.options || []);
-                if (key && !existingByKey.has(key)) {
-                    existingByKey.set(key, variant);
-                }
-            });
-
-            return Array.from(comboByKey.entries()).map(([key, combo]) => {
-                const existingVariant = existingByKey.get(key);
-                if (existingVariant) {
-                    return {
-                        ...existingVariant,
-                        options: existingVariant.options?.length ? existingVariant.options : buildVariantFromCombo(combo).options,
-                        _tempId: existingVariant._tempId || existingVariant._id || `tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-                    };
-                }
-
-                return buildVariantFromCombo(combo);
-            });
+        const existingByKey = new Map();
+        generatedVariants.forEach((variant) => {
+            const key = getOptionsKey(variant.options || []);
+            if (key && !existingByKey.has(key)) {
+                existingByKey.set(key, variant);
+            }
         });
 
+        const nextVariants = Array.from(comboByKey.entries()).map(([key, combo]) => {
+            const existingVariant = existingByKey.get(key);
+            if (existingVariant) {
+                const hasPrice = existingVariant.price && String(existingVariant.price).trim() !== '';
+                const hasStock = existingVariant.stock !== null && existingVariant.stock !== undefined && String(existingVariant.stock).trim() !== '';
+
+                return {
+                    ...existingVariant,
+                    price: hasPrice ? existingVariant.price : String(randomInt(50, 1000)),
+                    discount: existingVariant.discount !== null && existingVariant.discount !== undefined ? existingVariant.discount : randomInt(0, 50),
+                    stock: hasStock ? existingVariant.stock : randomInt(0, 100),
+                    options: existingVariant.options?.length ? existingVariant.options : buildVariantFromCombo(combo).options,
+                    _tempId: existingVariant._tempId || existingVariant._id || `tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                };
+            }
+
+            return {
+                ...buildVariantFromCombo(combo),
+                price: String(randomInt(50, 1000)),
+                discount: randomInt(0, 50),
+                stock: randomInt(0, 100),
+            };
+        });
+
+        setGeneratedVariants(nextVariants);
         setVariantImages({});
-        toast.success('Variants generated!');
+        await loadRandomImagesForVariants(nextVariants);
     };
 
     const updateVariantField = (index, field, value) => {
@@ -328,8 +451,7 @@ const ProductForm = () => {
         // Reset input so the same file can be re-selected
         e.target.value = '';
         const valid = files.filter(f => {
-            if (!f.type.startsWith('image/')) { toast.error(`${f.name} not an image`); return false; }
-            if (f.size > 5 * 1024 * 1024) { toast.error(`${f.name} exceeds 5MB`); return false; }
+            if (!f.type.startsWith('image/')) { notify.error(`${f.name} not an image`); return false; }
             return true;
         });
         if (!valid.length) return;
@@ -357,7 +479,7 @@ const ProductForm = () => {
     const removeVariantImage = (vi, ii, isExisting) => {
         if (isExisting) {
             setGeneratedVariants(prev =>
-                prev.map((v, i) => i === vi ? { ...v, images: v.images.filter((_, idx) => idx !== ii) } : v)
+                prev.map((v, i) => i === vi ? { ...v, images: Array.isArray(v.images) ? v.images.filter((_, idx) => idx !== ii) : [] } : v)
             );
         } else {
             setVariantImages(prev => {
@@ -370,32 +492,19 @@ const ProductForm = () => {
         }
     };
 
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData((prev) => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value,
-        }));
-        clearFieldError(setErrors, name);
-    };
-
     const handleImageChange = (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
 
         const totalImages = images.length + existingImages.length + files.length;
         if (totalImages > 10) {
-            toast.error('Maximum 10 images allowed for products');
+            notify.error('Maximum 10 images allowed for products');
             return;
         }
 
         const validFiles = files.filter((file) => {
             if (!file.type.startsWith('image/')) {
-                toast.error(`${file.name} is not an image`);
-                return false;
-            }
-            if (file.size > 5 * 1024 * 1024) {
-                toast.error(`${file.name} exceeds 5MB`);
+                notify.error(`${file.name} is not an image`);
                 return false;
             }
             return true;
@@ -404,7 +513,7 @@ const ProductForm = () => {
         if (validFiles.length === 0) return;
 
         setImages((prev) => [...prev, ...validFiles]);
-        clearFieldError(setErrors, 'images');
+        setImagesError('');
 
         validFiles.forEach((file) => {
             const reader = new FileReader();
@@ -414,7 +523,7 @@ const ProductForm = () => {
             reader.readAsDataURL(file);
         });
 
-        toast.success(`${validFiles.length} image(s) added`);
+        notify.success(`${validFiles.length} image(s) added`);
         e.target.value = '';
     };
 
@@ -427,66 +536,69 @@ const ProductForm = () => {
         setExistingImages((prev) => prev.filter((_, i) => i !== index));
     };
 
-    const validateForm = () => {
-        const nextErrors = {};
-
-        if (!formData.title.trim()) nextErrors.title = 'Title is required';
-        if (!formData.categoryId) nextErrors.categoryId = 'Category is required';
-        if (!formData.brandId) nextErrors.brandId = 'Brand is required';
+    const onSubmit = async (data) => {
+        let hasErrors = false;
 
         if (!hasVariants) {
-            if (!String(formData.basePrice).trim()) nextErrors.basePrice = 'Base price is required';
-            else if (Number(formData.basePrice) <= 0) nextErrors.basePrice = 'Base price must be greater than 0';
-            // Images required only for non-variant products
-            if (!isEdit && images.length + existingImages.length === 0) nextErrors.images = 'At least one image is required';
+            if (!String(data.basePrice).trim()) {
+                setError('basePrice', { message: 'Base price is required' });
+                hasErrors = true;
+            } else if (Number(data.basePrice) <= 0) {
+                setError('basePrice', { message: 'Base price must be greater than 0' });
+                hasErrors = true;
+            }
+            if (!isEdit && images.length + existingImages.length === 0) {
+                setImagesError('At least one image is required');
+                hasErrors = true;
+            }
         } else {
-            if (!generatedVariants.length) nextErrors.variants = 'Add at least one variant';
-            else if (generatedVariants.some(v => !v.sku?.trim())) nextErrors.variants = 'All variants need a SKU';
-            else if (generatedVariants.some(v => !v.price || parseFloat(v.price) <= 0)) nextErrors.variants = 'All variants need a valid price (greater than 0)';
-            else {
+            let variantError = '';
+            if (!generatedVariants.length) {
+                variantError = 'Add at least one variant';
+            } else if (generatedVariants.some(v => !v.sku?.trim())) {
+                variantError = 'All variants need a SKU';
+            } else if (generatedVariants.some(v => !v.price || parseFloat(v.price) <= 0)) {
+                variantError = 'All variants need a valid price (greater than 0)';
+            } else {
                 const seenOptionKeys = new Set();
                 const seenSkus = new Set();
-
                 for (const variant of generatedVariants) {
                     const sku = String(variant?.sku || '').trim().toUpperCase();
                     if (sku) {
                         if (seenSkus.has(sku)) {
-                            nextErrors.variants = 'Duplicate SKU found. Each variant SKU must be unique';
+                            variantError = 'Duplicate SKU found. Each variant SKU must be unique';
                             break;
                         }
                         seenSkus.add(sku);
                     }
-
                     const optionKey = getOptionsKey(variant?.options || []);
                     if (optionKey) {
                         if (seenOptionKeys.has(optionKey)) {
-                            nextErrors.variants = 'Duplicate variant combination found. Keep only one row per option combination';
+                            variantError = 'Duplicate variant combination found. Keep only one row per option combination';
                             break;
                         }
                         seenOptionKeys.add(optionKey);
                     }
                 }
             }
+            if (variantError) {
+                setError('variants', { message: variantError });
+                hasErrors = true;
+            }
         }
 
-        setErrors(nextErrors);
-        return Object.keys(nextErrors).length === 0;
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        const isValid = validateForm();
-        if (!isValid) {
-            toast.error('Please fix form validation errors');
+        if (hasErrors) {
+            notify.error('Please fix form validation errors');
             return;
         }
+
         setIsSaving(true);
 
         try {
             const formDataToSend = new FormData();
 
-            Object.keys(formData).forEach((key) => {
-                formDataToSend.append(key, formData[key]);
+            Object.keys(data).forEach((key) => {
+                formDataToSend.append(key, data[key]);
             });
 
             formDataToSend.append('hasVariants', hasVariants);
@@ -509,11 +621,11 @@ const ProductForm = () => {
                     stock: parseInt(v.stock) || 0,
                     status: v.status,
                     options: v.options || [],
-                    images: v.images || [],
+                    images: Array.isArray(v.images) ? v.images : [],
                 }));
                 formDataToSend.append('variants', JSON.stringify(variantsPayload));
-                Object.entries(variantImages).forEach(([idx, data]) => {
-                    (data.files || []).forEach(file => formDataToSend.append(`variantImages_${idx}`, file));
+                Object.entries(variantImages).forEach(([idx, d]) => {
+                    (d.files || []).forEach(file => formDataToSend.append(`variantImages_${idx}`, file));
                 });
             }
 
@@ -525,29 +637,28 @@ const ProductForm = () => {
             const authHeaders = {};
             if (authToken) authHeaders['Authorization'] = `Bearer ${authToken}`;
 
-            const response = await fetch(url, {
+            const response = await authFetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
-                credentials: 'include',
                 headers: authHeaders,
                 body: formDataToSend,
             });
 
-            const data = await response.json();
+            const resData = await response.json();
 
-            if (data.success || response.ok) {
-                toast.success(`Product ${isEdit ? 'updated' : 'created'} successfully!`);
+            if (resData.success || response.ok) {
+                notify.success(`Product ${isEdit ? 'updated' : 'created'} successfully!`);
                 navigate('/admin/products');
             } else {
-                const nextErrors = applyServerFieldErrors(setErrors, data?.errors);
-                if (hasValidationErrors(nextErrors)) {
-                    toast.error(data?.message || 'Please fix form validation errors');
+                if (Array.isArray(resData?.errors) && resData.errors.length > 0) {
+                    resData.errors.forEach(({ field, message }) => setError(field, { message }));
+                    notify.error(resData.message || 'Please fix form validation errors');
                     return;
                 }
-                toast.error(data.message || 'Failed to save product');
+                notify.error(resData.message || 'Failed to save product');
             }
         } catch (error) {
             console.error('Error saving product:', error);
-            toast.error('Failed to save product. Please try again.');
+            notify.error('Failed to save product. Please try again.');
         } finally {
             setIsSaving(false);
         }
@@ -590,9 +701,9 @@ const ProductForm = () => {
                 ? `$${minVariantPrice.toFixed(2)}`
                 : `$${minVariantPrice.toFixed(2)} - $${maxVariantPrice.toFixed(2)}`)
             : 'Not Set')
-        : (formData.basePrice ? `$${formData.basePrice}` : 'Not Set');
+        : (watchBasePrice ? `$${watchBasePrice}` : 'Not Set');
 
-    const productStatus = formData.status || 'draft';
+    const productStatus = watchStatus || 'draft';
 
     return (
         <div className="relative w-full space-y-8 px-4">
@@ -639,11 +750,11 @@ const ProductForm = () => {
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
                     <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Featured</p>
-                    <p className="mt-1 text-lg font-black text-slate-900">{formData.isFeatured ? 'Yes' : 'No'}</p>
+                    <p className="mt-1 text-lg font-black text-slate-900">{watchIsFeatured ? 'Yes' : 'No'}</p>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} noValidate className="space-y-6">
+            <form onSubmit={rhfHandleSubmit(onSubmit)} noValidate className="space-y-6">
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
                     <div className="order-1 space-y-6 lg:order-1">
                         <div className="space-y-6 rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all hover:shadow-[0_20px_40px_rgba(15,23,42,0.12)] sm:p-7">
@@ -660,21 +771,17 @@ const ProductForm = () => {
                                 <label className="mb-2 block text-sm font-semibold text-slate-700">Product Title *</label>
                                 <input
                                     type="text"
-                                    name="title"
-                                    value={formData.title}
-                                    onChange={handleChange}
-                                    className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${getFieldBorderClass(errors, 'title')}`}
+                                    {...register('title')}
+                                    className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${errors.title ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
                                     placeholder="Enter product title"
                                 />
-                                {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
+                                {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title?.message}</p>}
                             </div>
 
                             <div>
                                 <label className="mb-2 block text-sm font-semibold text-slate-700">Description</label>
                                 <textarea
-                                    name="description"
-                                    value={formData.description}
-                                    onChange={handleChange}
+                                    {...register('description')}
                                     rows="5"
                                     className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
                                     placeholder="Enter product description"
@@ -687,24 +794,20 @@ const ProductForm = () => {
                                         <label className="mb-2 block text-sm font-semibold text-slate-700">Base Price *</label>
                                         <input
                                             type="number"
-                                            name="basePrice"
-                                            value={formData.basePrice}
-                                            onChange={handleChange}
+                                            {...register('basePrice')}
                                             step="0.01"
                                             min="0"
-                                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${getFieldBorderClass(errors, 'basePrice')}`}
+                                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${errors.basePrice ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
                                             placeholder="0.00"
                                         />
-                                        {errors.basePrice && <p className="mt-1 text-sm text-red-600">{errors.basePrice}</p>}
+                                        {errors.basePrice && <p className="mt-1 text-sm text-red-600">{errors.basePrice?.message}</p>}
                                     </div>
 
                                     <div>
                                         <label className="mb-2 block text-sm font-semibold text-slate-700">Discount (%)</label>
                                         <input
                                             type="number"
-                                            name="baseDiscount"
-                                            value={formData.baseDiscount}
-                                            onChange={handleChange}
+                                            {...register('baseDiscount')}
                                             step="0.01"
                                             min="0"
                                             max="100"
@@ -731,10 +834,8 @@ const ProductForm = () => {
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Category</label>
                                     <select
-                                        name="categoryId"
-                                        value={formData.categoryId}
-                                        onChange={handleChange}
-                                        className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${getFieldBorderClass(errors, 'categoryId')}`}
+                                        {...register('categoryId')}
+                                        className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${errors.categoryId ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
                                     >
                                         <option value="">Select Category</option>
                                         {categories.map((cat) => (
@@ -743,16 +844,14 @@ const ProductForm = () => {
                                             </option>
                                         ))}
                                     </select>
-                                    {errors.categoryId && <p className="mt-1 text-sm text-red-600">{errors.categoryId}</p>}
+                                    {errors.categoryId && <p className="mt-1 text-sm text-red-600">{errors.categoryId?.message}</p>}
                                 </div>
 
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Brand</label>
                                     <select
-                                        name="brandId"
-                                        value={formData.brandId}
-                                        onChange={handleChange}
-                                        className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${getFieldBorderClass(errors, 'brandId')}`}
+                                        {...register('brandId')}
+                                        className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${errors.brandId ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
                                     >
                                         <option value="">Select Brand</option>
                                         {brands.map((brand) => (
@@ -761,15 +860,13 @@ const ProductForm = () => {
                                             </option>
                                         ))}
                                     </select>
-                                    {errors.brandId && <p className="mt-1 text-sm text-red-600">{errors.brandId}</p>}
+                                    {errors.brandId && <p className="mt-1 text-sm text-red-600">{errors.brandId?.message}</p>}
                                 </div>
 
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Condition</label>
                                     <select
-                                        name="condition"
-                                        value={formData.condition}
-                                        onChange={handleChange}
+                                        {...register('condition')}
                                         className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
                                     >
                                         <option value="new">New</option>
@@ -781,9 +878,7 @@ const ProductForm = () => {
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Status</label>
                                     <select
-                                        name="status"
-                                        value={formData.status}
-                                        onChange={handleChange}
+                                        {...register('status')}
                                         className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
                                     >
                                         <option value="active">Active</option>
@@ -797,9 +892,7 @@ const ProductForm = () => {
                                 <label className="flex cursor-pointer items-center gap-3">
                                     <input
                                         type="checkbox"
-                                        name="isFeatured"
-                                        checked={formData.isFeatured}
-                                        onChange={handleChange}
+                                        {...register('isFeatured')}
                                         className="h-5 w-5 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
                                     />
                                     <span className="text-sm font-semibold text-slate-700">Mark as Featured Product</span>
@@ -823,29 +916,29 @@ const ProductForm = () => {
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Category</label>
-                                    <select name="categoryId" value={formData.categoryId} onChange={handleChange}
-                                        className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${getFieldBorderClass(errors, 'categoryId')}`}>
+                                    <select {...register('categoryId')}
+                                        className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${errors.categoryId ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}>
                                         <option value="">Select Category</option>
                                         {categories.map((cat) => (
                                             <option key={cat._id} value={cat._id}>{cat.displayName || cat.title}</option>
                                         ))}
                                     </select>
-                                    {errors.categoryId && <p className="mt-1 text-sm text-red-600">{errors.categoryId}</p>}
+                                    {errors.categoryId && <p className="mt-1 text-sm text-red-600">{errors.categoryId?.message}</p>}
                                 </div>
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Brand</label>
-                                    <select name="brandId" value={formData.brandId} onChange={handleChange}
-                                        className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${getFieldBorderClass(errors, 'brandId')}`}>
+                                    <select {...register('brandId')}
+                                        className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 ${errors.brandId ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}>
                                         <option value="">Select Brand</option>
                                         {brands.map((brand) => (
                                             <option key={brand._id} value={brand._id}>{brand.title}</option>
                                         ))}
                                     </select>
-                                    {errors.brandId && <p className="mt-1 text-sm text-red-600">{errors.brandId}</p>}
+                                    {errors.brandId && <p className="mt-1 text-sm text-red-600">{errors.brandId?.message}</p>}
                                 </div>
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Condition</label>
-                                    <select name="condition" value={formData.condition} onChange={handleChange}
+                                    <select {...register('condition')}
                                         className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200">
                                         <option value="new">New</option>
                                         <option value="hot">Hot</option>
@@ -854,7 +947,7 @@ const ProductForm = () => {
                                 </div>
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Status</label>
-                                    <select name="status" value={formData.status} onChange={handleChange}
+                                    <select {...register('status')}
                                         className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200">
                                         <option value="active">Active</option>
                                         <option value="inactive">Inactive</option>
@@ -864,7 +957,7 @@ const ProductForm = () => {
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                                 <label className="flex cursor-pointer items-center gap-3">
-                                    <input type="checkbox" name="isFeatured" checked={formData.isFeatured} onChange={handleChange}
+                                    <input type="checkbox" {...register('isFeatured')}
                                         className="h-5 w-5 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500" />
                                     <span className="text-sm font-semibold text-slate-700">Mark as Featured Product</span>
                                 </label>
@@ -891,9 +984,9 @@ const ProductForm = () => {
                                     multiple
                                     accept="image/jpeg,image/png,image/gif,image/webp"
                                     onChange={handleImageChange}
-                                    className={`media-file-input ${errors.images ? 'border-red-500 focus:ring-red-200' : ''}`}
+                                    className={`media-file-input ${imagesError ? 'border-red-500 focus:ring-red-200' : ''}`}
                                 />
-                                {errors.images && <p className="mt-2 text-sm text-red-600">{errors.images}</p>}
+                                {imagesError && <p className="mt-2 text-sm text-red-600">{imagesError}</p>}
                             </div>
 
                             {existingImages.length > 0 && (
@@ -1031,11 +1124,22 @@ const ProductForm = () => {
                                             <span className="ml-2 text-xs font-normal normal-case text-slate-400">({generatedVariants.length})</span>
                                         )}
                                     </h3>
-                                    <div className="flex gap-2">
+                                    <div className="flex flex-wrap gap-2">
                                         {generatedVariants.length > 0 && (
                                             <button type="button" onClick={addEmptyVariant}
                                                 className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
                                                 + Add Row
+                                            </button>
+                                        )}
+                                        {generatedVariants.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={fillRandomVariantData}
+                                                disabled={isFillingVariantData}
+                                                className="rounded-lg bg-violet-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                                                title="Randomize all variant values and auto-attach random images"
+                                            >
+                                                {isFillingVariantData ? 'Loading images...' : '🎲 Randomize Data'}
                                             </button>
                                         )}
                                         <button type="button" onClick={generateCombinations}
@@ -1044,7 +1148,7 @@ const ProductForm = () => {
                                         </button>
                                     </div>
                                 </div>
-                                {errors.variants && <p className="mb-3 text-sm text-red-600">{errors.variants}</p>}
+                                {errors.variants && <p className="mb-3 text-sm text-red-600">{errors.variants?.message}</p>}
 
                                 {generatedVariants.length === 0 ? (
                                     <div className="rounded-xl border border-dashed border-slate-300 py-8 text-center text-sm text-slate-400">
@@ -1111,7 +1215,7 @@ const ProductForm = () => {
                                                     <div className="mb-2 md:mb-0">
                                                         <label className="mb-1 block text-xs font-semibold text-slate-500 md:hidden">Images *</label>
                                                         <div className="flex flex-wrap items-center gap-1.5">
-                                                            {(variant.images || []).map((img, ii) => (
+                                                            {(Array.isArray(variant.images) ? variant.images : []).map((img, ii) => (
                                                                 <div key={ii} className="group relative h-12 w-12 flex-shrink-0 overflow-hidden rounded border border-slate-200 bg-slate-100">
                                                                     <img src={typeof img === 'string' ? img : (img.path?.startsWith('http') ? img.path : `${API_CONFIG.BASE_URL}/uploads/${img.path}`)} alt="" className="h-full w-full object-cover"
                                                                         onError={e => { e.target.src = '/placeholder.png'; }} />

@@ -1,26 +1,53 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { API_CONFIG } from '../../../constants';
+import notify from '../../../utils/notify';
+import authFetch from '../../../utils/authFetch.js';
+
+const schema = yup.object({
+    title: yup.string().trim().required('Title is required'),
+    summary: yup.string().default(''),
+    parentId: yup.string().default(''),
+    status: yup.string().oneOf(['active', 'inactive']).required(),
+    isFeatured: yup.boolean().default(false),
+    isNavigationVisible: yup.boolean().default(true),
+    sortOrder: yup.number().min(0, 'Sort order must be 0 or more').default(0),
+    seoTitle: yup.string().max(60, 'SEO title max 60 characters').default(''),
+    seoDescription: yup.string().max(160, 'SEO description max 160 characters').default(''),
+});
 
 const CategoryForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const isEdit = Boolean(id);
 
-    const [formData, setFormData] = useState({
-        title: '',
-        summary: '',
-        parentId: '',
-        status: 'active',
-        isFeatured: false,
-        isNavigationVisible: true,
-        sortOrder: 0,
-        seoTitle: '',
-        seoDescription: ''
+    const {
+        register,
+        handleSubmit,
+        reset,
+        setError,
+        watch,
+        formState: { errors },
+    } = useForm({
+        resolver: yupResolver(schema),
+        defaultValues: {
+            title: '', summary: '', parentId: '', status: 'active',
+            isFeatured: false, isNavigationVisible: true, sortOrder: 0,
+            seoTitle: '', seoDescription: '',
+        },
+        mode: 'onBlur',
     });
+
+    const fc = (field) =>
+        `w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-300'}`;
+
+    const watchSummary = watch('summary', '');
+    const watchSeoTitle = watch('seoTitle', '');
+    const watchSeoDesc = watch('seoDescription', '');
 
         const [images, setImages] = useState([]);
     const [imagePreviews, setImagePreviews] = useState([]);
@@ -30,7 +57,7 @@ const CategoryForm = () => {
     const [categories, setCategories] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [errors, setErrors] = useState({});
+    const [imagesError, setImagesError] = useState('');
 
     useEffect(() => {
         loadCategories();
@@ -64,7 +91,7 @@ const CategoryForm = () => {
             setCategories(categoriesWithHierarchy);
         } catch (error) {
             console.error('Error loading categories:', error);
-            toast.error('Failed to load categories');
+            notify.error('Failed to load categories');
         }
     };
 
@@ -76,7 +103,7 @@ const CategoryForm = () => {
 
             if (data.success) {
                 const category = data.data;
-                setFormData({
+                reset({
                     title: category.title || '',
                     summary: category.summary || '',
                     parentId: category.parentId || '',
@@ -85,7 +112,7 @@ const CategoryForm = () => {
                     isNavigationVisible: category.isNavigationVisible !== false,
                     sortOrder: category.sortOrder || 0,
                     seoTitle: category.seoTitle || '',
-                    seoDescription: category.seoDescription || ''
+                    seoDescription: category.seoDescription || '',
                 });
 
                                 if (category.images && Array.isArray(category.images)) {
@@ -105,30 +132,22 @@ const CategoryForm = () => {
         }
     };
 
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
-    };
-
     const handleImageChange = (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
 
                 if (images.length + files.length > 5) {
-            toast.error('Maximum 5 images allowed for categories');
+            notify.error('Maximum 5 images allowed for categories');
             return;
         }
 
         const validFiles = files.filter(file => {
             if (!file.type.startsWith('image/')) {
-                toast.error(`${file.name} is not an image`);
+                notify.error(`${file.name} is not an image`);
                 return false;
             }
             if (file.size > 5 * 1024 * 1024) {
-                toast.error(`${file.name} exceeds 5MB`);
+                notify.error(`${file.name} exceeds 5MB`);
                 return false;
             }
             return true;
@@ -174,42 +193,24 @@ const CategoryForm = () => {
         }
     };
 
-    const validateForm = () => {
-        const newErrors = {};
-
-        if (!formData.title.trim()) {
-            newErrors.title = 'Title is required';
-        }
-
+    const onSubmit = async (data) => {
         if (!isEdit && images.length === 0 && existingImages.length === 0) {
-            newErrors.images = 'At least one image is required';
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        if (!validateForm()) {
+            setImagesError('At least one image is required');
             return;
         }
-
+        setImagesError('');
         setIsSaving(true);
 
         try {
             const formDataToSend = new FormData();
 
-            Object.keys(formData).forEach(key => {
-                formDataToSend.append(key, formData[key]);
+            Object.keys(data).forEach(key => {
+                formDataToSend.append(key, data[key]);
             });
 
             images.forEach((image, index) => {
                 formDataToSend.append('images', image);
-                formDataToSend.append(`imageData[${index}][isPrimary]`, 
-                    imagePreviews[index]?.isPrimary || false
-                );
+                formDataToSend.append(`imageData[${index}][isPrimary]`, imagePreviews[index]?.isPrimary || false);
                 formDataToSend.append(`imageData[${index}][sortOrder]`, index);
             });
 
@@ -221,23 +222,28 @@ const CategoryForm = () => {
                 ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${id}`
                 : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`;
 
-            const response = await fetch(url, {
+            const response = await authFetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
-                credentials: 'include',
-                body: formDataToSend
+                body: formDataToSend,
             });
 
-            const data = await response.json();
+            const result = await response.json();
 
-            if (data.success || response.ok) {
-                toast.success(`Category ${isEdit ? 'updated' : 'created'} successfully!`);
+            if (result.success || response.ok) {
+                notify.success(`Category ${isEdit ? 'updated' : 'created'} successfully!`);
                 navigate('/admin/categories');
             } else {
-                toast.error(data.message || 'Failed to save category');
+                if (result.errors) {
+                    result.errors.forEach(({ field, message }) => {
+                        if (field) setError(field, { message });
+                    });
+                } else {
+                    notify.error(result.message || 'Failed to save category');
+                }
             }
         } catch (error) {
             console.error('Error saving category:', error);
-            toast.error('Failed to save category');
+            notify.error('Failed to save category');
         } finally {
             setIsSaving(false);
         }
@@ -265,7 +271,7 @@ const CategoryForm = () => {
                 </p>
             </div>
 
-            <form onSubmit={handleSubmit} noValidate className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
                 
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
                     <h2 className="text-xl font-bold text-gray-900">Basic Information</h2>
@@ -275,16 +281,12 @@ const CategoryForm = () => {
                             Title *
                         </label>
                         <input
+                            {...register('title')}
                             type="text"
-                            name="title"
-                            value={formData.title}
-                            onChange={handleChange}
-                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                                errors.title ? 'border-red-500' : 'border-gray-300'
-                            }`}
+                            className={fc('title')}
                             placeholder="Enter category title"
                         />
-                        {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
+                        {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
                     </div>
 
                     <div>
@@ -292,15 +294,13 @@ const CategoryForm = () => {
                             Description
                         </label>
                         <textarea
-                            name="summary"
-                            value={formData.summary}
-                            onChange={handleChange}
+                            {...register('summary')}
                             rows="3"
                             maxLength="500"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                             placeholder="Brief category description"
                         />
-                        <p className="mt-1 text-sm text-gray-500">{formData.summary.length}/500</p>
+                        <p className="mt-1 text-sm text-gray-500">{watchSummary.length}/500</p>
                     </div>
 
                     <div>
@@ -308,9 +308,7 @@ const CategoryForm = () => {
                             Parent Category
                         </label>
                         <select
-                            name="parentId"
-                            value={formData.parentId}
-                            onChange={handleChange}
+                            {...register('parentId')}
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="">None (Top Level)</option>
@@ -340,7 +338,7 @@ const CategoryForm = () => {
                             className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none px-3 py-2"
                         />
                         <p className="mt-2 text-sm text-gray-500">Upload an image (JPG, PNG, GIF, WEBP - Max 5MB)</p>
-                        {errors.images && <p className="mt-2 text-sm text-red-600">{errors.images}</p>}
+                        {imagesError && <p className="mt-2 text-sm text-red-600">{imagesError}</p>}
                     </div>
 
 {existingImages.length > 0 && (
@@ -441,9 +439,7 @@ const CategoryForm = () => {
                                 Status
                             </label>
                             <select
-                                name="status"
-                                value={formData.status}
-                                onChange={handleChange}
+                                {...register('status')}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                             >
                                 <option value="active">Active</option>
@@ -456,10 +452,8 @@ const CategoryForm = () => {
                                 Sort Order
                             </label>
                             <input
+                                {...register('sortOrder')}
                                 type="number"
-                                name="sortOrder"
-                                value={formData.sortOrder}
-                                onChange={handleChange}
                                 min="0"
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                             />
@@ -469,10 +463,8 @@ const CategoryForm = () => {
                     <div className="space-y-3">
                         <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
                             <input
+                                {...register('isFeatured')}
                                 type="checkbox"
-                                name="isFeatured"
-                                checked={formData.isFeatured}
-                                onChange={handleChange}
                                 className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
                             />
                             <span className="text-sm font-medium text-gray-700">Featured Category</span>
@@ -480,10 +472,8 @@ const CategoryForm = () => {
 
                         <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
                             <input
+                                {...register('isNavigationVisible')}
                                 type="checkbox"
-                                name="isNavigationVisible"
-                                checked={formData.isNavigationVisible}
-                                onChange={handleChange}
                                 className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
                             />
                             <span className="text-sm font-medium text-gray-700">Show in Navigation</span>
@@ -499,15 +489,14 @@ const CategoryForm = () => {
                             SEO Title
                         </label>
                         <input
+                            {...register('seoTitle')}
                             type="text"
-                            name="seoTitle"
-                            value={formData.seoTitle}
-                            onChange={handleChange}
                             maxLength="60"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                             placeholder="SEO optimized title"
                         />
-                        <p className="mt-1 text-sm text-gray-500">{formData.seoTitle.length}/60</p>
+                        {errors.seoTitle && <p className="mt-1 text-sm text-red-600">{errors.seoTitle.message}</p>}
+                        <p className="mt-1 text-sm text-gray-500">{watchSeoTitle.length}/60</p>
                     </div>
 
                     <div>
@@ -515,15 +504,14 @@ const CategoryForm = () => {
                             SEO Description
                         </label>
                         <textarea
-                            name="seoDescription"
-                            value={formData.seoDescription}
-                            onChange={handleChange}
+                            {...register('seoDescription')}
                             maxLength="160"
                             rows="2"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                             placeholder="Meta description for search engines"
                         />
-                        <p className="mt-1 text-sm text-gray-500">{formData.seoDescription.length}/160</p>
+                        {errors.seoDescription && <p className="mt-1 text-sm text-red-600">{errors.seoDescription.message}</p>}
+                        <p className="mt-1 text-sm text-gray-500">{watchSeoDesc.length}/160</p>
                     </div>
                 </div>
 

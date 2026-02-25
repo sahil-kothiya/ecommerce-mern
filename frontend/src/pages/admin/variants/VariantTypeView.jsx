@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import notify from '../../../utils/notify';
 import { API_CONFIG } from '../../../constants';
+import authFetch from '../../../utils/authFetch.js';
 
 const VariantTypeView = () => {
     const { id } = useParams();
@@ -18,8 +19,8 @@ const VariantTypeView = () => {
         try {
             setIsLoading(true);
             const [typeRes, optRes] = await Promise.all([
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}/${id}`, { credentials: 'include' }),
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_OPTIONS}?variantTypeId=${id}&limit=200&status=all`, { credentials: 'include' }),
+                authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}/${id}`),
+                authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_OPTIONS}?variantTypeId=${id}&limit=200&status=all`),
             ]);
             const [typeData, optData] = await Promise.all([typeRes.json(), optRes.json()]);
 
@@ -46,9 +47,8 @@ const VariantTypeView = () => {
         if (!optionToDelete?._id) return;
         try {
             setIsDeleting(true);
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_OPTIONS}/${optionToDelete._id}`, {
+            const res = await authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_OPTIONS}/${optionToDelete._id}`, {
                 method: 'DELETE',
-                credentials: 'include',
             });
             const data = await res.json();
             if (!res.ok || !data?.success) {

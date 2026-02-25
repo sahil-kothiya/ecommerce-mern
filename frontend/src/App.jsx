@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/common/ProtectedRoute.jsx';
 
 const HomePage = lazy(() => import('./pages/HomePage.jsx'));
@@ -13,8 +13,17 @@ const LoginPage = lazy(() => import('./pages/auth/LoginPage.jsx'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage.jsx'));
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage.jsx'));
 const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage.jsx'));
-const UserDashboard = lazy(() => import('./pages/UserDashboard.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
+
+// User account panel
+const UserLayout = lazy(() => import('./layouts/UserLayout.jsx'));
+const AccountDashboard = lazy(() => import('./pages/account/AccountDashboard.jsx'));
+const AccountOrders = lazy(() => import('./pages/account/AccountOrders.jsx'));
+const AccountProfile = lazy(() => import('./pages/account/AccountProfile.jsx'));
+const AccountAddresses = lazy(() => import('./pages/account/AccountAddresses.jsx'));
+const AccountReturns = lazy(() => import('./pages/account/AccountReturns.jsx'));
+const AccountWishlist = lazy(() => import('./pages/account/AccountWishlist.jsx'));
+const AccountReviews = lazy(() => import('./pages/account/AccountReviews.jsx'));
 
 const AdminLayout = lazy(() => import('./layouts/AdminLayout.jsx'));
 const PublicLayout = lazy(() => import('./layouts/PublicLayout.jsx'));
@@ -69,16 +78,8 @@ function App() {
                     <WishlistPage />
                 </ProtectedRoute>
             } />
-            <Route path="/account" element={
-                <ProtectedRoute>
-                    <UserDashboard />
-                </ProtectedRoute>
-            } />
-            <Route path="/dashboard" element={
-                <ProtectedRoute>
-                    <UserDashboard />
-                </ProtectedRoute>
-            } />
+            {/* Legacy /dashboard redirect → new user account panel */}
+            <Route path="/dashboard" element={<Navigate to="/account" replace />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -124,6 +125,21 @@ function App() {
                 <Route path="orders" element={<OrdersList />} />
                 <Route path="reviews" element={<ReviewsList />} />
                 <Route path="settings" element={<SettingsPage />} />
+            </Route>
+
+            {/* User account panel — authenticated users only */}
+            <Route path="/account" element={
+                <ProtectedRoute>
+                    <UserLayout />
+                </ProtectedRoute>
+            }>
+                <Route index element={<AccountDashboard />} />
+                <Route path="orders" element={<AccountOrders />} />
+                <Route path="profile" element={<AccountProfile />} />
+                <Route path="addresses" element={<AccountAddresses />} />
+                <Route path="returns" element={<AccountReturns />} />
+                <Route path="wishlist" element={<AccountWishlist />} />
+                <Route path="reviews" element={<AccountReviews />} />
             </Route>
 
                         <Route path="*" element={<NotFound />} />

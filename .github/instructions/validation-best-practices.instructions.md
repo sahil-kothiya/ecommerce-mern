@@ -12,6 +12,8 @@ applyTo: "**/*.{js,jsx}"
 - **Client-side**: Improve UX with immediate feedback
 - **Server-side**: Ensure security (never trust client data)
 
+> **MANDATORY RULE:** Client-side validation **MUST** always use **React Hook Form + Yup**. Never write manual `useState` validation functions or regex checks in handlers. Use `useForm({ resolver: yupResolver(schema), mode: 'onBlur' })` for every form. Field errors must be shown inline below the input (`text-xs text-red-600`) and toast feedback via `notify.success()` / `notify.error()`.
+
 ## Client-Side Validation (React)
 
 ### Use React Hook Form + Yup

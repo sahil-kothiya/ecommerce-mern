@@ -1,7 +1,10 @@
 import { Router } from "express";
 import { ProductController } from "../controllers/ProductController.js";
 import { protect, authorize, optionalAuth } from "../middleware/auth.js";
-import { uploadProductAnyField } from "../middleware/uploadEnhanced.js";
+import {
+  uploadProductAnyField,
+  handleUploadError,
+} from "../middleware/uploadEnhanced.js";
 
 const router = Router();
 const productController = new ProductController();
@@ -26,6 +29,7 @@ router.post(
   protect,
   authorize("admin"),
   uploadProductAnyField,
+  handleUploadError,
   (req, res) => productController.store(req, res),
 );
 
@@ -34,6 +38,7 @@ router.put(
   protect,
   authorize("admin"),
   uploadProductAnyField,
+  handleUploadError,
   (req, res) => productController.update(req, res),
 );
 

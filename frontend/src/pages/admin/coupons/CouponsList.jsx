@@ -4,6 +4,13 @@ import notify from '../../../utils/notify';
 import { ConfirmDialog } from '../../../components/common';
 import couponService from '../../../services/couponService';
 
+const isCouponExpired = (coupon) => {
+    if (!coupon?.expiryDate) return false;
+    const expiry = new Date(coupon.expiryDate);
+    if (Number.isNaN(expiry.getTime())) return false;
+    return expiry.getTime() < Date.now();
+};
+
 const CouponsList = () => {
     const navigate = useNavigate();
     const [coupons, setCoupons] = useState([]);
@@ -32,16 +39,18 @@ const CouponsList = () => {
 
     const filteredCoupons = useMemo(() => (
         coupons.filter((item) => {
+            const expired = isCouponExpired(item);
             const matchesSearch = (item.code || '').toLowerCase().includes(searchTerm.toLowerCase())
                 || (item.description || '').toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesStatus = !statusFilter || item.status === statusFilter;
+            const effectiveStatus = expired ? 'expired' : item.status;
+            const matchesStatus = !statusFilter || effectiveStatus === statusFilter;
             const matchesType = !typeFilter || item.type === typeFilter;
             return matchesSearch && matchesStatus && matchesType;
         })
     ), [coupons, searchTerm, statusFilter, typeFilter]);
 
     const activeCount = useMemo(
-        () => coupons.filter((item) => item.status === 'active').length,
+        () => coupons.filter((item) => item.status === 'active' && !isCouponExpired(item)).length,
         [coupons],
     );
 
@@ -132,6 +141,7 @@ const CouponsList = () => {
                         <option value="">All Status</option>
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
+                        <option value="expired">Expired</option>
                     </select>
                     <button
                         type="button"
@@ -155,6 +165,7 @@ const CouponsList = () => {
                             <th className="py-2 pr-2">Code</th>
                             <th className="py-2 pr-2">Type</th>
                             <th className="py-2 pr-2">Value</th>
+                            <th className="py-2 pr-2">Min Purchase</th>
                             <th className="py-2 pr-2">Usage</th>
                             <th className="py-2 pr-2">Expiry</th>
                             <th className="py-2 pr-2">Status</th>
@@ -163,16 +174,32 @@ const CouponsList = () => {
                     </thead>
                     <tbody>
                         {filteredCoupons.map((coupon, index) => (
+                            (() => {
+                                const expired = isCouponExpired(coupon);
+                                const statusLabel = expired ? 'expired' : coupon.status;
+                                const statusTone = expired
+                                    ? 'bg-rose-100 text-rose-700'
+                                    : coupon.status === 'active'
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : 'bg-slate-200 text-slate-700';
+
+                                return (
                             <tr key={coupon._id} className="border-b border-slate-100">
                                 <td className="py-2 pr-2 font-semibold text-slate-700">{index + 1}</td>
                                 <td className="py-2 pr-2 font-semibold text-slate-900">{coupon.code}</td>
                                 <td className="py-2 pr-2 capitalize">{coupon.type}</td>
                                 <td className="py-2 pr-2">{coupon.type === 'percent' ? `${coupon.value}%` : `$${Number(coupon.value).toFixed(2)}`}</td>
+                                <td className="py-2 pr-2">${Number(coupon.minPurchase || 0).toFixed(2)}</td>
                                 <td className="py-2 pr-2">{coupon.usedCount || 0}{coupon.usageLimit ? `/${coupon.usageLimit}` : ''}</td>
-                                <td className="py-2 pr-2 text-slate-600">{coupon.expiryDate ? new Date(coupon.expiryDate).toLocaleDateString() : '-'}</td>
+                                <td className="py-2 pr-2 text-slate-600">
+                                    {coupon.expiryDate
+                                        ? new Date(coupon.expiryDate).toLocaleString()
+                                        : '-'
+                                    }
+                                </td>
                                 <td className="py-2 pr-2">
-                                    <span className={`rounded px-2 py-1 text-xs font-semibold ${coupon.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'}`}>
-                                        {coupon.status}
+                                    <span className={`rounded px-2 py-1 text-xs font-semibold ${statusTone}`}>
+                                        {statusLabel}
                                     </span>
                                 </td>
                                 <td className="py-2 pr-2">
@@ -186,10 +213,12 @@ const CouponsList = () => {
                                     </div>
                                 </td>
                             </tr>
+                                );
+                            })()
                         ))}
                         {filteredCoupons.length === 0 && (
                             <tr>
-                                <td colSpan="8" className="py-8 text-center text-slate-500">No coupons found.</td>
+                                <td colSpan="9" className="py-8 text-center text-slate-500">No coupons found.</td>
                             </tr>
                         )}
                     </tbody>

@@ -1,9 +1,26 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { API_CONFIG } from '../../../constants';
 import authService from '../../../services/authService';
 import notify from '../../../utils/notify';
-import { applyServerFieldErrors, clearFieldError, getFieldBorderClass, hasValidationErrors } from '../../../utils/formValidation';
+
+const schema = yup.object({
+    title: yup.string().trim().required('Title is required'),
+    seoTitle: yup.string().default(''),
+    summary: yup.string().default(''),
+    seoDescription: yup.string().default(''),
+    status: yup.string().oneOf(['active', 'inactive']).default('active'),
+    sortOrder: yup.number().transform((v, orig) => (orig === '' ? undefined : v)).nullable().min(0, 'Sort order cannot be negative').default(undefined),
+    isFeatured: yup.boolean().default(false),
+    parentId: yup.string().default(''),
+    brandIds: yup.array().of(yup.string()).default([]),
+    filterIds: yup.array().of(yup.string()).default([]),
+    code: yup.string().default(''),
+    codeLocked: yup.boolean().default(false),
+});
 
 const CategoryEditorPage = () => {
     const { id } = useParams();
@@ -11,32 +28,44 @@ const CategoryEditorPage = () => {
     const navigate = useNavigate();
     const isEdit = Boolean(id);
 
-    const initialForm = useMemo(() => ({
-        title: '',
-        seoTitle: '',
-        summary: '',
-        seoDescription: '',
-        status: 'active',
-        sortOrder: '',
-        isFeatured: false,
-        parentId: searchParams.get('parentId') || '',
-        brandIds: [],
-        filterIds: [],
-        code: '',
-        codeLocked: false,
-    }), [searchParams]);
+    const { register, handleSubmit, reset, setError, watch, setValue, formState: { errors } } = useForm({
+        resolver: yupResolver(schema),
+        defaultValues: {
+            title: '',
+            seoTitle: '',
+            summary: '',
+            seoDescription: '',
+            status: 'active',
+            sortOrder: undefined,
+            isFeatured: false,
+            parentId: searchParams.get('parentId') || '',
+            brandIds: [],
+            filterIds: [],
+            code: '',
+            codeLocked: false,
+        },
+        mode: 'onBlur',
+    });
 
-    const [formData, setFormData] = useState(initialForm);
+    const watchBrandIds = watch('brandIds', []);
+    const watchFilterIds = watch('filterIds', []);
+    const watchStatus = watch('status', 'active');
+
+    const fc = (field) =>
+        `w-full rounded-xl border px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${
+            errors[field] ? 'border-red-400 bg-red-50 focus:ring-red-100' : 'border-slate-300'
+        }`;
+
     const [categories, setCategories] = useState([]);
     const [brands, setBrands] = useState([]);
     const [filters, setFilters] = useState([]);
     const [selectedFile, setSelectedFile] = useState(null);
     const [imagePreview, setImagePreview] = useState('');
+    const [photoError, setPhotoError] = useState('');
     const [isBrandPickerOpen, setIsBrandPickerOpen] = useState(false);
     const [brandSearchTerm, setBrandSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [errors, setErrors] = useState({});
     const brandPickerRef = useRef(null);
 
     useEffect(() => {
@@ -115,13 +144,13 @@ const CategoryEditorPage = () => {
             }
 
             const category = data.data;
-            setFormData({
+            reset({
                 title: category.title || '',
                 seoTitle: category.seoTitle || '',
                 summary: category.summary || '',
                 seoDescription: category.seoDescription || '',
                 status: category.status || 'active',
-                sortOrder: category.sortOrder ?? '',
+                sortOrder: category.sortOrder ?? undefined,
                 isFeatured: Boolean(category.isFeatured),
                 parentId: category.parentId || '',
                 brandIds: Array.isArray(category.brandIds) ? category.brandIds.map((x) => String(x)) : [],
@@ -142,57 +171,42 @@ const CategoryEditorPage = () => {
         const file = event.target.files?.[0];
         if (!file) return;
         if (!file.type.startsWith('image/')) {
-            setErrors((prev) => ({ ...prev, photo: 'Please select an image file' }));
+            setPhotoError('Please select an image file');
             notify.error('Please select an image file');
             return;
         }
         if (file.size > 5 * 1024 * 1024) {
-            setErrors((prev) => ({ ...prev, photo: 'Image must be less than 5MB' }));
+            setPhotoError('Image must be less than 5MB');
             notify.error('Image must be less than 5MB');
             return;
         }
 
         setSelectedFile(file);
-        clearFieldError(setErrors, 'photo');
+        setPhotoError('');
         const reader = new FileReader();
         reader.onloadend = () => setImagePreview(reader.result);
         reader.readAsDataURL(file);
     };
 
-    const validateForm = () => {
-        const nextErrors = {};
-        if (!formData.title.trim()) nextErrors.title = 'Title is required';
-        if (formData.sortOrder && Number(formData.sortOrder) < 0) nextErrors.sortOrder = 'Sort order cannot be negative';
-        setErrors(nextErrors);
-        return Object.keys(nextErrors).length === 0;
-    };
-
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        const isValid = validateForm();
-        if (!isValid) {
-            notify.error('Please fix form validation errors');
-            return;
-        }
+    const onSubmit = async (data) => {
         setIsSaving(true);
-
         try {
             const url = isEdit
                 ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${id}`
                 : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`;
 
             const payload = new FormData();
-            payload.append('title', formData.title);
-            payload.append('summary', formData.summary || '');
-            payload.append('seoTitle', formData.seoTitle || '');
-            payload.append('seoDescription', formData.seoDescription || '');
-            payload.append('status', formData.status);
-            payload.append('sortOrder', String(formData.sortOrder || ''));
-            payload.append('isFeatured', String(formData.isFeatured));
-            payload.append('codeLocked', String(formData.codeLocked));
-            payload.append('brandIds', JSON.stringify(formData.brandIds));
-            payload.append('filterIds', JSON.stringify(formData.filterIds));
-            if (formData.parentId) payload.append('parentId', formData.parentId);
+            payload.append('title', data.title);
+            payload.append('summary', data.summary || '');
+            payload.append('seoTitle', data.seoTitle || '');
+            payload.append('seoDescription', data.seoDescription || '');
+            payload.append('status', data.status);
+            payload.append('sortOrder', data.sortOrder != null ? String(data.sortOrder) : '');
+            payload.append('isFeatured', String(data.isFeatured));
+            payload.append('codeLocked', String(data.codeLocked));
+            payload.append('brandIds', JSON.stringify(data.brandIds));
+            payload.append('filterIds', JSON.stringify(data.filterIds));
+            if (data.parentId) payload.append('parentId', data.parentId);
             if (selectedFile) payload.append('photo', selectedFile);
 
             const headers = authService.getAuthHeaders();
@@ -204,14 +218,14 @@ const CategoryEditorPage = () => {
                 body: payload,
             });
 
-            const data = await response.json();
+            const resData = await response.json();
             if (!response.ok) {
-                const mapped = applyServerFieldErrors(setErrors, data?.errors);
-                if (hasValidationErrors(mapped)) {
-                    notify.error(data?.message || 'Please fix form validation errors');
-                    return;
+                if (Array.isArray(resData?.errors)) {
+                    resData.errors.forEach(({ field, message }) => {
+                        if (field) setError(field, { message });
+                    });
                 }
-                notify.error(data?.message || 'Failed to save category');
+                notify.error(resData?.message || 'Failed to save category');
                 return;
             }
 
@@ -225,13 +239,9 @@ const CategoryEditorPage = () => {
     };
 
     const toggleArrayValue = (key, value) => {
-        setFormData((prev) => {
-            const exists = prev[key].includes(value);
-            return {
-                ...prev,
-                [key]: exists ? prev[key].filter((item) => item !== value) : [...prev[key], value],
-            };
-        });
+        const current = key === 'brandIds' ? watchBrandIds : watchFilterIds;
+        const next = current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
+        setValue(key, next);
     };
 
     if (isLoading) {
@@ -246,11 +256,11 @@ const CategoryEditorPage = () => {
         );
     }
 
-    const selectedBrandsCount = formData.brandIds.length;
-    const selectedFiltersCount = formData.filterIds.length;
+    const selectedBrandsCount = watchBrandIds.length;
+    const selectedFiltersCount = watchFilterIds.length;
     const filteredBrands = brands.filter((brand) => (brand.title || '').toLowerCase().includes(brandSearchTerm.toLowerCase()));
     const selectedBrandTitles = brands
-        .filter((brand) => formData.brandIds.includes(String(brand._id)))
+        .filter((brand) => watchBrandIds.includes(String(brand._id)))
         .map((brand) => brand.title);
 
     return (
@@ -272,11 +282,11 @@ const CategoryEditorPage = () => {
                         </p>
                     </div>
                     <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-bold ${
-                        formData.status === 'active'
+                        watchStatus === 'active'
                             ? 'border-emerald-200 bg-emerald-100 text-emerald-800'
                             : 'border-amber-200 bg-amber-100 text-amber-800'
                     }`}>
-                        {formData.status || 'inactive'}
+                        {watchStatus || 'inactive'}
                     </span>
                 </div>
             </div>
@@ -300,7 +310,7 @@ const CategoryEditorPage = () => {
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} noValidate className="space-y-6 pb-20">
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6 pb-20">
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
                     <div className="order-2 space-y-6 lg:order-2">
                         <div className="media-card">
@@ -325,9 +335,9 @@ const CategoryEditorPage = () => {
                                     type="file"
                                     accept="image/*"
                                     onChange={handleFileChange}
-                                    className={`media-file-input ${errors.photo ? 'border-red-500 focus:ring-red-200' : ''}`}
+                                    className={`media-file-input ${photoError ? 'border-red-500 focus:ring-red-200' : ''}`}
                                 />
-                                {errors.photo && <p className="text-sm text-red-600">{errors.photo}</p>}
+                                {photoError && <p className="text-sm text-red-600">{photoError}</p>}
                             </div>
                         </div>
 
@@ -367,7 +377,7 @@ const CategoryEditorPage = () => {
                                                     ) : (
                                                         filteredBrands.map((brand) => {
                                                             const brandId = String(brand._id);
-                                                            const checked = formData.brandIds.includes(brandId);
+                                                            const checked = watchBrandIds.includes(brandId);
                                                             return (
                                                                 <button
                                                                     key={brand._id}
@@ -403,7 +413,7 @@ const CategoryEditorPage = () => {
                                                 <label key={filter._id} className="flex items-center gap-2 text-sm text-slate-700">
                                                     <input
                                                         type="checkbox"
-                                                        checked={formData.filterIds.includes(String(filter._id))}
+                                                        checked={(watchFilterIds || []).includes(String(filter._id))}
                                                         onChange={() => toggleArrayValue('filterIds', String(filter._id))}
                                                         className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                                     />
@@ -432,43 +442,36 @@ const CategoryEditorPage = () => {
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Title *</label>
                                     <input
-                                        className={`w-full rounded-xl border px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${getFieldBorderClass(errors, 'title')}`}
+                                        {...register('title')}
+                                        className={fc('title')}
                                         placeholder="Enter category title"
-                                        value={formData.title}
-                                        onChange={(e) => {
-                                            setFormData({ ...formData, title: e.target.value });
-                                            clearFieldError(setErrors, 'title');
-                                        }}
                                     />
-                                    {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
+                                    {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
                                 </div>
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">SEO Title</label>
                                     <input
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
+                                        {...register('seoTitle')}
+                                        className={fc('seoTitle')}
                                         placeholder="Enter SEO title"
-                                        value={formData.seoTitle}
-                                        onChange={(e) => setFormData({ ...formData, seoTitle: e.target.value })}
                                     />
                                 </div>
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Summary</label>
                                     <textarea
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
+                                        {...register('summary')}
+                                        className={fc('summary')}
                                         placeholder="Write summary..."
                                         rows={4}
-                                        value={formData.summary}
-                                        onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
                                     />
                                 </div>
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">SEO Description</label>
                                     <textarea
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
+                                        {...register('seoDescription')}
+                                        className={fc('seoDescription')}
                                         placeholder="Write SEO description..."
                                         rows={4}
-                                        value={formData.seoDescription}
-                                        onChange={(e) => setFormData({ ...formData, seoDescription: e.target.value })}
                                     />
                                 </div>
                             </div>
@@ -477,9 +480,8 @@ const CategoryEditorPage = () => {
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Status</label>
                                     <select
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
-                                        value={formData.status}
-                                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                        {...register('status')}
+                                        className={fc('status')}
                                     >
                                         <option value="active">Active</option>
                                         <option value="inactive">Inactive</option>
@@ -488,24 +490,19 @@ const CategoryEditorPage = () => {
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Sort Order</label>
                                     <input
+                                        {...register('sortOrder')}
                                         type="number"
                                         min="0"
-                                        className={`w-full rounded-xl border px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${getFieldBorderClass(errors, 'sortOrder')}`}
+                                        className={fc('sortOrder')}
                                         placeholder="Enter sort order"
-                                        value={formData.sortOrder}
-                                        onChange={(e) => {
-                                            setFormData({ ...formData, sortOrder: e.target.value });
-                                            clearFieldError(setErrors, 'sortOrder');
-                                        }}
                                     />
-                                    {errors.sortOrder && <p className="mt-1 text-sm text-red-600">{errors.sortOrder}</p>}
+                                    {errors.sortOrder && <p className="mt-1 text-sm text-red-600">{errors.sortOrder.message}</p>}
                                 </div>
                                 <div className="flex items-end">
                                     <label className="flex w-full items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5">
                                         <input
+                                            {...register('isFeatured')}
                                             type="checkbox"
-                                            checked={formData.isFeatured}
-                                            onChange={(e) => setFormData({ ...formData, isFeatured: e.target.checked })}
                                             className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                         />
                                         <span className="text-sm font-semibold text-slate-700">Featured Category</span>
@@ -516,9 +513,8 @@ const CategoryEditorPage = () => {
                             <div>
                                 <label className="mb-2 block text-sm font-semibold text-slate-700">Parent Category</label>
                                 <select
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
-                                    value={formData.parentId}
-                                    onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
+                                    {...register('parentId')}
+                                    className={fc('parentId')}
                                 >
                                     <option value="">--Select any category--</option>
                                     {categories.filter((cat) => !isEdit || cat._id !== id).map((cat) => (
@@ -533,16 +529,15 @@ const CategoryEditorPage = () => {
                                 <h2 className="text-xl font-black text-slate-900">Code Settings</h2>
                                 <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <input
+                                        {...register('code')}
                                         readOnly
                                         className="rounded-xl border border-slate-300 bg-slate-100 px-4 py-2.5"
-                                        value={formData.code}
                                         placeholder="Code"
                                     />
                                     <label className="flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5">
                                         <input
+                                            {...register('codeLocked')}
                                             type="checkbox"
-                                            checked={formData.codeLocked}
-                                            onChange={(e) => setFormData({ ...formData, codeLocked: e.target.checked })}
                                             className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                         />
                                         <span className="text-sm font-semibold text-slate-700">Prevent automatic code changes</span>

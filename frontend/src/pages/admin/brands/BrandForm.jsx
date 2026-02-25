@@ -1,24 +1,27 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
+import notify from '../../../utils/notify';
 import { API_CONFIG } from '../../../constants';
 import { brandService } from '../../../services/brandService';
-import { clearFieldError, getFieldBorderClass, mapServerFieldErrors } from '../../../utils/formValidation';
+
+const schema = yup.object({
+    title: yup.string().trim().required('Title is required')
+        .min(2, 'Title must be at least 2 characters')
+        .max(100, 'Title cannot exceed 100 characters')
+        .matches(/^[a-zA-Z0-9\s\-&.'()]+$/, 'Title can only contain letters, numbers, spaces, and common punctuation'),
+    description: yup.string().max(1000, 'Description cannot exceed 1000 characters').default(''),
+    status: yup.string().oneOf(['active', 'inactive']).required(),
+});
 
 const BrandForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const isEdit = Boolean(id);
 
-    const [formData, setFormData] = useState({
-        title: '',
-        description: '',
-        status: 'active'
-    });
-
-        const [logo, setLogo] = useState(null);
+    const [logo, setLogo] = useState(null);
     const [logoPreview, setLogoPreview] = useState(null);
     const [existingLogo, setExistingLogo] = useState(null);
 
@@ -28,7 +31,13 @@ const BrandForm = () => {
 
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [errors, setErrors] = useState({});
+
+    const { register, handleSubmit, reset, setError, watch, formState: { errors } } = useForm({
+        resolver: yupResolver(schema),
+        defaultValues: { title: '', description: '', status: 'active' },
+        mode: 'onBlur',
+    });
+    const fc = (field) => `w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-cyan-300 focus:border-cyan-400 text-slate-900 ${errors[field] ? 'border-red-400 bg-red-50' : 'border-slate-200'}`;
 
     const getImageUrl = (path) => {
         if (!path) return '';
@@ -49,10 +58,10 @@ const BrandForm = () => {
             const data = await brandService.getBrandById(id);
             
             const brand = data.data || data;
-            setFormData({
+            reset({
                 title: brand.title || '',
                 description: brand.description || '',
-                status: brand.status || 'active'
+                status: brand.status || 'active',
             });
 
             if (brand.logo) {
@@ -70,30 +79,23 @@ const BrandForm = () => {
         }
     };
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-        clearFieldError(setErrors, name);
-    };
-
     const handleLogoChange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
         if (!file.type.startsWith('image/')) {
-            toast.error('Please select an image file');
-            setErrors(prev => ({ ...prev, logo: 'Please select an image file' }));
+            notify.error('Please select an image file');
+            setError('logo', { message: 'Please select an image file' });
             return;
         }
 
         if (file.size > 5 * 1024 * 1024) {
-            toast.error('Logo must be less than 5MB');
-            setErrors(prev => ({ ...prev, logo: 'Logo must be less than 5MB' }));
+            notify.error('Logo must be less than 5MB');
+            setError('logo', { message: 'Logo must be less than 5MB' });
             return;
         }
 
         setLogo(file);
-        clearFieldError(setErrors, 'logo');
 
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -109,24 +111,21 @@ const BrandForm = () => {
         const currentBannerCount = existingBanners.length + bannerImages.length;
         if (currentBannerCount + files.length > 3) {
             const remainingSlots = Math.max(0, 3 - currentBannerCount);
-            setErrors(prev => ({
-                ...prev,
-                banners: remainingSlots > 0
-                    ? `You can upload only ${remainingSlots} more banner image${remainingSlots === 1 ? '' : 's'}`
-                    : 'Maximum 3 banner images allowed'
-            }));
-            toast.error('Maximum 3 banner images allowed');
+            setError('banners', { message: remainingSlots > 0
+                ? `You can upload only ${remainingSlots} more banner image${remainingSlots === 1 ? '' : 's'}`
+                : 'Maximum 3 banner images allowed' });
+            notify.error('Maximum 3 banner images allowed');
             e.target.value = '';
             return;
         }
 
         const validFiles = files.filter(file => {
             if (!file.type.startsWith('image/')) {
-                toast.error(`${file.name} is not an image`);
+                notify.error(`${file.name} is not an image`);
                 return false;
             }
             if (file.size > 5 * 1024 * 1024) {
-                toast.error(`${file.name} exceeds 5MB`);
+                notify.error(`${file.name} exceeds 5MB`);
                 return false;
             }
             return true;
@@ -134,7 +133,6 @@ const BrandForm = () => {
 
         if (validFiles.length === 0) return;
 
-        clearFieldError(setErrors, 'banners');
         setBannerImages(prev => [...prev, ...validFiles]);
 
         validFiles.forEach(file => {
@@ -163,108 +161,39 @@ const BrandForm = () => {
     const removeBanner = (index) => {
         setBannerImages(prev => prev.filter((_, i) => i !== index));
         setBannerPreviews(prev => prev.filter((_, i) => i !== index));
-        clearFieldError(setErrors, 'banners');
     };
 
     const removeExistingBanner = (index) => {
         setExistingBanners(prev => prev.filter((_, i) => i !== index));
-        clearFieldError(setErrors, 'banners');
     };
 
-const validateForm = () => {
-        const newErrors = {};
-
-                if (!formData.title.trim()) {
-            newErrors.title = 'Title is required';
-        } else if (formData.title.trim().length < 2) {
-            newErrors.title = 'Title must be at least 2 characters';
-        } else if (formData.title.trim().length > 100) {
-            newErrors.title = 'Title cannot exceed 100 characters';
-        } else if (!/^[a-zA-Z0-9\s\-&.'()]+$/.test(formData.title.trim())) {
-            newErrors.title = 'Title can only contain letters, numbers, spaces, and common punctuation';
-        }
-
-        // Description validation (optional, max 1000 chars)
-        if (formData.description.trim().length > 1000) {
-            newErrors.description = 'Description cannot exceed 1000 characters';
-        }
-
-        // Logo is now optional - no validation needed
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-    /**
-     * Handle form submission
-     * DUAL VALIDATION PATTERN:
-     * 1. Client-side validation (fast feedback)
-     * 2. Server-side validation (security & data integrity)
-     */
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        // CLIENT-SIDE VALIDATION - First line of defense
-        if (!validateForm()) {
-            toast.error('Please fix the validation errors');
-            return;
-        }
-
+    const onSubmit = async (data) => {
         setIsSaving(true);
-
         try {
             const formDataToSend = new FormData();
-
-            // Trim text inputs to avoid whitespace issues
-            formDataToSend.append('title', formData.title.trim());
-            formDataToSend.append('description', formData.description.trim());
-            formDataToSend.append('status', formData.status);
-
-            // Logo upload (optional)
-            if (logo) {
-                formDataToSend.append('logo', logo);
-            }
-
-            // Banner uploads (optional, multiple)
-            bannerImages.forEach((banner) => {
-                formDataToSend.append('banners', banner);
-            });
-
-            // For edit mode, preserve existing images if not replaced
+            formDataToSend.append('title', data.title.trim());
+            formDataToSend.append('description', (data.description || '').trim());
+            formDataToSend.append('status', data.status);
+            if (logo) formDataToSend.append('logo', logo);
+            bannerImages.forEach((banner) => formDataToSend.append('banners', banner));
             if (isEdit) {
                 formDataToSend.append('keepExistingLogo', existingLogo ? 'true' : 'false');
                 formDataToSend.append('existingBanners', JSON.stringify(existingBanners));
             }
-
-            // Use brandService instead of direct fetch
             let response;
             if (isEdit) {
                 response = await brandService.updateBrand(id, formDataToSend);
             } else {
                 response = await brandService.createBrand(formDataToSend);
             }
-
-            toast.success(`Brand ${isEdit ? 'updated' : 'created'} successfully!`);
+            notify.success(`Brand ${isEdit ? 'updated' : 'created'} successfully`);
             navigate('/admin/brands');
-            
         } catch (error) {
-            console.error('Error saving brand:', error);
-            
-            // Handle server-side validation errors
             if (error.errors && Array.isArray(error.errors)) {
-                // Format: [{ field: 'title', message: 'error message' }]
-                const serverErrors = mapServerFieldErrors(error.errors);
-                setErrors(serverErrors);
-                
-                // Show first error in toast
-                toast.error(error.errors[0].message || 'Validation failed');
+                error.errors.forEach(({ field, message }) => { if (field) setError(field, { message }); });
+                notify.error(error.errors[0]?.message || 'Please fix form validation errors');
             } else {
-                // Display generic error message
-                const errorMessage = error.message || 
-                    error.response?.data?.message || 
-                    `Failed to ${isEdit ? 'update' : 'create'} brand`;
-                
-                toast.error(errorMessage);
+                notify.error(error.message || `Failed to ${isEdit ? 'update' : 'create'} brand`);
             }
         } finally {
             setIsSaving(false);
@@ -283,6 +212,8 @@ const validateForm = () => {
         );
     }
 
+    const watchStatus = watch('status', 'active');
+    const watchDescription = watch('description', '');
     const totalBannerCount = existingBanners.length + bannerPreviews.length;
 
     return (
@@ -304,11 +235,11 @@ const validateForm = () => {
                         </p>
                     </div>
                     <span className={`inline-flex items-center px-3 py-1.5 text-xs font-bold rounded-full border ${
-                        formData.status === 'active'
+                        watchStatus === 'active'
                             ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
                             : 'bg-amber-100 text-amber-800 border-amber-200'
                     }`}>
-                        {formData.status || 'inactive'}
+                        {watchStatus || 'inactive'}
                     </span>
                 </div>
             </div>
@@ -328,7 +259,7 @@ const validateForm = () => {
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} noValidate className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                     <div className="space-y-6 order-2 lg:order-2">
                         {/* Logo Upload */}
@@ -378,10 +309,10 @@ const validateForm = () => {
                                             type="file"
                                             accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
                                             onChange={handleLogoChange}
-                                            className={`media-file-input ${errors.logo ? 'border-red-500 focus:ring-red-200' : ''}`}
+                                            className={`media-file-input ${errors.logo ? 'border-red-400 bg-red-50' : ''}`}
                                         />
                                         <p className="mt-2 text-sm text-slate-500">Upload logo (JPG, PNG, SVG, WEBP - Max 5MB)</p>
-                                        {errors.logo && <p className="mt-2 text-sm text-red-600">{errors.logo}</p>}
+                                        {errors.logo && <p className="mt-2 text-sm text-red-600">{errors.logo.message}</p>}
                                     </div>
                                 </div>
                             </div>
@@ -407,16 +338,12 @@ const validateForm = () => {
                                     Title *
                                 </label>
                                 <input
+                                    {...register('title')}
                                     type="text"
-                                    name="title"
-                                    value={formData.title}
-                                    onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-cyan-300 focus:border-cyan-400 text-slate-900 ${
-                                        getFieldBorderClass(errors, 'title')
-                                    }`}
+                                    className={fc('title')}
                                     placeholder="Enter brand title"
                                 />
-                                {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
+                                {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
                             </div>
 
                             <div>
@@ -424,18 +351,14 @@ const validateForm = () => {
                                     Description
                                 </label>
                                 <textarea
-                                    name="description"
-                                    value={formData.description}
-                                    onChange={handleChange}
+                                    {...register('description')}
                                     rows="4"
                                     maxLength="1000"
-                                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-cyan-300 focus:border-cyan-400 text-slate-900 ${
-                                        getFieldBorderClass(errors, 'description')
-                                    }`}
+                                    className={fc('description')}
                                     placeholder="Brand description"
                                 />
-                                {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
-                                <p className="mt-1 text-sm text-slate-500">{formData.description.length}/1000</p>
+                                {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>}
+                                <p className="mt-1 text-sm text-slate-500">{watchDescription.length}/1000</p>
                             </div>
 
                             <div>
@@ -443,17 +366,13 @@ const validateForm = () => {
                                     Status
                                 </label>
                                 <select
-                                    name="status"
-                                    value={formData.status}
-                                    onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-cyan-300 focus:border-cyan-400 text-slate-900 ${
-                                        getFieldBorderClass(errors, 'status')
-                                    }`}
+                                    {...register('status')}
+                                    className={fc('status')}
                                 >
                                     <option value="active">Active</option>
                                     <option value="inactive">Inactive</option>
                                 </select>
-                                {errors.status && <p className="mt-1 text-sm text-red-600">{errors.status}</p>}
+                                {errors.status && <p className="mt-1 text-sm text-red-600">{errors.status.message}</p>}
                             </div>
                         </div>
 
@@ -478,12 +397,10 @@ const validateForm = () => {
                                     multiple
                                     accept="image/jpeg,image/png,image/gif,image/webp"
                                     onChange={handleBannerChange}
-                                    className={`media-file-input ${
-                                        errors.banners ? 'border-red-500 focus:ring-red-200' : getFieldBorderClass(errors, 'banners')
-                                    }`}
+                                    className={`media-file-input ${errors.banners ? 'border-red-400 bg-red-50' : ''}`}
                                 />
                                 <p className="mt-2 text-sm text-slate-500">Upload banner images (JPG, PNG, GIF, WEBP - Max 5MB, Max 3 banners)</p>
-                                {errors.banners && <p className="mt-2 text-sm text-red-600">{errors.banners}</p>}
+                                {errors.banners && <p className="mt-2 text-sm text-red-600">{errors.banners.message}</p>}
                             </div>
 
                             {existingBanners.length > 0 && (

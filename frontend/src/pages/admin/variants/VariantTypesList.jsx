@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import notify from '../../../utils/notify';
 import { API_CONFIG } from '../../../constants';
+import authFetch from '../../../utils/authFetch.js';
 
 const VariantTypesList = () => {
     const navigate = useNavigate();
@@ -22,9 +23,7 @@ const VariantTypesList = () => {
                 status: statusFilter || 'all',
                 search: searchTerm.trim(),
             });
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}?${query.toString()}`, {
-                credentials: 'include',
-            });
+            const response = await authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}?${query.toString()}`);
             const data = await response.json();
             if (!response.ok || !data?.success) {
                 notify.error(data, 'Failed to load variant types');
@@ -61,9 +60,8 @@ const VariantTypesList = () => {
         if (!typeToDelete?._id) return;
         try {
             setIsDeleting(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}/${typeToDelete._id}`, {
+            const response = await authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_TYPES}/${typeToDelete._id}`, {
                 method: 'DELETE',
-                credentials: 'include',
             });
             const data = await response.json();
             if (!response.ok || !data?.success) {

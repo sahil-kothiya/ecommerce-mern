@@ -43,6 +43,8 @@ const settingSchema = new Schema(
 
     stripePublicKey: { type: String, default: "" },
     stripeSecretKey: { type: String, default: "" },
+    stripeWebhookSecret: { type: String, default: "" },
+    stripeEnabled: { type: Boolean, default: false },
     paypalClientId: { type: String, default: "" },
     paypalClientSecret: { type: String, default: "" },
 

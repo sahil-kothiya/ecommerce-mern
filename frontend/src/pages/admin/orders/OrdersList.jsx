@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import notify from '../../../utils/notify';
 import { API_CONFIG } from '../../../constants';
 import { AdminLoadingState, AdminPageHeader, AdminSurface } from '../../../components/admin/AdminTheme';
+import authFetch from '../../../utils/authFetch.js';
 
 const ORDER_STATUSES = ['new', 'process', 'delivered', 'cancelled'];
 const PAYMENT_STATUSES = ['paid', 'unpaid'];
@@ -31,9 +32,7 @@ const OrdersList = () => {
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     const fetchSummary = async () => {
-        const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}/admin/summary`, {
-            credentials: 'include',
-        });
+        const response = await authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}/admin/summary`);
         const data = await response.json();
 
         if (!response.ok || !data?.success) {
@@ -54,9 +53,7 @@ const OrdersList = () => {
         if (paymentFilter) params.set('paymentStatus', paymentFilter);
         if (searchTerm.trim()) params.set('search', searchTerm.trim());
 
-        const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}/admin/all?${params}`, {
-            credentials: 'include',
-        });
+        const response = await authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}/admin/all?${params}`);
         const data = await response.json();
 
         if (!response.ok || !data?.success) {
@@ -108,12 +105,9 @@ const OrdersList = () => {
 
     const handleStatusUpdate = async (orderId, nextStatus) => {
         try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}/${orderId}/status`, {
+            const response = await authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}/${orderId}/status`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: nextStatus }),
             });
             const data = await response.json();

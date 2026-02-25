@@ -1,34 +1,65 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { API_CONFIG } from '../../../constants';
 import notify from '../../../utils/notify';
-import { applyServerFieldErrors, clearFieldError, getFieldBorderClass, hasValidationErrors } from '../../../utils/formValidation';
+import authFetch from '../../../utils/authFetch.js';
+
+const schema = yup.object({
+    title: yup.string().trim().required('Title is required'),
+    description: yup.string().default(''),
+    linkType: yup.string().required('Link type is required'),
+    link: yup.string().when('linkType', {
+        is: (v) => v && v !== 'discount',
+        then: (s) => s.trim().required('Redirect URL / SKU is required'),
+        otherwise: (s) => s.default(''),
+    }),
+    linkTarget: yup.string().oneOf(['_self', '_blank']).default('_self'),
+    sortOrder: yup.number().min(0).default(0),
+    status: yup.string().oneOf(['active', 'inactive', 'scheduled']).required(),
+    startDate: yup.string().default(''),
+    endDate: yup.string().default(''),
+});
 
 const BannerForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const isEdit = Boolean(id);
 
-    const [formData, setFormData] = useState({
-        title: '',
-        description: '',
-        link: '',
-        linkType: '',
-        linkTarget: '_self',
-        sortOrder: 0,
-        status: 'inactive',
-        startDate: '',
-        endDate: '',
-    });
-
     const [image, setImage] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
     const [existingImage, setExistingImage] = useState(null);
     const [discountOptions, setDiscountOptions] = useState([]);
     const [selectedDiscountId, setSelectedDiscountId] = useState('');
-    const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [imageError, setImageError] = useState('');
+    const [discountError, setDiscountError] = useState('');
+
+    const { register, handleSubmit, reset, setError, watch, setValue, formState: { errors } } = useForm({
+        resolver: yupResolver(schema),
+        defaultValues: { title: '', description: '', link: '', linkType: '', linkTarget: '_self', sortOrder: 0, status: 'inactive', startDate: '', endDate: '' },
+        mode: 'onBlur',
+    });
+
+    const fc = (field) => `w-full rounded-xl border px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 ${errors[field] ? 'border-red-400 focus:ring-red-100 bg-red-50' : 'border-slate-300 focus:border-indigo-400 focus:ring-indigo-200'}`;
+
+    const watchLinkType = watch('linkType', '');
+    const watchStatus = watch('status', 'inactive');
+    const watchDescription = watch('description', '');
+
+    // Reset link/discount when linkType changes
+    const prevLinkType = useRef(watchLinkType);
+    useEffect(() => {
+        if (prevLinkType.current !== watchLinkType) {
+            setValue('link', '');
+            setSelectedDiscountId('');
+            setDiscountError('');
+            prevLinkType.current = watchLinkType;
+        }
+    }, [watchLinkType, setValue]);
 
     const getImageUrl = (path) => {
         if (!path) return '';
@@ -46,9 +77,7 @@ const BannerForm = () => {
 
     const loadDiscountOptions = async () => {
         try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}/discount-options`, {
-                credentials: 'include',
-            });
+            const response = await authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}/discount-options`);
             const data = await response.json();
             if (response.ok && data.success) {
                 setDiscountOptions(Array.isArray(data.data) ? data.data : []);
@@ -61,9 +90,7 @@ const BannerForm = () => {
     const loadBanner = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}/${id}`, {
-                credentials: 'include',
-            });
+            const response = await authFetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}/${id}`);
             const data = await response.json();
 
             if (!response.ok || !data.success) {
@@ -72,7 +99,7 @@ const BannerForm = () => {
             }
 
             const banner = data.data;
-            setFormData({
+            reset({
                 title: banner.title || '',
                 description: banner.description || '',
                 link: banner.link || '',
@@ -97,38 +124,24 @@ const BannerForm = () => {
         }
     };
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
-
-        if (name === 'linkType') {
-            setFormData((prev) => ({ ...prev, linkType: value, link: '' }));
-            setSelectedDiscountId('');
-        }
-
-        if (errors[name]) {
-            clearFieldError(setErrors, name);
-        }
-    };
-
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
         if (!file.type.startsWith('image/')) {
             notify.error('Please select an image file');
-            setErrors((prev) => ({ ...prev, image: 'Please select an image file' }));
+            setImageError('Please select an image file');
             return;
         }
 
         if (file.size > 5 * 1024 * 1024) {
             notify.error('Image must be less than 5MB');
-            setErrors((prev) => ({ ...prev, image: 'Image must be less than 5MB' }));
+            setImageError('Image must be less than 5MB');
             return;
         }
 
         setImage(file);
-        clearFieldError(setErrors, 'image');
+        setImageError('');
 
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -146,92 +159,47 @@ const BannerForm = () => {
         setExistingImage(null);
     };
 
-    const validateForm = () => {
-        const nextErrors = {};
-
-        if (!formData.title.trim()) {
-            nextErrors.title = 'Title is required';
-        }
-
+    const onSubmit = async (data) => {
         if (!isEdit && !image && !existingImage) {
-            nextErrors.image = 'Banner image is required';
-        }
-
-        if (!formData.linkType) {
-            nextErrors.linkType = 'Link type is required';
-        } else if (formData.linkType === 'discount') {
-            if (!selectedDiscountId) nextErrors.discount = 'Please select a discount';
-        } else if (!formData.link.trim()) {
-            nextErrors.link = 'Redirect URL / SKU is required';
-        }
-
-        if (formData.status === 'scheduled' && !formData.startDate && !formData.endDate) {
-            nextErrors.startDate = 'Start or end date required for scheduled banners';
-        }
-
-        setErrors(nextErrors);
-        return Object.keys(nextErrors).length === 0;
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        const isValid = validateForm();
-        if (!isValid) {
+            setImageError('Banner image is required');
             notify.error('Please fix form validation errors');
             return;
         }
-
+        if (data.linkType === 'discount' && !selectedDiscountId) {
+            setDiscountError('Please select a discount');
+            notify.error('Please fix form validation errors');
+            return;
+        }
         try {
             setIsSaving(true);
             const payload = new FormData();
-
-            Object.keys(formData).forEach((key) => {
-                if (formData[key]) {
-                    payload.append(key, formData[key]);
-                }
-            });
-
-            payload.append('link_type', formData.linkType);
-
-            if (formData.linkType === 'discount' && selectedDiscountId) {
+            Object.entries(data).forEach(([key, val]) => { if (val !== null && val !== undefined && val !== '') payload.append(key, val); });
+            payload.append('link_type', data.linkType);
+            if (data.linkType === 'discount' && selectedDiscountId) {
                 payload.append('discountIds', JSON.stringify([selectedDiscountId]));
                 payload.append('discounts', JSON.stringify([selectedDiscountId]));
                 payload.set('link', '');
             }
-
-            if (image) {
-                payload.append('image', image);
-            }
-
-            if (isEdit) {
-                payload.append('keepExistingImage', existingImage ? 'true' : 'false');
-            }
-
+            if (image) payload.append('image', image);
+            if (isEdit) payload.append('keepExistingImage', existingImage ? 'true' : 'false');
             const url = isEdit
                 ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}/${id}`
                 : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}`;
-
-            const response = await fetch(url, {
-                method: isEdit ? 'PUT' : 'POST',
-                credentials: 'include',
-                body: payload,
-            });
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                const mapped = applyServerFieldErrors(setErrors, data?.errors);
-                if (hasValidationErrors(mapped)) {
-                    notify.error(data?.message || 'Please fix form validation errors');
-                    return;
+            const response = await authFetch(url, { method: isEdit ? 'PUT' : 'POST', body: payload });
+            const resData = await response.json();
+            if (!response.ok || !resData.success) {
+                const serverErrors = resData?.errors;
+                if (Array.isArray(serverErrors)) {
+                    serverErrors.forEach(({ field, message }) => { if (field) setError(field, { message }); });
+                    notify.error('Please fix form validation errors');
+                } else {
+                    notify.error(resData, `Failed to ${isEdit ? 'update' : 'create'} banner`);
                 }
-                notify.error(data, `Failed to ${isEdit ? 'update' : 'create'} banner`);
                 return;
             }
-
             notify.success(`Banner ${isEdit ? 'updated' : 'created'} successfully`);
             navigate('/admin/banners');
         } catch (error) {
-            console.error('Error saving banner:', error);
             notify.error(error, 'Failed to save banner');
         } finally {
             setIsSaving(false);
@@ -272,13 +240,13 @@ const BannerForm = () => {
                         </p>
                     </div>
                     <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-bold ${
-                        formData.status === 'active'
+                        watchStatus === 'active'
                             ? 'border-emerald-200 bg-emerald-100 text-emerald-800'
-                            : formData.status === 'scheduled'
+                            : watchStatus === 'scheduled'
                                 ? 'border-blue-200 bg-blue-100 text-blue-800'
                                 : 'border-amber-200 bg-amber-100 text-amber-800'
                     }`}>
-                        {formData.status || 'inactive'}
+                        {watchStatus || 'inactive'}
                     </span>
                 </div>
             </div>
@@ -294,11 +262,11 @@ const BannerForm = () => {
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
                     <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Link Type</p>
-                    <p className="mt-1 text-lg font-black text-slate-900">{formData.linkType || 'Not Selected'}</p>
+                    <p className="mt-1 text-lg font-black text-slate-900">{watchLinkType || 'Not Selected'}</p>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} noValidate className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
                     <div className="order-2 space-y-6 lg:order-2">
                         <div className="media-card">
@@ -344,12 +312,10 @@ const BannerForm = () => {
                                         type="file"
                                         accept="image/jpeg,image/png,image/gif,image/webp"
                                         onChange={handleImageChange}
-                                        className={`media-file-input ${
-                                            getFieldBorderClass(errors, 'image')
-                                        }`}
+                                        className={`media-file-input ${imageError ? 'border-red-400 bg-red-50' : ''}`}
                                     />
                                     <p className="mt-2 text-sm text-slate-500">Upload image (JPG, PNG, GIF, WEBP - Max 5MB)</p>
-                                    {errors.image && <p className="mt-2 text-sm text-red-600">{errors.image}</p>}
+                                    {imageError && <p className="mt-2 text-sm text-red-600">{imageError}</p>}
                                 </div>
                             </div>
                         </div>
@@ -372,44 +338,34 @@ const BannerForm = () => {
                                     Title <span className="text-rose-500">*</span>
                                 </label>
                                 <input
+                                    {...register('title')}
                                     type="text"
-                                    name="title"
-                                    value={formData.title}
-                                    onChange={handleChange}
-                                    className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${
-                                        getFieldBorderClass(errors, 'title')
-                                    }`}
+                                    className={fc('title')}
                                     placeholder="Enter banner title"
                                 />
-                                {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
+                                {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
                             </div>
 
                             <div>
                                 <label className="mb-2 block text-sm font-semibold text-slate-700">Description</label>
                                 <textarea
-                                    name="description"
-                                    value={formData.description}
-                                    onChange={handleChange}
+                                    {...register('description')}
                                     rows="4"
                                     maxLength="500"
                                     className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
                                     placeholder="Write a short campaign description"
                                 />
-                                <p className="mt-1 text-sm text-slate-500">{formData.description.length}/500</p>
+                                <p className="mt-1 text-sm text-slate-500">{watchDescription.length}/500</p>
                             </div>
 
-                            <div className={`grid gap-4 ${formData.linkType ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+                            <div className={`grid gap-4 ${watchLinkType ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">
                                         Link Type <span className="text-rose-500">*</span>
                                     </label>
                                     <select
-                                        name="linkType"
-                                        value={formData.linkType}
-                                        onChange={handleChange}
-                                        className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${
-                                            getFieldBorderClass(errors, 'linkType')
-                                        }`}
+                                        {...register('linkType')}
+                                        className={fc('linkType')}
                                     >
                                         <option value="">-- Select Link Type --</option>
                                         <option value="product">Product</option>
@@ -417,23 +373,18 @@ const BannerForm = () => {
                                         <option value="url">URL</option>
                                         <option value="discount">Discount</option>
                                     </select>
-                                    {errors.linkType && <p className="mt-1 text-sm text-red-600">{errors.linkType}</p>}
+                                    {errors.linkType && <p className="mt-1 text-sm text-red-600">{errors.linkType.message}</p>}
                                 </div>
 
-                                {formData.linkType === 'discount' ? (
+                                {watchLinkType === 'discount' ? (
                                     <div>
                                         <label className="mb-2 block text-sm font-semibold text-slate-700">
                                             Discount <span className="text-rose-500">*</span>
                                         </label>
                                         <select
                                             value={selectedDiscountId}
-                                            onChange={(e) => {
-                                                setSelectedDiscountId(e.target.value);
-                                                clearFieldError(setErrors, 'discount');
-                                            }}
-                                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${
-                                                getFieldBorderClass(errors, 'discount')
-                                            }`}
+                                            onChange={(e) => { setSelectedDiscountId(e.target.value); setDiscountError(''); }}
+                                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${discountError ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
                                         >
                                             <option value="">-- Select Discount --</option>
                                             {discountOptions.map((discount) => (
@@ -442,24 +393,20 @@ const BannerForm = () => {
                                                 </option>
                                             ))}
                                         </select>
-                                        {errors.discount && <p className="mt-1 text-sm text-red-600">{errors.discount}</p>}
+                                        {discountError && <p className="mt-1 text-sm text-red-600">{discountError}</p>}
                                     </div>
-                                ) : formData.linkType ? (
+                                ) : watchLinkType ? (
                                     <div>
                                         <label className="mb-2 block text-sm font-semibold text-slate-700">
                                             Redirect URL / SKU <span className="text-rose-500">*</span>
                                         </label>
                                         <input
+                                            {...register('link')}
                                             type="text"
-                                            name="link"
-                                            value={formData.link}
-                                            onChange={handleChange}
-                                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${
-                                                getFieldBorderClass(errors, 'link')
-                                            }`}
+                                            className={fc('link')}
                                             placeholder="e.g. /product/sku-123 OR /category/electronics OR https://example.com"
                                         />
-                                        {errors.link && <p className="mt-1 text-sm text-red-600">{errors.link}</p>}
+                                        {errors.link && <p className="mt-1 text-sm text-red-600">{errors.link.message}</p>}
                                     </div>
                                 ) : null}
                             </div>
@@ -467,12 +414,7 @@ const BannerForm = () => {
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Status</label>
-                                    <select
-                                        name="status"
-                                        value={formData.status}
-                                        onChange={handleChange}
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
-                                    >
+                                    <select {...register('status')} className={fc('status')}>
                                         <option value="active">Active</option>
                                         <option value="inactive">Inactive</option>
                                         <option value="scheduled">Scheduled</option>
@@ -480,31 +422,19 @@ const BannerForm = () => {
                                 </div>
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Link Target</label>
-                                    <select
-                                        name="linkTarget"
-                                        value={formData.linkTarget}
-                                        onChange={handleChange}
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
-                                    >
+                                    <select {...register('linkTarget')} className={fc('linkTarget')}>
                                         <option value="_self">Same Window</option>
                                         <option value="_blank">New Window</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label className="mb-2 block text-sm font-semibold text-slate-700">Sort Order</label>
-                                    <input
-                                        type="number"
-                                        name="sortOrder"
-                                        value={formData.sortOrder}
-                                        onChange={handleChange}
-                                        min="0"
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
-                                    />
+                                    <input {...register('sortOrder')} type="number" min="0" className={fc('sortOrder')} />
                                 </div>
                             </div>
                         </div>
 
-                        {formData.status === 'scheduled' && (
+                        {watchStatus === 'scheduled' && (
                             <div className="rounded-3xl border border-blue-200 bg-blue-50/70 p-6 sm:p-7">
                                 <h3 className="text-lg font-black text-blue-900">Schedule Window</h3>
                                 <p className="mt-1 text-sm text-blue-700">Define when this banner should automatically run.</p>
@@ -514,23 +444,17 @@ const BannerForm = () => {
                                             Start Date & Time <span className="text-rose-500">*</span>
                                         </label>
                                         <input
+                                            {...register('startDate')}
                                             type="datetime-local"
-                                            name="startDate"
-                                            value={formData.startDate}
-                                            onChange={handleChange}
-                                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 ${
-                                                errors.startDate ? 'border-red-500' : 'border-blue-200'
-                                            }`}
+                                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 ${errors.startDate ? 'border-red-400 bg-red-50' : 'border-blue-200'}`}
                                         />
-                                        {errors.startDate && <p className="mt-1 text-sm text-red-600">{errors.startDate}</p>}
+                                        {errors.startDate && <p className="mt-1 text-sm text-red-600">{errors.startDate.message}</p>}
                                     </div>
                                     <div>
                                         <label className="mb-2 block text-sm font-semibold text-blue-900">End Date & Time</label>
                                         <input
+                                            {...register('endDate')}
                                             type="datetime-local"
-                                            name="endDate"
-                                            value={formData.endDate}
-                                            onChange={handleChange}
                                             className="w-full rounded-xl border border-blue-200 px-4 py-3 text-slate-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
                                         />
                                     </div>

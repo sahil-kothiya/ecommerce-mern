@@ -102,9 +102,11 @@ const handleUserLogin = async () => {
                         await authService.login(data.email, data.password, data.rememberMe);
             
                         if (authService.isAdmin()) {
-                                navigate('/admin/products', { replace: true });
+                                navigate('/admin', { replace: true });
             } else {
-                                navigate('/dashboard', { replace: true });
+                // Redirect user to where they came from, or their account panel
+                const from = location?.state?.from?.pathname;
+                navigate(from && !from.startsWith('/admin') ? from : '/account', { replace: true });
             }
         } catch (err) {
                         const { fieldErrors, errorMessages, generalError } = processApiError(err);
