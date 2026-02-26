@@ -7,6 +7,8 @@ import toast from 'react-hot-toast';
 import authService from '../../services/authService';
 import { ErrorAlert, FieldError } from '../../components/common';
 import { processApiError, getFieldClasses, getFieldError } from '../../utils/errorUtils';
+import { useSiteSettings } from '../../context/SiteSettingsContext.jsx';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 const resetPasswordSchema = yup.object().shape({
     token: yup
@@ -28,13 +30,16 @@ const resetPasswordSchema = yup.object().shape({
 });
 
 const ResetPasswordPage = () => {
-                const navigate = useNavigate();
+    const navigate = useNavigate();
+    const { settings } = useSiteSettings();
     const [searchParams] = useSearchParams();
     const initialToken = useMemo(() => (searchParams.get('token') || '').trim(), [searchParams]);
 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState([]);
     const [isCompleted, setIsCompleted] = useState(false);
+    const siteName = String(settings?.siteName || 'Enterprise E-Commerce').trim();
+    const logoUrl = resolveImageUrl(settings?.logo, { placeholder: null });
 
     const {
         register,
@@ -74,6 +79,9 @@ const ResetPasswordPage = () => {
                             <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/95 p-8 shadow-2xl backdrop-blur">
                 
                 <div className="text-center mb-6">
+                    {logoUrl && (
+                        <img src={logoUrl} alt={siteName} className="mx-auto mb-3 h-10 w-10 rounded-lg object-cover" />
+                    )}
                     <div className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-full bg-indigo-100">
                         <svg className="h-7 w-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />

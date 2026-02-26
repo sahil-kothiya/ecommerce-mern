@@ -3,11 +3,14 @@ import notify from '../../../utils/notify';
 import { API_CONFIG } from '../../../constants';
 import { AdminLoadingState, AdminPageHeader, AdminSurface } from '../../../components/admin/AdminTheme';
 import authFetch from '../../../utils/authFetch.js';
+import { useSiteSettings } from '../../../context/SiteSettingsContext';
+import { formatCurrency } from '../../../utils/currency';
 
 const ORDER_STATUSES = ['new', 'process', 'delivered', 'cancelled'];
 const PAYMENT_STATUSES = ['paid', 'unpaid'];
 
 const OrdersList = () => {
+    const { settings } = useSiteSettings();
     const [orders, setOrders] = useState([]);
     const [summary, setSummary] = useState({
         totalOrders: 0,
@@ -127,13 +130,13 @@ const OrdersList = () => {
     const metrics = useMemo(
         () => [
             { label: 'Total Orders', value: summary.totalOrders || 0, tone: 'border-cyan-200 bg-cyan-50 text-cyan-800' },
-            { label: 'Revenue', value: `$${Number(summary.totalRevenue || 0).toLocaleString()}`, tone: 'border-blue-200 bg-blue-50 text-blue-800' },
+            { label: 'Revenue', value: formatCurrency(summary.totalRevenue, settings), tone: 'border-blue-200 bg-blue-50 text-blue-800' },
             { label: 'New', value: summary.newOrders || 0, tone: 'border-amber-200 bg-amber-50 text-amber-800' },
             { label: 'Processing', value: summary.processingOrders || 0, tone: 'border-violet-200 bg-violet-50 text-violet-800' },
             { label: 'Delivered', value: summary.deliveredOrders || 0, tone: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
             { label: 'Cancelled', value: summary.cancelledOrders || 0, tone: 'border-rose-200 bg-rose-50 text-rose-800' },
         ],
-        [summary]
+        [settings, summary]
     );
 
     if (isLoading) {
@@ -168,13 +171,30 @@ const OrdersList = () => {
 
             <AdminSurface className="p-4 sm:p-5">
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto_auto_auto]">
-                    <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(event) => setSearchTerm(event.target.value)}
-                        placeholder="Search order number, customer email, customer name..."
-                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
-                    />
+                    <div className="relative">
+                        <svg className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(event) => setSearchTerm(event.target.value)}
+                            placeholder="Search order number, customer email, customer name..."
+                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                        />
+                        {searchTerm && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-3 top-3 text-slate-400 hover:text-slate-700"
+                                aria-label="Clear search"
+                            >
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
 
                     <select
                         value={statusFilter}
@@ -212,6 +232,10 @@ const OrdersList = () => {
                         Reset
                     </button>
                 </div>
+                <p className="mt-3 text-sm text-slate-500">
+                    Showing <span className="font-semibold text-slate-800">{orders.length}</span> result{orders.length !== 1 ? 's' : ''} on this page.
+                    {isRefreshing ? <span className="ml-2 font-semibold text-cyan-700">Updating...</span> : null}
+                </p>
             </AdminSurface>
 
             <AdminSurface className="p-4 sm:p-5">
@@ -239,7 +263,7 @@ const OrdersList = () => {
                                         <p className="text-xs text-slate-500">{order.email}</p>
                                     </td>
                                     <td className="py-3 pr-3 font-semibold text-slate-900">
-                                        ${Number(order.totalAmount || 0).toFixed(2)}
+                                        {formatCurrency(order.totalAmount, settings)}
                                     </td>
                                     <td className="py-3 pr-3">
                                         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${

@@ -7,6 +7,8 @@ import * as yup from 'yup';
 import { API_CONFIG } from '../../../constants';
 import notify from '../../../utils/notify';
 import { resolveImageUrl } from '../../../utils/imageUrl';
+import { useSiteSettings } from '../../../context/SiteSettingsContext';
+import { formatCurrency } from '../../../utils/currency';
 
 const schema = yup.object({
     title: yup.string().trim().required('Title is required'),
@@ -174,6 +176,8 @@ const authFetch = (url, options = {}) => {
 const ProductFormEnhanced = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { settings } = useSiteSettings();
+    const currencyCode = String(settings?.currencyCode || 'USD').toUpperCase();
     const isEdit = Boolean(id);
 
     const { register, handleSubmit, reset, setError, watch, setValue, formState: { errors } } = useForm({
@@ -721,7 +725,7 @@ const ProductFormEnhanced = () => {
     const finalPrice = () => {
         const p = parseFloat(watchBasePrice) || 0;
         const d = parseFloat(watchBaseDiscount) || 0;
-        return (p - p * d / 100).toFixed(2);
+        return formatCurrency(p - p * d / 100, settings);
     };
 
     // =========================================================================
@@ -803,7 +807,7 @@ const ProductFormEnhanced = () => {
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Final Price</label>
-                            <div className="px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl font-bold text-gray-900">${finalPrice()}</div>
+                            <div className="px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl font-bold text-gray-900">{finalPrice()}</div>
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Stock Qty</label>
@@ -1071,7 +1075,7 @@ const ProductFormEnhanced = () => {
                                         <div className="hidden md:grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_2fr_auto] gap-3 px-4 py-2 bg-gray-100 rounded-t-xl border border-gray-200 border-b-0 text-xs font-semibold text-gray-600 uppercase tracking-wide">
                                             <span>Variant Name</span>
                                             <span>SKU *</span>
-                                            <span>Price (NRS) *</span>
+                                            <span>{`Price (${currencyCode}) *`}</span>
                                             <span>Discount (%)</span>
                                             <span>Stock *</span>
                                             <span>Images *</span>
@@ -1108,7 +1112,7 @@ const ProductFormEnhanced = () => {
                                                     </div>
                                                     {/* Price */}
                                                     <div className="mb-2 md:mb-0">
-                                                        <label className="md:hidden block text-xs font-semibold text-gray-500 mb-1">Price (NRS) *</label>
+                                                        <label className="md:hidden block text-xs font-semibold text-gray-500 mb-1">{`Price (${currencyCode}) *`}</label>
                                                         <input type="number" step="0.01" min="0" value={variant.price}
                                                             onChange={e => updateVariantField(vi, 'price', e.target.value)}
                                                             className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-indigo-400" />

@@ -6,6 +6,7 @@ import { getPrimaryProductImage, resolveImageUrl } from '../utils/imageUrl';
 import authService from '../services/authService';
 import StoreNav from '../components/common/StoreNav';
 import LazyImage from '../components/common/LazyImage';
+import { useSiteSettings } from '../context/SiteSettingsContext';
 
 const RECENT_SEARCHES_KEY = 'products_recent_searches';
 const SAVED_FILTERS_KEY = 'products_saved_filters';
@@ -148,6 +149,8 @@ const parsePageSize = (value) => {
 };
 
 const ProductsPage = () => {
+    const { settings } = useSiteSettings();
+    const currencyCode = String(settings?.currencyCode || 'USD').toUpperCase();
     const [searchParams, setSearchParams] = useSearchParams();
     const initialFilters = {
         search: searchParams.get('search') || '',
@@ -615,8 +618,8 @@ const ProductsPage = () => {
                             const pricing = getProductDisplayPricing(product);
                             const hasDiscount = pricing.hasDiscount;
                             const finalPriceLabel = pricing.isRange
-                                ? `${formatPrice(pricing.minPrice)} - ${formatPrice(pricing.maxPrice)}`
-                                : formatPrice(pricing.finalPrice);
+                                ? `${formatPrice(pricing.minPrice, currencyCode)} - ${formatPrice(pricing.maxPrice, currencyCode)}`
+                                : formatPrice(pricing.finalPrice, currencyCode);
                             const imgUrl = resolveImageUrl(getPrimaryProductImage(product));
                             return (
                                 <Link
@@ -648,7 +651,7 @@ const ProductsPage = () => {
                                         <div className="mt-2 flex items-center gap-2">
                                             <span className="text-sm font-bold text-slate-800">{finalPriceLabel}</span>
                                             {hasDiscount && !pricing.isRange && (
-                                                <span className="text-xs text-slate-400 line-through">{formatPrice(pricing.basePrice)}</span>
+                                                <span className="text-xs text-slate-400 line-through">{formatPrice(pricing.basePrice, currencyCode)}</span>
                                             )}
                                         </div>
                                         {product.ratings?.count > 0 && (

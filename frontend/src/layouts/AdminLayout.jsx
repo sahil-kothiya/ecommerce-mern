@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
+import { useSiteSettings } from '../context/SiteSettingsContext.jsx';
+import { resolveImageUrl } from '../utils/imageUrl';
 
 const MENU_ITEMS = [
     { key: 'dashboard', path: '/admin', label: 'Dashboard', exact: true },
@@ -29,7 +31,6 @@ const MENU_ITEMS = [
 const UI_CONFIG = {
     SIDEBAR_OPEN: 'w-72',
     SIDEBAR_CLOSED: 'w-0',
-    BRAND_NAME: 'Enterprise Commerce',
 };
 
 const iconClass = 'h-[18px] w-[18px]';
@@ -68,6 +69,7 @@ const NavGlyph = ({ name }) => {
 const AdminLayout = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const { settings } = useSiteSettings();
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -84,9 +86,20 @@ const AdminLayout = () => {
         }
     }, [navigate]);
 
+    const siteName = useMemo(() => String(settings?.siteName || 'Enterprise E-Commerce').trim(), [settings?.siteName]);
+    const siteTagline = useMemo(() => String(settings?.siteTagline || '').trim(), [settings?.siteTagline]);
+    const logoUrl = useMemo(() => resolveImageUrl(settings?.logo, { placeholder: null }), [settings?.logo]);
+    const brandMark = useMemo(() => {
+        const chars = siteName
+            .split(' ')
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part[0]?.toUpperCase() || '');
+        return chars.join('') || 'EC';
+    }, [siteName]);
     const userInitial = useMemo(() => currentUser?.name?.charAt(0)?.toUpperCase() || 'A', [currentUser]);
     const userName = useMemo(() => currentUser?.name || 'Admin User', [currentUser]);
-    const userEmail = useMemo(() => currentUser?.email || 'admin@admin.com', [currentUser]);
+    const userEmail = useMemo(() => currentUser?.email || settings?.supportEmail || 'admin@admin.com', [currentUser, settings?.supportEmail]);
 
     const isActive = useCallback((path, exact = false) => {
         if (exact) return location.pathname === path;
@@ -130,10 +143,16 @@ const AdminLayout = () => {
                             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                         </button>
                         <Link to="/admin" className="flex items-center gap-3">
-                            <span className="admin-brand-mark animate-floatBob flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black text-white">EC</span>
+                            <span className="admin-brand-mark animate-floatBob flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl text-sm font-black text-white">
+                                {logoUrl ? (
+                                    <img src={logoUrl} alt={siteName} className="h-full w-full object-cover" />
+                                ) : (
+                                    brandMark
+                                )}
+                            </span>
                             <span className="hidden sm:block">
-                                <span className="block text-[11px] font-bold uppercase tracking-[0.24em] text-[#4250d5]">Creator Console</span>
-                                <span className="admin-display block text-base text-[#131313]">{UI_CONFIG.BRAND_NAME}</span>
+                                <span className="block text-[11px] font-bold uppercase tracking-[0.24em] text-[#4250d5]">{siteTagline || 'Creator Console'}</span>
+                                <span className="admin-display block text-base text-[#131313]">{siteName}</span>
                             </span>
                         </Link>
                     </div>

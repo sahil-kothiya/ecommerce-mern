@@ -1,6 +1,8 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/common/ProtectedRoute.jsx';
+import { API_CONFIG } from './constants';
+import { SiteSettingsProvider } from './context/SiteSettingsContext.jsx';
 
 const HomePage = lazy(() => import('./pages/HomePage.jsx'));
 const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage.jsx'));
@@ -53,6 +55,12 @@ const VariantOptionForm = lazy(() => import('./pages/admin/variants/VariantOptio
 const OrdersList = lazy(() => import('./pages/admin/orders/OrdersList.jsx'));
 
 function App() {
+    useEffect(() => {
+        fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/csrf-token`, {
+            credentials: "include",
+        }).catch(() => {});
+    }, []);
+
     return (
         <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm text-slate-600">Loading page...</div>}>
             <Routes>
@@ -87,9 +95,11 @@ function App() {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             </Route>
 
-                        <Route path="/admin" element={
+            <Route path="/admin" element={
                 <ProtectedRoute requireAdmin={true}>
-                    <AdminLayout />
+                    <SiteSettingsProvider>
+                        <AdminLayout />
+                    </SiteSettingsProvider>
                 </ProtectedRoute>
             }>
                 <Route index element={<Dashboard />} />
@@ -131,7 +141,9 @@ function App() {
             {/* User account panel — authenticated users only */}
             <Route path="/account" element={
                 <ProtectedRoute>
-                    <UserLayout />
+                    <SiteSettingsProvider>
+                        <UserLayout />
+                    </SiteSettingsProvider>
                 </ProtectedRoute>
             }>
                 <Route index element={<AccountDashboard />} />

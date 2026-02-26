@@ -6,10 +6,10 @@ import { Order } from "../models/Order.js";
 import { Setting } from "../models/Setting.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { logger } from "../utils/logger.js";
+import { config } from "../config/index.js";
+import { calculateCartTotals } from "../utils/pricing.js";
 
 const router = Router();
-
-const round = (v) => Math.round((Number(v) || 0) * 100) / 100;
 
 const getStripeClient = async () => {
   const settings = await Setting.findOne({ key: "main" })
@@ -27,8 +27,8 @@ const getStripeClient = async () => {
   };
 };
 
-// GET /api/payments/config — public key for frontend (no auth required)
-router.get("/config", async (req, res, next) => {
+// GET /api/payments/config - public key for frontend (no auth required)
+router.get("/config", async (_req, res, next) => {
   try {
     const settings = await Setting.findOne({ key: "main" })
       .select("stripePublicKey stripeEnabled")
@@ -40,36 +40,40 @@ router.get("/config", async (req, res, next) => {
         publicKey: settings?.stripePublicKey || "",
       },
     });
-  } catch (error) {
+  } catch (_error) {
     next(new AppError("Failed to get payment config", 500));
   }
 });
 
-// POST /api/payments/create-intent — create Stripe PaymentIntent from current cart
+// POST /api/payments/create-intent - create Stripe PaymentIntent from current cart
 router.post("/create-intent", protect, async (req, res, next) => {
   try {
     const userId = req.user?._id || req.user?.id;
     const { stripe } = await getStripeClient();
+    const requestIdempotencyKey = String(
+      req.headers["x-idempotency-key"] || "",
+    ).trim();
 
     const cartItems = await Cart.find({ userId }).lean();
     if (!cartItems.length) {
       return next(new AppError("Cart is empty", 400));
     }
 
-    const subTotal = round(cartItems.reduce((s, i) => s + round(i.amount), 0));
-    const shippingCost = subTotal >= 100 ? 0 : 10;
-    const totalAmount = round(subTotal + shippingCost);
-    const amountInCents = Math.round(totalAmount * 100);
-
-    const intent = await stripe.paymentIntents.create({
-      amount: amountInCents,
-      currency: "usd",
-      metadata: { userId: userId.toString() },
-      automatic_payment_methods: { enabled: true },
-    });
+    const totals = calculateCartTotals(cartItems);
+    const intent = await stripe.paymentIntents.create(
+      {
+        amount: totals.amountInCents,
+        currency: "usd",
+        metadata: { userId: userId.toString() },
+        automatic_payment_methods: { enabled: true },
+      },
+      requestIdempotencyKey
+        ? { idempotencyKey: requestIdempotencyKey }
+        : undefined,
+    );
 
     logger.info(
-      `Stripe PaymentIntent created: ${intent.id} for user ${userId}, amount: $${totalAmount}`,
+      `Stripe PaymentIntent created: ${intent.id} for user ${userId}, amount: $${totals.totalAmount}`,
     );
 
     return res.json({
@@ -77,7 +81,7 @@ router.post("/create-intent", protect, async (req, res, next) => {
       data: {
         clientSecret: intent.client_secret,
         paymentIntentId: intent.id,
-        amount: totalAmount,
+        amount: totals.totalAmount,
       },
     });
   } catch (error) {
@@ -89,7 +93,7 @@ router.post("/create-intent", protect, async (req, res, next) => {
   }
 });
 
-// POST /api/payments/webhook — Stripe webhook (raw body required, registered in app.js before json middleware)
+// POST /api/payments/webhook - Stripe webhook (raw body required, registered in app.js before json middleware)
 export const handleStripeWebhook = async (req, res) => {
   let event;
   try {
@@ -102,8 +106,20 @@ export const handleStripeWebhook = async (req, res) => {
 
     const stripe = new Stripe(settings.stripeSecretKey);
     const sig = req.headers["stripe-signature"];
+    const isLocalEnvironment = ["development", "test", "local"].includes(
+      config.nodeEnv,
+    );
 
-    if (settings.stripeWebhookSecret && sig) {
+    if (!settings.stripeWebhookSecret) {
+      if (!isLocalEnvironment) {
+        return res
+          .status(503)
+          .json({ error: "Stripe webhook secret is required" });
+      }
+      event = JSON.parse(req.body.toString());
+    } else if (!sig) {
+      return res.status(400).json({ error: "Missing Stripe signature header" });
+    } else {
       try {
         event = stripe.webhooks.constructEvent(
           req.body,
@@ -118,9 +134,6 @@ export const handleStripeWebhook = async (req, res) => {
           .status(400)
           .json({ error: `Webhook signature error: ${err.message}` });
       }
-    } else {
-      // No webhook secret configured — parse raw body as JSON (dev only)
-      event = JSON.parse(req.body.toString());
     }
 
     if (event.type === "payment_intent.succeeded") {

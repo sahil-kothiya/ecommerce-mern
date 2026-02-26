@@ -12,12 +12,14 @@ class PaymentService {
     return data.data;
   }
 
-  async createPaymentIntent() {
+  async createPaymentIntent(idempotencyKey = "") {
     const res = await fetch(
       `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PAYMENTS}/create-intent`,
       {
         method: "POST",
-        headers: authService.getAuthHeaders(),
+        headers: authService.getAuthHeaders(
+          idempotencyKey ? { "X-Idempotency-Key": idempotencyKey } : {},
+        ),
         credentials: "include",
       },
     );

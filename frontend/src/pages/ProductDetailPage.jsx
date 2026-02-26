@@ -7,16 +7,15 @@ import * as yup from 'yup';
 import { getRandomProductImage } from '../services/imageService';
 import { resolveImageUrl } from '../utils/imageUrl';
 import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
-import { API_CONFIG, PRODUCT_CONDITIONS, CURRENCY_CONFIG } from '../constants';
+import { API_CONFIG, PRODUCT_CONDITIONS } from '../constants';
 import authService from '../services/authService';
 import reviewService from '../services/reviewService';
 import notify from '../utils/notify';
+import { useSiteSettings } from '../context/SiteSettingsContext';
 
 // ============================================================================
 // HELPERS
 // ============================================================================
-
-const fmt = (price) => formatPrice(price || 0, CURRENCY_CONFIG.DEFAULT, CURRENCY_CONFIG.LOCALE);
 
 const reviewSchema = yup.object().shape({
     rating: yup
@@ -133,6 +132,9 @@ const PillOption = ({ option, selected, available, onClick }) => (
 
 const ProductDetailPage = () => {
     const { id } = useParams();
+    const { settings } = useSiteSettings();
+    const currencyCode = String(settings?.currencyCode || 'USD').toUpperCase();
+    const fmt = (price) => formatPrice(price || 0, currencyCode);
     const navigate = useNavigate();
     const location = useLocation();
 

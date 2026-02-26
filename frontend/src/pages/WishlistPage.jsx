@@ -5,8 +5,11 @@ import { API_CONFIG } from '../constants';
 import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
 import { getPrimaryProductImage, resolveImageUrl } from '../utils/imageUrl';
 import notify from '../utils/notify';
+import { useSiteSettings } from '../context/SiteSettingsContext';
 
 const WishlistPage = () => {
+    const { settings } = useSiteSettings();
+    const currencyCode = String(settings?.currencyCode || 'USD').toUpperCase();
     const [items, setItems] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isBusy, setIsBusy] = useState(false);
@@ -93,8 +96,8 @@ const WishlistPage = () => {
                         const pricing = getProductDisplayPricing(product);
                         const imgUrl = resolveImageUrl(getPrimaryProductImage(product));
                         const priceLabel = pricing.isRange
-                            ? `${formatPrice(pricing.minPrice)} - ${formatPrice(pricing.maxPrice)}`
-                            : formatPrice(pricing.finalPrice);
+                            ? `${formatPrice(pricing.minPrice, currencyCode)} - ${formatPrice(pricing.maxPrice, currencyCode)}`
+                            : formatPrice(pricing.finalPrice, currencyCode);
                         return (
                             <div key={item._id} className="store-surface p-4">
                                 <div className="flex items-center gap-4">

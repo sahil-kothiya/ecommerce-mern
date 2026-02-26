@@ -294,12 +294,27 @@ class AuthService {
   }
 
   getAuthHeaders(customHeaders = {}, includeContentType = true) {
+    const csrfToken = this.getCsrfToken();
     const headers = {
       ...(includeContentType ? { "Content-Type": "application/json" } : {}),
+      ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
       ...customHeaders,
     };
 
     return headers;
+  }
+
+  getCsrfToken() {
+    if (typeof document === "undefined") {
+      return "";
+    }
+    const match = document.cookie
+      .split("; ")
+      .find((part) => part.startsWith("csrfToken="));
+    if (!match) {
+      return "";
+    }
+    return decodeURIComponent(match.split("=").slice(1).join("="));
   }
 
   reset() {

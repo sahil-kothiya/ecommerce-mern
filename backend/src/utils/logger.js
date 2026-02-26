@@ -32,13 +32,20 @@ const format = winston.format.combine(
 );
 
 const transports = [
-    new winston.transports.Console(),
-    new winston.transports.File({
-        filename: 'logs/error.log',
-        level: 'error',
+    new winston.transports.Console({
+        silent: config.nodeEnv === 'test',
     }),
-    new winston.transports.File({ filename: 'logs/all.log' }),
 ];
+
+if (config.nodeEnv !== 'test') {
+    transports.push(
+        new winston.transports.File({
+            filename: 'logs/error.log',
+            level: 'error',
+        })
+    );
+    transports.push(new winston.transports.File({ filename: 'logs/all.log' }));
+}
 
 export const logger = winston.createLogger({
     level: level(),

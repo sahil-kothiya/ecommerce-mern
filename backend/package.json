@@ -7,16 +7,17 @@
     "scripts": {
         "dev": "nodemon src/server.js",
         "start": "node src/server.js",
-        "test": "node --experimental-vm-modules ../node_modules/jest/bin/jest.js --coverage",
-        "test:watch": "node --experimental-vm-modules ../node_modules/jest/bin/jest.js --watch",
+        "test": "node --no-warnings --experimental-vm-modules ../node_modules/jest/bin/jest.js --coverage",
+        "test:watch": "node --no-warnings --experimental-vm-modules ../node_modules/jest/bin/jest.js --watch",
         "lint": "eslint . --ext .js",
         "lint:fix": "eslint . --ext .js --fix",
         "format": "prettier --write \"src/**/*.js\"",
-        "seed": "node scripts/seed.js",
-        "seed:minimal": "node scripts/seed.js -- --minimal",
-        "seed:development": "node scripts/seed.js -- --development",
-        "seed:production": "node scripts/seed.js -- --production",
-        "seed:products": "node scripts/seed.js -- --skip-users",
+        "seed": "node seeder.js --import",
+        "seed:destroy": "node seeder.js --destroy",
+        "seed:minimal": "node seeder.js --import --products 50 --users 12 --orders 20 --reviews 20",
+        "seed:development": "node seeder.js --import --products 500 --users 80 --orders 250 --reviews 300",
+        "seed:production": "node seeder.js --import --products 10000 --users 2000 --orders 5000 --reviews 6000",
+        "seed:products": "node seeder.js --import --users 10 --orders 10 --reviews 10",
         "migrate:coupons": "node scripts/migrate-coupons-canonical.js",
         "migrate:coupons:dry": "node scripts/migrate-coupons-canonical.js --dry-run",
         "queue:start": "node src/queues/worker.js"
@@ -31,6 +32,7 @@
     "author": "Enterprise Team",
     "license": "MIT",
     "dependencies": {
+        "@faker-js/faker": "^10.3.0",
         "bcryptjs": "^2.4.3",
         "bull": "^4.12.0",
         "compression": "^1.7.4",
@@ -70,9 +72,9 @@
         ],
         "coverageThreshold": {
             "global": {
-                "lines": 18,
-                "functions": 9,
-                "branches": 5,
+                "lines": 20,
+                "functions": 10,
+                "branches": 8,
                 "statements": 19
             }
         }

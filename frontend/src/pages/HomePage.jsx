@@ -7,6 +7,7 @@ import { API_CONFIG, PRODUCT_CONDITIONS, CURRENCY_CONFIG } from '../constants';
 import authService from '../services/authService';
 import notify from '../utils/notify';
 import LazyImage from '../components/common/LazyImage';
+import { useSiteSettings } from '../context/SiteSettingsContext.jsx';
 
 const PRODUCT_FETCH_LIMIT = 48;
 const FEATURED_CATEGORY_LIMIT = 12;
@@ -126,14 +127,14 @@ const LoadingSkeleton = () => (
     </div>
 );
 
-const HeroBanner = ({ banners, onShopNow }) => {
+const HeroBanner = ({ banners, onShopNow, fallbackTitle, fallbackDescription }) => {
     const [activeIdx, setActiveIdx] = useState(0);
     const timerRef = useRef(null);
     const slides = banners.length
         ? banners
         : [{
-            title: 'Up to 80% Off',
-            description: 'Discover amazing deals on fashion, electronics, and more! Free shipping on orders over $50.',
+            title: fallbackTitle || 'Up to 80% Off',
+            description: fallbackDescription || 'Discover amazing deals across top categories.',
             image: null,
         }];
 
@@ -189,10 +190,10 @@ const HeroBanner = ({ banners, onShopNow }) => {
                     🎉 Limited Time Offer
                 </span>
                 <h1 className="animate-fade-up delay-150 store-display mb-4 text-4xl leading-tight text-white sm:text-5xl lg:text-6xl">
-                    {b?.title || 'Up to 80% Off'}
+                    {b?.title || fallbackTitle || 'Up to 80% Off'}
                 </h1>
                 <p className="animate-fade-up delay-225 mb-7 text-base text-white/85 leading-relaxed sm:text-lg">
-                    {b?.description || 'Discover amazing deals on fashion, electronics, and more! Free shipping on orders over $50.'}
+                    {b?.description || fallbackDescription || 'Discover amazing deals across top categories.'}
                 </p>
                 <div className="animate-fade-up delay-300 flex flex-wrap gap-3">
                     <button onClick={onShopNow} className="store-btn-primary tap-bounce rounded-2xl px-7 py-3 text-sm font-bold">Shop Now →</button>
@@ -281,6 +282,7 @@ const ProductCard = ({ product, currentImage, isHovered, inWishlist, onHover, on
 
 const HomePage = () => {
     const navigate = useNavigate();
+    const { settings } = useSiteSettings();
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [featuredProducts, setFeaturedProducts] = useState([]);
@@ -426,7 +428,10 @@ const HomePage = () => {
         return resolved || getRandomProductImage();
     };
 
-    const formatCurrency = (price) => formatPrice(price || 0, CURRENCY_CONFIG.DEFAULT, CURRENCY_CONFIG.LOCALE);
+    const formatCurrency = (price) => {
+        const code = String(settings?.currencyCode || CURRENCY_CONFIG.DEFAULT).toUpperCase();
+        return formatPrice(price || 0, code, CURRENCY_CONFIG.LOCALE);
+    };
 
     const sortProducts = (list) => {
         const arr = [...list];
@@ -451,7 +456,16 @@ const HomePage = () => {
     return (
         <div className="mx-auto max-w-[90rem] px-4 pb-16 sm:px-6 lg:px-8">
             {/* Hero */}
-            <HeroBanner banners={banners} onShopNow={() => navigate('/products')} />
+            <HeroBanner
+                banners={banners.length ? banners : [{
+                    title: settings?.metaTitle || settings?.siteName || 'Up to 80% Off',
+                    description: settings?.metaDescription || settings?.siteTagline || 'Discover amazing deals across top categories.',
+                    image: null,
+                }]}
+                onShopNow={() => navigate('/products')}
+                fallbackTitle={settings?.metaTitle || settings?.siteName || 'Up to 80% Off'}
+                fallbackDescription={settings?.metaDescription || settings?.siteTagline || 'Discover amazing deals across top categories.'}
+            />
 
             {/* Stats strip */}
             <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-4">

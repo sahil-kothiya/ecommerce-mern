@@ -1,6 +1,9 @@
 import dotenv from "dotenv";
 
-dotenv.config();
+dotenv.config({
+  quiet: process.env.NODE_ENV === "test",
+});
+const isTestEnvironment = (process.env.NODE_ENV || "development") === "test";
 
 const parsedPort = parseInt(process.env.PORT || "5001", 10);
 const parsedEmailPort = parseInt(process.env.SMTP_PORT || "587", 10);
@@ -11,6 +14,27 @@ const parsedRateWindow = parseInt(
 );
 const parsedRateMax = parseInt(
   process.env.RATE_LIMIT_MAX_REQUESTS || "100",
+  10,
+);
+const parsedAuthRateWindow = parseInt(
+  process.env.AUTH_RATE_LIMIT_WINDOW_MS || "900000",
+  10,
+);
+const parsedAuthLoginMax = parseInt(
+  process.env.AUTH_RATE_LIMIT_LOGIN_MAX || (isTestEnvironment ? "4" : "10"),
+  10,
+);
+const parsedAuthRefreshMax = parseInt(
+  process.env.AUTH_RATE_LIMIT_REFRESH_MAX || (isTestEnvironment ? "6" : "20"),
+  10,
+);
+const parsedAuthForgotMax = parseInt(
+  process.env.AUTH_RATE_LIMIT_FORGOT_PASSWORD_MAX ||
+    (isTestEnvironment ? "3" : "5"),
+  10,
+);
+const parsedAuthResetMax = parseInt(
+  process.env.AUTH_RATE_LIMIT_RESET_PASSWORD_MAX || (isTestEnvironment ? "4" : "10"),
   10,
 );
 const parsedSlowRouteThresholdMs = parseInt(
@@ -123,6 +147,19 @@ export const config = {
   rateLimit: {
     windowMs: Number.isNaN(parsedRateWindow) ? 900000 : parsedRateWindow,
     maxRequests: Number.isNaN(parsedRateMax) ? 100 : parsedRateMax,
+  },
+  authRateLimit: {
+    windowMs: Number.isNaN(parsedAuthRateWindow)
+      ? 900000
+      : parsedAuthRateWindow,
+    loginMax: Number.isNaN(parsedAuthLoginMax) ? 10 : parsedAuthLoginMax,
+    refreshMax: Number.isNaN(parsedAuthRefreshMax) ? 20 : parsedAuthRefreshMax,
+    forgotPasswordMax: Number.isNaN(parsedAuthForgotMax)
+      ? 5
+      : parsedAuthForgotMax,
+    resetPasswordMax: Number.isNaN(parsedAuthResetMax)
+      ? 10
+      : parsedAuthResetMax,
   },
 
   logLevel: process.env.LOG_LEVEL || "info",

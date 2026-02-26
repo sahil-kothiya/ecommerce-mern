@@ -10,6 +10,7 @@ import authService from "../services/authService";
 import paymentService from "../services/paymentService";
 import { API_CONFIG } from "../constants";
 import notify from "../utils/notify";
+import { useSiteSettings } from "../context/SiteSettingsContext.jsx";
 
 const schema = yup.object({
     firstName: yup.string().trim().required("First name is required"),
@@ -301,6 +302,7 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
     const elements = useElements();
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     const [selectedAddressId, setSelectedAddressId] = useState(null);
+    const orderAttemptKeyRef = useRef("");
 
     const {
         register,
@@ -368,10 +370,24 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
             errors[field] ? "border-red-400 bg-red-50" : "border-slate-300 bg-white"
         }`;
 
-    const createOrder = async (formData, paymentIntentId = null) => {
+    const getOrderAttemptKey = () => {
+        if (orderAttemptKeyRef.current) {
+            return orderAttemptKeyRef.current;
+        }
+        const generated =
+            typeof crypto !== "undefined" && crypto.randomUUID
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        orderAttemptKeyRef.current = generated;
+        return generated;
+    };
+
+    const createOrder = async (formData, paymentIntentId = null, idempotencyKey = "") => {
         const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}`, {
             method: "POST",
-            headers: authService.getAuthHeaders(),
+            headers: authService.getAuthHeaders(
+                idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}
+            ),
             credentials: "include",
             body: JSON.stringify({ ...formData, paymentIntentId }),
         });
@@ -383,13 +399,14 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
     const onSubmit = async (data) => {
         try {
             setIsPlacingOrder(true);
+            const orderAttemptKey = getOrderAttemptKey();
 
             if (data.paymentMethod === "stripe") {
                 if (!stripe || !elements) {
                     notify.error("Stripe is not ready. Please wait and try again.");
                     return;
                 }
-                const intentData = await paymentService.createPaymentIntent();
+                const intentData = await paymentService.createPaymentIntent(orderAttemptKey);
                 const { error, paymentIntent } = await stripe.confirmCardPayment(intentData.clientSecret, {
                     payment_method: {
                         card: elements.getElement(CardElement),
@@ -409,10 +426,10 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
                     notify.error("Payment was not successful. Please try again.");
                     return;
                 }
-                const result = await createOrder(data, paymentIntent.id);
+                const result = await createOrder(data, paymentIntent.id, orderAttemptKey);
                 notify.success(`Order placed! #${result?.data?.orderNumber || ""}`);
             } else {
-                const result = await createOrder(data);
+                const result = await createOrder(data, null, orderAttemptKey);
                 notify.success(`Order placed! #${result?.data?.orderNumber || ""}`);
             }
 
@@ -489,7 +506,7 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
                                     value={field.value}
                                     onChange={field.onChange}
                                     options={STATE_OPTIONS}
-                                    placeholder="State *"
+                                    placeholder="State (Optional)"
                                     hasError={!!errors.state}
                                 />
                             )}
@@ -589,6 +606,7 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
 
 const CheckoutPage = () => {
     const navigate = useNavigate();
+    const { settings } = useSiteSettings();
     const [cart, setCart] = useState({
         items: [],
         summary: { totalItems: 0, subTotal: 0, shippingCost: 0, totalAmount: 0 },
@@ -597,6 +615,21 @@ const CheckoutPage = () => {
     const [stripeAvailable, setStripeAvailable] = useState(false);
     const [stripePromise, setStripePromise] = useState(null);
     const [savedAddresses, setSavedAddresses] = useState([]);
+    const currencyCode = String(settings?.currencyCode || "USD").toUpperCase();
+    const formatMoney = useCallback(
+        (amount) => {
+            try {
+                return new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency: currencyCode,
+                    maximumFractionDigits: 2,
+                }).format(Number(amount || 0));
+            } catch {
+                return `${settings?.currencySymbol || "$"}${Number(amount || 0).toFixed(2)}`;
+            }
+        },
+        [currencyCode, settings?.currencySymbol],
+    );
 
     const loadData = useCallback(async () => {
         try {
@@ -692,7 +725,7 @@ const CheckoutPage = () => {
                                         <span className="text-[#888]">x{item.quantity}</span>
                                     </span>
                                     <span className="font-semibold text-[#1f1f1f]">
-                                        ${Number(item.amount || 0).toFixed(2)}
+                                        {formatMoney(item.amount || 0)}
                                     </span>
                                 </div>
                             ))}
@@ -701,7 +734,7 @@ const CheckoutPage = () => {
                         <div className="space-y-1.5 text-sm">
                             <div className="flex justify-between text-slate-600">
                                 <span>Subtotal</span>
-                                <span>${Number(cart.summary?.subTotal || 0).toFixed(2)}</span>
+                                <span>{formatMoney(cart.summary?.subTotal || 0)}</span>
                             </div>
                             <div className="flex justify-between text-slate-600">
                                 <span>Shipping</span>
@@ -709,13 +742,13 @@ const CheckoutPage = () => {
                                     {cart.summary?.shippingCost === 0 ? (
                                         <span className="font-medium text-green-600">Free</span>
                                     ) : (
-                                        `$${Number(cart.summary?.shippingCost || 0).toFixed(2)}`
+                                        formatMoney(cart.summary?.shippingCost || 0)
                                     )}
                                 </span>
                             </div>
                             <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-bold text-[#131313]">
                                 <span>Total</span>
-                                <span>${Number(cart.summary?.totalAmount || 0).toFixed(2)}</span>
+                                <span>{formatMoney(cart.summary?.totalAmount || 0)}</span>
                             </div>
                         </div>
                         <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400">

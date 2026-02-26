@@ -11,10 +11,12 @@ import { logger } from "./utils/logger.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
 import { mongoSanitizeMiddleware } from "./middleware/mongoSanitize.js";
+import { csrfProtection } from "./middleware/csrf.js";
 
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import productRoutes from "./routes/product.routes.js";
+import adminProductRoutes from "./routes/adminProduct.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import brandRoutes from "./routes/brand.routes.js";
 import orderRoutes from "./routes/order.routes.js";
@@ -75,7 +77,13 @@ app.use(
     origin: config.frontendUrl,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-CSRF-Token",
+      "Idempotency-Key",
+      "X-Idempotency-Key",
+    ],
     exposedHeaders: ["Content-Length", "Content-Type"],
   }),
 );
@@ -92,6 +100,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 app.use(compression());
 app.use("/api", rateLimiter);
+app.use("/api", csrfProtection);
 
 if (config.nodeEnv !== "production") {
   app.use((req, res, next) => {
@@ -165,6 +174,7 @@ app.get("/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/v1/admin/products", adminProductRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/brands", brandRoutes);
 app.use("/api/orders", orderRoutes);

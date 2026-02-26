@@ -8,6 +8,8 @@ import * as yup from 'yup';
 import authService from '../../services/authService';
 import { ErrorAlert, FieldError } from '../../components/common';
 import { processApiError, getFieldClasses, getFieldError } from '../../utils/errorUtils';
+import { useSiteSettings } from '../../context/SiteSettingsContext.jsx';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 const registerSchema = yup.object().shape({
         name: yup
@@ -45,11 +47,15 @@ const registerSchema = yup.object().shape({
 
 const RegisterPage = () => {
                 const navigate = useNavigate();
+    const { settings } = useSiteSettings();
     
-        const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState([]);
     const [serverErrors, setServerErrors] = useState({});
     const [successMessage, setSuccessMessage] = useState('');
+    const siteName = String(settings?.siteName || 'Enterprise E-Commerce').trim();
+    const siteTagline = String(settings?.siteTagline || '').trim();
+    const logoUrl = resolveImageUrl(settings?.logo, { placeholder: null });
 
         const {
         register,
@@ -117,8 +123,13 @@ const RegisterPage = () => {
             <div className="interactive-card relative mx-auto grid w-full max-w-6xl overflow-hidden rounded-3xl border border-white/10 bg-white/95 shadow-2xl backdrop-blur md:grid-cols-2">
                 <section className="p-6 sm:p-8 md:p-10">
                     <div className="mb-7">
+                        {logoUrl && (
+                            <img src={logoUrl} alt={siteName} className="mb-3 h-10 w-10 rounded-lg object-cover" />
+                        )}
                         <h1 className="text-3xl font-bold text-slate-900">Create your account</h1>
-                        <p className="mt-1 text-sm text-slate-500">Set up your store management workspace in minutes.</p>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Set up your {siteName} workspace in minutes.
+                        </p>
                     </div>
 
                     {successMessage && (
@@ -221,7 +232,7 @@ const RegisterPage = () => {
                 <aside className="hidden bg-gradient-to-br from-slate-900 via-violet-900 to-fuchsia-900 p-10 text-white md:flex md:flex-col md:justify-between">
                     <div>
                         <p className="mb-4 inline-flex rounded-full border border-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-violet-100">
-                            New Merchant Setup
+                            {siteTagline || 'New Merchant Setup'}
                         </p>
                         <h2 className="text-3xl font-bold leading-tight">Build your next big storefront.</h2>
                         <p className="mt-4 text-sm text-violet-100/90">

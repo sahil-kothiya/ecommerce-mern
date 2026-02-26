@@ -5,8 +5,11 @@ import { AdminLoadingState, AdminSurface } from '../../components/admin/AdminThe
 import notify from '../../utils/notify';
 import apiClient from '../../services/apiClient';
 import { getProductDisplayPricing } from '../../utils/productUtils';
+import { useSiteSettings } from '../../context/SiteSettingsContext';
+import { formatCurrency } from '../../utils/currency';
 
 const Dashboard = () => {
+    const { settings } = useSiteSettings();
     const [stats, setStats] = useState({
         totalProducts: 0,
         totalUsers: 0,
@@ -93,7 +96,7 @@ const Dashboard = () => {
             },
             {
                 title: 'Revenue',
-                value: `$${Number(stats.totalRevenue || 0).toLocaleString()}`,
+                value: formatCurrency(stats.totalRevenue, settings),
                 link: '/admin/orders',
                 theme: 'from-[#29211d] via-[#0a2156] to-[#4250d5]',
                 ring: 'ring-[#a5bbfc]/70',
@@ -116,7 +119,7 @@ const Dashboard = () => {
                 ),
             },
         ],
-        [stats]
+        [settings, stats]
     );
 
     if (isLoading) {
@@ -181,8 +184,8 @@ const Dashboard = () => {
                             stats.topProducts.map((product, index) => {
                                 const pricing = getProductDisplayPricing(product);
                                 const priceLabel = pricing.isRange
-                                    ? `$${Number(pricing.minPrice || 0).toFixed(2)} - $${Number(pricing.maxPrice || 0).toFixed(2)}`
-                                    : `$${Number(pricing.finalPrice || 0).toFixed(2)}`;
+                                    ? `${formatCurrency(pricing.minPrice, settings)} - ${formatCurrency(pricing.maxPrice, settings)}`
+                                    : formatCurrency(pricing.finalPrice, settings);
 
                                 return (
                                 <div key={product._id || product.title || index} className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-cyan-50 px-3 py-2.5">
@@ -217,7 +220,7 @@ const Dashboard = () => {
                                         <p className="text-xs text-slate-500">{order.firstName} {order.lastName}</p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-sm font-bold text-slate-900">${Number(order.totalAmount || 0).toFixed(2)}</p>
+                                        <p className="text-sm font-bold text-slate-900">{formatCurrency(order.totalAmount, settings)}</p>
                                         <p className="text-xs uppercase text-slate-500">{order.status}</p>
                                     </div>
                                 </div>

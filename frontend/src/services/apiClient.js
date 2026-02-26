@@ -101,6 +101,14 @@ class ApiClient {
         ...(finalConfig.signal && { signal: finalConfig.signal }),
       };
 
+      const method = String(fetchOptions.method || "GET").toUpperCase();
+      if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+        const csrfToken = this.getCookieValue("csrfToken");
+        if (csrfToken && !fetchOptions.headers["X-CSRF-Token"]) {
+          fetchOptions.headers["X-CSRF-Token"] = csrfToken;
+        }
+      }
+
       if (finalConfig.body !== undefined) {
         if (finalConfig.body instanceof FormData) {
           fetchOptions.body = finalConfig.body;
@@ -163,6 +171,19 @@ class ApiClient {
 
       throw this.normalizeError(error);
     }
+  }
+
+  getCookieValue(name) {
+    if (typeof document === "undefined") {
+      return "";
+    }
+    const match = document.cookie
+      .split("; ")
+      .find((part) => part.startsWith(`${name}=`));
+    if (!match) {
+      return "";
+    }
+    return decodeURIComponent(match.split("=").slice(1).join("="));
   }
 
   normalizeError(error) {
@@ -272,6 +293,10 @@ class ApiClient {
 
       xhr.open("POST", `${this.baseURL}${url}`);
       xhr.withCredentials = true;
+      const csrfToken = this.getCookieValue("csrfToken");
+      if (csrfToken) {
+        xhr.setRequestHeader("X-CSRF-Token", csrfToken);
+      }
       xhr.send(formData);
     });
   }

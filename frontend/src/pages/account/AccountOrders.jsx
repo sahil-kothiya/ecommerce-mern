@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import authService from '../../services/authService';
 import { API_CONFIG } from '../../constants';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import { useSiteSettings } from '../../context/SiteSettingsContext';
+import { formatCurrency } from '../../utils/currency';
 
 // ============================================================================
 // CONSTANTS
@@ -103,7 +105,7 @@ const pickOrderItemImage = (item) => {
     return null;
 };
 
-const ItemRow = ({ item, orderId, canReview }) => {
+const ItemRow = ({ item, orderId, canReview, settings }) => {
     const imgSrc      = resolveImageUrl(pickOrderItemImage(item));
     const title       = item.title || item.name || item.productName || 'Product';
     const price       = Number(item.price    || 0);
@@ -148,11 +150,11 @@ const ItemRow = ({ item, orderId, canReview }) => {
                 <p className="mt-2 text-sm text-slate-600">
                     <span className="font-medium">{qty}</span>
                     <span className="text-slate-400"> × </span>
-                    <span>${price.toFixed(2)}</span>
+                    <span>{formatCurrency(price, settings)}</span>
                 </p>
             </div>
             <div className="flex-shrink-0 text-right">
-                <p className="text-base font-bold text-slate-800">${amount.toFixed(2)}</p>
+                <p className="text-base font-bold text-slate-800">{formatCurrency(amount, settings)}</p>
                 {canReview && productLink && (
                     <Link
                         to={`${productLink}?orderId=${orderId}`}
@@ -166,7 +168,7 @@ const ItemRow = ({ item, orderId, canReview }) => {
     );
 };
 
-const PriceSummary = ({ order }) => {
+const PriceSummary = ({ order, settings }) => {
     const sub      = Number(order.subTotal       || 0);
     const shipping = Number(order.shippingCost   || 0);
     const discount = Number(order.couponDiscount || 0);
@@ -179,24 +181,24 @@ const PriceSummary = ({ order }) => {
             <div className="space-y-2.5 text-sm">
                 <div className="flex justify-between text-slate-600">
                     <span>Subtotal ({itemCount} item{itemCount !== 1 ? 's' : ''})</span>
-                    <span>${sub.toFixed(2)}</span>
+                    <span>{formatCurrency(sub, settings)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                     <span>Delivery Charges</span>
                     <span className={shipping === 0 ? 'font-medium text-green-600' : ''}>
-                        {shipping === 0 ? 'FREE' : `$${shipping.toFixed(2)}`}
+                        {shipping === 0 ? 'FREE' : formatCurrency(shipping, settings)}
                     </span>
                 </div>
                 {discount > 0 && (
                     <div className="flex justify-between text-green-600">
                         <span>Coupon Discount</span>
-                        <span>- ${discount.toFixed(2)}</span>
+                        <span>- {formatCurrency(discount, settings)}</span>
                     </div>
                 )}
                 <div className="my-1 border-t border-slate-200" />
                 <div className="flex justify-between text-base font-bold text-slate-800">
                     <span>Total Amount</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>{formatCurrency(total, settings)}</span>
                 </div>
                 {shipping === 0 && sub > 0 && (
                     <p className="text-xs font-medium text-green-600">🎉 Free delivery on this order!</p>
@@ -263,6 +265,7 @@ const PaymentInfo = ({ order }) => (
 // MAIN COMPONENT
 // ============================================================================
 const AccountOrders = () => {
+    const { settings } = useSiteSettings();
     const [orders, setOrders]             = useState([]);
     const [isLoading, setIsLoading]       = useState(true);
     const [error, setError]               = useState('');
@@ -422,7 +425,7 @@ const AccountOrders = () => {
                                         </div>
                                         <div>
                                             <span className="block font-semibold uppercase tracking-wider text-slate-400">Total</span>
-                                            <span className="font-medium text-slate-700">${Number(order.totalAmount || 0).toFixed(2)}</span>
+                                            <span className="font-medium text-slate-700">{formatCurrency(order.totalAmount, settings)}</span>
                                         </div>
                                         <div>
                                             <span className="block font-semibold uppercase tracking-wider text-slate-400">Ship To</span>
@@ -487,7 +490,7 @@ const AccountOrders = () => {
                                                 <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">Items Ordered</p>
                                                 <div className="divide-y divide-slate-100 rounded-2xl px-4 ring-1 ring-slate-100">
                                                     {order.items.map((item, idx) => (
-                                                        <ItemRow key={item._id || idx} item={item} orderId={order._id} canReview={order.status === 'delivered'} />
+                                                        <ItemRow key={item._id || idx} item={item} orderId={order._id} canReview={order.status === 'delivered'} settings={settings} />
                                                     ))}
                                                 </div>
                                             </div>
@@ -496,7 +499,7 @@ const AccountOrders = () => {
                                         {/* Address + Price summary side by side */}
                                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                             <DeliveryAddress order={order} />
-                                            <PriceSummary order={order} />
+                                            <PriceSummary order={order} settings={settings} />
                                         </div>
 
                                         {/* Payment info */}

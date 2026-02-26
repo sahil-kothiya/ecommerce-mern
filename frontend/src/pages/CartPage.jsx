@@ -4,8 +4,11 @@ import authService from '../services/authService';
 import { API_CONFIG } from '../constants';
 import { getPrimaryCartItemImage, resolveImageUrl } from '../utils/imageUrl';
 import notify from '../utils/notify';
+import { useSiteSettings } from '../context/SiteSettingsContext';
+import { formatCurrency } from '../utils/currency';
 
 const CartPage = () => {
+    const { settings } = useSiteSettings();
     const navigate = useNavigate();
     const [cart, setCart] = useState({ items: [], summary: { totalItems: 0, mrpTotal: 0, discountTotal: 0, subTotal: 0, shippingCost: 0, totalAmount: 0 } });
     const [isLoading, setIsLoading] = useState(true);
@@ -114,7 +117,7 @@ const CartPage = () => {
         </div>
     );
 
-    const fmt = (n) => `$${Number(n || 0).toFixed(2)}`;
+    const fmt = (n) => formatCurrency(n, settings);
     const couponDiscount = Math.min(Number(appliedCoupon?.discount || 0), Number(cart.summary?.subTotal || 0));
     const payableTotal = Math.max(0, Number(cart.summary?.subTotal || 0) - couponDiscount) + Number(cart.summary?.shippingCost || 0);
     const getVariantLabel = (item) => {

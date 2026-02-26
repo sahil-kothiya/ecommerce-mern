@@ -201,6 +201,11 @@ const orderSchema = new Schema(
     transactionId: {
       type: String,
     },
+    idempotencyKey: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+    },
 
     status: {
       type: String,
@@ -237,6 +242,10 @@ orderSchema.index({ createdAt: -1 });
 orderSchema.index({ email: 1 });
 orderSchema.index({ userId: 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index(
+  { userId: 1, idempotencyKey: 1 },
+  { unique: true, sparse: true },
+);
 
 orderSchema.virtual("user", {
   ref: "User",

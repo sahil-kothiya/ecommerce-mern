@@ -8,7 +8,6 @@ export default [
             'uploads/**',
             'coverage/**',
             'src/controllers/CartController.js',
-            'src/services/OrderService.js',
         ],
     },
     {

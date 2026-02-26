@@ -7,8 +7,11 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import toast from 'react-hot-toast';
 import authService from '../../services/authService';
+import { DEMO_AUTH_CONFIG } from '../../constants';
 import { ErrorAlert, FieldError } from '../../components/common';
 import { processApiError, getFieldClasses, getFieldError } from '../../utils/errorUtils';
+import { useSiteSettings } from '../../context/SiteSettingsContext.jsx';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 const loginSchema = yup.object().shape({
         email: yup
@@ -31,10 +34,14 @@ const loginSchema = yup.object().shape({
 const LoginPage = () => {
                 const navigate = useNavigate();
     const location = useLocation();
+    const { settings } = useSiteSettings();
     
-        const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState([]);
     const [serverErrors, setServerErrors] = useState({});
+    const siteName = String(settings?.siteName || 'Enterprise E-Commerce').trim();
+    const siteTagline = String(settings?.siteTagline || '').trim();
+    const logoUrl = resolveImageUrl(settings?.logo, { placeholder: null });
 
         const from = location.state?.from?.pathname || '/';
 
@@ -70,20 +77,17 @@ const LoginPage = () => {
         }
     }, []);
 
-const handleAdminLogin = async () => {
-                setValue('email', 'admin@admin.com');
-        setValue('password', 'password123');
-        setValue('rememberMe', true);
-        
-                handleSubmit(onSubmit)();
-    };
+    const handleQuickLogin = async (role) => {
+        const isAdmin = role === 'admin';
+        const email = isAdmin ? DEMO_AUTH_CONFIG.ADMIN_EMAIL : DEMO_AUTH_CONFIG.USER_EMAIL;
+        const password = isAdmin ? DEMO_AUTH_CONFIG.ADMIN_PASSWORD : DEMO_AUTH_CONFIG.USER_PASSWORD;
+        const rememberMe = isAdmin;
 
-const handleUserLogin = async () => {
-                setValue('email', 'user@admin.com');
-        setValue('password', 'password123');
-        setValue('rememberMe', false);
-        
-                handleSubmit(onSubmit)();
+        setValue('email', email);
+        setValue('password', password);
+        setValue('rememberMe', rememberMe);
+
+        await onSubmit({ email, password, rememberMe });
     };
 
                     const onSubmit = async (data) => {
@@ -132,12 +136,15 @@ const handleUserLogin = async () => {
                 <aside className="hidden bg-gradient-to-br from-slate-900 via-indigo-900 to-blue-900 p-10 text-white md:flex md:flex-col md:justify-between">
                     <div>
                         <p className="mb-4 inline-flex rounded-full border border-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-blue-100">
-                            Enterprise Commerce
+                            {siteName}
                         </p>
                         <h2 className="text-3xl font-bold leading-tight">Welcome back to your control hub.</h2>
                         <p className="mt-4 text-sm text-blue-100/90">
                             Track inventory, monitor orders, and scale operations from one secure workspace.
                         </p>
+                        {siteTagline && (
+                            <p className="mt-2 text-xs uppercase tracking-wider text-blue-200">{siteTagline}</p>
+                        )}
                     </div>
 
                     <div className="space-y-4">
@@ -154,6 +161,9 @@ const handleUserLogin = async () => {
 
                 <section className="p-6 sm:p-8 md:p-10">
                     <div className="mb-7">
+                        {logoUrl && (
+                            <img src={logoUrl} alt={siteName} className="mb-3 h-10 w-10 rounded-lg object-cover" />
+                        )}
                         <h1 className="text-3xl font-bold text-slate-900">Sign in</h1>
                         <p className="mt-1 text-sm text-slate-500">Continue where you left off.</p>
                     </div>
@@ -234,7 +244,7 @@ const handleUserLogin = async () => {
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <button
                                     type="button"
-                                    onClick={handleAdminLogin}
+                                    onClick={() => handleQuickLogin('admin')}
                                     disabled={isLoading}
                                     className="btn-neo tap-bounce hover-glow flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-medium disabled:cursor-not-allowed disabled:opacity-50"
                                 >
@@ -246,7 +256,7 @@ const handleUserLogin = async () => {
 
                                 <button
                                     type="button"
-                                    onClick={handleUserLogin}
+                                    onClick={() => handleQuickLogin('user')}
                                     disabled={isLoading}
                                     className="tap-bounce hover-glow flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 font-medium text-white transition-colors hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
                                 >

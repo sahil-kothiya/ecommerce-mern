@@ -112,17 +112,16 @@ export class ProductController {
         condition,
         isFeatured,
         status,
+        hasVariants,
         includeCount = "true",
         sort = "-createdAt",
       } = req.query;
 
-      const query = {};
-      // Only filter by status when a specific value is supplied
-      if (status) query.status = status;
+      const baseQuery = {};
 
       if (search) {
         const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        query.$or = [
+        baseQuery.$or = [
           { title: { $regex: escaped, $options: "i" } },
           { "brand.title": { $regex: escaped, $options: "i" } },
           { tags: { $regex: escaped, $options: "i" } },
@@ -131,34 +130,44 @@ export class ProductController {
       }
 
       if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
-        query["category.id"] = new mongoose.Types.ObjectId(categoryId);
+        baseQuery["category.id"] = new mongoose.Types.ObjectId(categoryId);
       } else if (category && category !== "all") {
-        query["category.slug"] = String(category).trim();
+        baseQuery["category.slug"] = String(category).trim();
       }
 
       if (brandId && mongoose.Types.ObjectId.isValid(brandId)) {
-        query["brand.id"] = new mongoose.Types.ObjectId(brandId);
+        baseQuery["brand.id"] = new mongoose.Types.ObjectId(brandId);
       } else if (brand && brand !== "all") {
-        query["brand.slug"] = String(brand).trim();
+        baseQuery["brand.slug"] = String(brand).trim();
       }
 
       if (minPrice || maxPrice) {
-        query.basePrice = {};
+        baseQuery.basePrice = {};
         const parsedMin = Number.parseFloat(minPrice);
         const parsedMax = Number.parseFloat(maxPrice);
-        if (Number.isFinite(parsedMin)) query.basePrice.$gte = parsedMin;
-        if (Number.isFinite(parsedMax)) query.basePrice.$lte = parsedMax;
-        if (Object.keys(query.basePrice).length === 0) {
-          delete query.basePrice;
+        if (Number.isFinite(parsedMin)) baseQuery.basePrice.$gte = parsedMin;
+        if (Number.isFinite(parsedMax)) baseQuery.basePrice.$lte = parsedMax;
+        if (Object.keys(baseQuery.basePrice).length === 0) {
+          delete baseQuery.basePrice;
         }
       }
 
       if (condition) {
-        query.condition = condition;
+        baseQuery.condition = condition;
       }
 
       if (isFeatured !== undefined) {
-        query.isFeatured = isFeatured === "true";
+        baseQuery.isFeatured = isFeatured === "true";
+      }
+
+      const query = { ...baseQuery };
+      if (status && status !== "all") {
+        query.status = status;
+      }
+      if (hasVariants === "true" || hasVariants === true) {
+        query.hasVariants = true;
+      } else if (hasVariants === "false" || hasVariants === false) {
+        query.hasVariants = false;
       }
 
       const shouldIncludeCount =
@@ -174,10 +183,18 @@ export class ProductController {
       const countPromise = shouldIncludeCount
         ? Product.countDocuments(query)
         : Promise.resolve(null);
+      const filterCountsPromise = Promise.all([
+        Product.countDocuments(baseQuery),
+        Product.countDocuments({ ...baseQuery, status: "active" }),
+        Product.countDocuments({ ...baseQuery, status: "inactive" }),
+        Product.countDocuments({ ...baseQuery, hasVariants: true }),
+        Product.countDocuments({ ...baseQuery, hasVariants: false }),
+      ]);
 
-      const [products, totalCount] = await Promise.all([
+      const [products, totalCount, filterCounts] = await Promise.all([
         productsPromise,
         countPromise,
+        filterCountsPromise,
       ]);
 
       const total =
@@ -198,6 +215,13 @@ export class ProductController {
             pages,
             hasNext: page < pages,
             hasPrev: page > 1,
+          },
+          filterCounts: {
+            all: filterCounts[0],
+            active: filterCounts[1],
+            inactive: filterCounts[2],
+            withVariants: filterCounts[3],
+            withoutVariants: filterCounts[4],
           },
         },
       };

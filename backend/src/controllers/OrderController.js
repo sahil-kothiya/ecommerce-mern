@@ -6,6 +6,7 @@ import { Product } from "../models/Product.js";
 import { Setting } from "../models/Setting.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { logger } from "../utils/logger.js";
+import { calculateCartTotals } from "../utils/pricing.js";
 
 const ORDER_STATUSES = ["new", "process", "delivered", "cancelled"];
 const PAYMENT_STATUSES = ["paid", "unpaid"];
@@ -41,15 +42,16 @@ const parseSort = (sortInput = "-createdAt") => {
 };
 
 const buildSearchQuery = (search = "") => {
-  const trimmed = String(search || "").trim();
+  const trimmed = String(search || "").trim().slice(0, 80);
   if (!trimmed) return null;
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
   return {
     $or: [
-      { orderNumber: { $regex: trimmed, $options: "i" } },
-      { email: { $regex: trimmed, $options: "i" } },
-      { firstName: { $regex: trimmed, $options: "i" } },
-      { lastName: { $regex: trimmed, $options: "i" } },
+      { orderNumber: { $regex: escaped, $options: "i" } },
+      { email: { $regex: escaped, $options: "i" } },
+      { firstName: { $regex: escaped, $options: "i" } },
+      { lastName: { $regex: escaped, $options: "i" } },
     ],
   };
 };
@@ -165,6 +167,7 @@ const buildOrderFromCart = async (sess, params) => {
     paymentMethod,
     stripePaymentStatus,
     stripeTransactionId,
+    idempotencyKey,
     notes,
     couponCode,
   } = params;
@@ -292,6 +295,7 @@ const buildOrderFromCart = async (sess, params) => {
     paymentMethod,
     paymentStatus: stripePaymentStatus,
     transactionId: stripeTransactionId,
+    idempotencyKey: idempotencyKey || undefined,
     status: "new",
     couponCode: String(couponCode || "").trim() || undefined,
     notes: String(notes || "").trim() || undefined,
@@ -315,6 +319,9 @@ export class OrderController {
 
     try {
       const userId = req.user?._id || req.user?.id;
+      const idempotencyKey = String(req.headers["idempotency-key"] || "")
+        .trim()
+        .slice(0, 120);
       const {
         firstName,
         lastName,
@@ -335,6 +342,17 @@ export class OrderController {
         throw new AppError("Invalid payment method", 422);
       }
 
+      if (idempotencyKey) {
+        const existingOrder = await Order.findOne({ userId, idempotencyKey }).lean();
+        if (existingOrder) {
+          return res.status(200).json({
+            success: true,
+            message: "Order already created for this idempotency key",
+            data: existingOrder,
+          });
+        }
+      }
+
       let stripePaymentStatus = "unpaid";
       let stripeTransactionId = undefined;
 
@@ -351,12 +369,44 @@ export class OrderController {
         }
         const stripe = new Stripe(settings.stripeSecretKey);
         const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
         if (intent.status !== "succeeded") {
           throw new AppError(
             `Payment not completed. Status: ${intent.status}`,
             402,
           );
         }
+
+        const cartItems = await Cart.find({ userId }).lean();
+        if (!cartItems.length) {
+          throw new AppError("Cart is empty", 400);
+        }
+
+        const totals = calculateCartTotals(cartItems);
+        const paidAmountInCents = Number(intent.amount_received || intent.amount || 0);
+        const paidCurrency = String(intent.currency || "").toLowerCase();
+        const intentUserId = String(intent.metadata?.userId || "");
+
+        if (intentUserId !== String(userId)) {
+          throw new AppError("Payment intent does not belong to this user", 403);
+        }
+        if (paidCurrency !== "usd") {
+          throw new AppError("Invalid payment currency", 400);
+        }
+        if (paidAmountInCents !== totals.amountInCents) {
+          throw new AppError(
+            "Payment amount does not match current cart total. Please retry checkout.",
+            409,
+          );
+        }
+
+        const duplicatePaymentOrder = await Order.findOne({
+          transactionId: paymentIntentId,
+        }).lean();
+        if (duplicatePaymentOrder) {
+          throw new AppError("This payment intent has already been used", 409);
+        }
+
         stripePaymentStatus = "paid";
         stripeTransactionId = paymentIntentId;
         logger.info(`Stripe payment verified: ${paymentIntentId}`);
@@ -394,6 +444,7 @@ export class OrderController {
         paymentMethod,
         stripePaymentStatus,
         stripeTransactionId,
+        idempotencyKey,
         notes,
         couponCode,
       };
@@ -401,8 +452,8 @@ export class OrderController {
       // Attempt within a transaction; fall back to non-transactional for standalone MongoDB
       try {
         await session.withTransaction(async () => {
-          createdOrder = await buildOrderFromCart(session, orderParams);
-        });
+              createdOrder = await buildOrderFromCart(session, orderParams);
+            });
       } catch (txErr) {
         if (isTransactionUnsupportedError(txErr)) {
           logger.warn(
@@ -549,12 +600,29 @@ export class OrderController {
 
       const addedItems = [];
       const skippedItems = [];
+      const orderItems = order.items || [];
+      const productIds = [
+        ...new Set(orderItems.map((item) => String(item.productId))),
+      ];
+      const products = await Product.find({
+        _id: { $in: productIds },
+        status: "active",
+      }).lean();
+      const productMap = new Map(
+        products.map((product) => [String(product._id), product]),
+      );
+      const cartRows = await Cart.find({ userId, productId: { $in: productIds } }).lean();
+      const existingMap = new Map(
+        cartRows.map((row) => [
+          `${String(row.productId)}:${String(row.variantId || "")}`,
+          row,
+        ]),
+      );
 
-      for (const item of order.items || []) {
-        const product = await Product.findOne({
-          _id: item.productId,
-          status: "active",
-        }).lean();
+      const bulkUpdates = [];
+
+      for (const item of orderItems) {
+        const product = productMap.get(String(item.productId));
 
         if (!product) {
           skippedItems.push({
@@ -583,11 +651,10 @@ export class OrderController {
           continue;
         }
 
-        const existing = await Cart.findOne({
-          userId,
-          productId: product._id,
-          variantId: pricing.variantId,
-        });
+        const compositeKey = `${String(product._id)}:${String(
+          pricing.variantId || "",
+        )}`;
+        const existing = existingMap.get(compositeKey);
 
         const requestedQty = Math.max(1, Number(item.quantity || 1));
         const existingQty = existing?.quantity || 0;
@@ -604,15 +671,36 @@ export class OrderController {
         }
 
         if (existing) {
-          existing.quantity = existingQty + quantityToAdd;
+          const nextQty = existingQty + quantityToAdd;
+          bulkUpdates.push({
+            updateOne: {
+              filter: { _id: existing._id },
+              update: {
+                $set: {
+                  quantity: nextQty,
+                  price: pricing.price,
+                  amount: round(nextQty * pricing.price),
+                },
+              },
+            },
+          });
+          existing.quantity = nextQty;
           existing.price = pricing.price;
-          existing.amount = round(existing.quantity * pricing.price);
-          await existing.save();
+          existing.amount = round(nextQty * pricing.price);
         } else {
-          await Cart.create({
-            userId,
-            productId: product._id,
-            variantId: pricing.variantId,
+          bulkUpdates.push({
+            insertOne: {
+              document: {
+                userId,
+                productId: product._id,
+                variantId: pricing.variantId,
+                quantity: quantityToAdd,
+                price: pricing.price,
+                amount: round(quantityToAdd * pricing.price),
+              },
+            },
+          });
+          existingMap.set(compositeKey, {
             quantity: quantityToAdd,
             price: pricing.price,
             amount: round(quantityToAdd * pricing.price),
@@ -624,6 +712,10 @@ export class OrderController {
           variantId: item.variantId,
           quantity: quantityToAdd,
         });
+      }
+
+      if (bulkUpdates.length > 0) {
+        await Cart.bulkWrite(bulkUpdates, { ordered: false });
       }
 
       const cartItems = await Cart.find({ userId })

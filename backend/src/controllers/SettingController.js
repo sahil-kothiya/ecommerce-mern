@@ -36,21 +36,9 @@ export class SettingController {
       settings = await Setting.create({ key: "main" });
     }
 
-        let dirty = false;
-    if (!settings.smtpHost) {
-      settings.smtpHost = "sandbox.smtp.mailtrap.io";
-      dirty = true;
-    }
+    let dirty = false;
     if (!settings.smtpPort) {
-      settings.smtpPort = 2525;
-      dirty = true;
-    }
-    if (!settings.smtpUser) {
-      settings.smtpUser = "45418ec1cb45a5";
-      dirty = true;
-    }
-    if (!settings.smtpPassword) {
-      settings.smtpPassword = "c2787e1db12b54";
+      settings.smtpPort = 587;
       dirty = true;
     }
     if (dirty) await settings.save();

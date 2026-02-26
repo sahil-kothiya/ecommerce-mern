@@ -7,6 +7,8 @@ import * as yup from 'yup';
 import notify from '../../../utils/notify';
 import authFetch from '../../../utils/authFetch.js';
 import { resolveImageUrl } from '../../../utils/imageUrl';
+import { useSiteSettings } from '../../../context/SiteSettingsContext';
+import { formatCurrency } from '../../../utils/currency';
 
 const schema = yup.object({
     title: yup.string().trim().required('Title is required'),
@@ -53,6 +55,75 @@ const getComboKey = (combo = []) => {
         .sort();
 
     return parts.length ? parts.join('|') : '';
+};
+
+const normalizeText = (value) => String(value || '').trim().toLowerCase();
+
+const resolveVariantSelections = (variants = [], types = [], optionsByType = {}) => {
+    const typeById = new Map(types.map((type) => [String(type._id), type]));
+    const typeByName = new Map(types.map((type) => [normalizeText(type.name), type]));
+    const typeByDisplayName = new Map(types.map((type) => [normalizeText(type.displayName), type]));
+
+    const normalizedVariants = variants.map((variant) => {
+        const nextOptions = (Array.isArray(variant?.options) ? variant.options : []).map((option) => {
+            const rawTypeId = String(option?.typeId || option?.type?._id || option?.type?.id || '').trim();
+            let type = typeById.get(rawTypeId);
+
+            if (!type) {
+                const typeName = normalizeText(option?.typeName);
+                const typeDisplayName = normalizeText(option?.typeDisplayName);
+                type = typeByName.get(typeName) || typeByDisplayName.get(typeDisplayName) || null;
+            }
+
+            if (!type) return option;
+
+            const typeId = String(type._id);
+            const availableOptions = Array.isArray(optionsByType[typeId]) ? optionsByType[typeId] : [];
+            const rawOptionId = String(option?.optionId || option?._id || option?.id || '').trim();
+
+            let matchedOption = availableOptions.find((entry) => String(entry?._id) === rawOptionId);
+            if (!matchedOption) {
+                const value = normalizeText(option?.value);
+                const displayValue = normalizeText(option?.displayValue);
+                matchedOption = availableOptions.find((entry) => (
+                    normalizeText(entry?.value) === value
+                    || normalizeText(entry?.displayValue) === displayValue
+                ));
+            }
+
+            if (!matchedOption) return option;
+
+            return {
+                ...option,
+                typeId: typeId,
+                typeName: type.name,
+                typeDisplayName: type.displayName,
+                optionId: String(matchedOption._id),
+                value: matchedOption.value,
+                displayValue: matchedOption.displayValue,
+                hexColor: matchedOption.hexColor || null,
+            };
+        });
+
+        return {
+            ...variant,
+            options: nextOptions,
+        };
+    });
+
+    const selectedByType = normalizedVariants.reduce((acc, variant) => {
+        const options = Array.isArray(variant?.options) ? variant.options : [];
+        options.forEach((option) => {
+            const typeId = String(option?.typeId || '').trim();
+            const optionId = String(option?.optionId || '').trim();
+            if (!typeId || !optionId) return;
+            if (!acc[typeId]) acc[typeId] = new Set();
+            acc[typeId].add(optionId);
+        });
+        return acc;
+    }, {});
+
+    return { normalizedVariants, selectedByType };
 };
 
 const RANDOM_VARIANT_IMAGE_FILES = [
@@ -108,6 +179,8 @@ const buildVariantFromCombo = (combo = []) => ({
 const ProductForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { settings } = useSiteSettings();
+    const currencyCode = String(settings?.currencyCode || 'USD').toUpperCase();
     const isEdit = Boolean(id);
 
     const { register, handleSubmit: rhfHandleSubmit, reset, setError, watch, formState: { errors } } = useForm({
@@ -156,6 +229,32 @@ const ProductForm = () => {
             loadProduct();
         }
     }, [id]);
+
+    useEffect(() => {
+        if (!isEdit || !hasVariants || generatedVariants.length === 0 || availableVariantTypes.length === 0) {
+            return;
+        }
+
+        const allOptionListsLoaded = availableVariantTypes.every((type) => Array.isArray(variantOptions[type._id]));
+        if (!allOptionListsLoaded) {
+            return;
+        }
+
+        const { normalizedVariants, selectedByType } = resolveVariantSelections(
+            generatedVariants,
+            availableVariantTypes,
+            variantOptions,
+        );
+
+        const currentSignature = JSON.stringify(generatedVariants.map((variant) => getOptionsKey(variant?.options || [])));
+        const nextSignature = JSON.stringify(normalizedVariants.map((variant) => getOptionsKey(variant?.options || [])));
+
+        if (currentSignature !== nextSignature) {
+            setGeneratedVariants(normalizedVariants);
+        }
+
+        setSelectedOptionIds(selectedByType);
+    }, [isEdit, hasVariants, generatedVariants, availableVariantTypes, variantOptions]);
 
     const getImageUrl = (img) => {
         const path = typeof img === 'string' ? img : img?.path;
@@ -248,29 +347,17 @@ reset({
 
                 if (product.hasVariants && product.variants?.length) {
                     setHasVariants(true);
-                    setGeneratedVariants(product.variants.map(v => ({ ...v, _tempId: v._id || String(Math.random()), images: Array.isArray(v.images) ? v.images : [] })));
-
-                    const selectedByType = product.variants.reduce((acc, variant) => {
-                        const options = Array.isArray(variant?.options) ? variant.options : [];
-
-                        options.forEach((option) => {
-                            const typeId = String(option?.typeId || option?.type?._id || option?.type?.id || '').trim();
-                            const optionId = String(option?.optionId || option?._id || option?.id || '').trim();
-
-                            if (!typeId || !optionId) {
-                                return;
-                            }
-
-                            if (!acc[typeId]) {
-                                acc[typeId] = new Set();
-                            }
-
-                            acc[typeId].add(optionId);
-                        });
-
-                        return acc;
-                    }, {});
-
+                    const variants = product.variants.map((variant) => ({
+                        ...variant,
+                        _tempId: variant._id || String(Math.random()),
+                        images: Array.isArray(variant.images) ? variant.images : [],
+                    }));
+                    const { normalizedVariants, selectedByType } = resolveVariantSelections(
+                        variants,
+                        availableVariantTypes,
+                        variantOptions,
+                    );
+                    setGeneratedVariants(normalizedVariants);
                     setSelectedOptionIds(selectedByType);
                 } else {
                     setHasVariants(false);
@@ -688,10 +775,10 @@ reset({
     const priceDisplay = hasVariants
         ? (variantPrices.length
             ? (minVariantPrice === maxVariantPrice
-                ? `$${minVariantPrice.toFixed(2)}`
-                : `$${minVariantPrice.toFixed(2)} - $${maxVariantPrice.toFixed(2)}`)
+                ? formatCurrency(minVariantPrice, settings)
+                : `${formatCurrency(minVariantPrice, settings)} - ${formatCurrency(maxVariantPrice, settings)}`)
             : 'Not Set')
-        : (watchBasePrice ? `$${watchBasePrice}` : 'Not Set');
+        : (watchBasePrice ? formatCurrency(watchBasePrice, settings) : 'Not Set');
 
     const productStatus = watchStatus || 'draft';
 
@@ -1147,7 +1234,7 @@ reset({
                                 ) : (
                                     <>
                                         <div className="hidden rounded-t-xl border border-b-0 border-slate-200 bg-slate-100 px-4 py-2 md:grid md:grid-cols-[2fr_1.5fr_1fr_1fr_1fr_2fr_auto] md:gap-3">
-                                            {['Variant Name', 'SKU *', 'Price (NRS) *', 'Discount (%)', 'Stock *', 'Images *', 'Action'].map(h => (
+                                            {['Variant Name', 'SKU *', `Price (${currencyCode}) *`, 'Discount (%)', 'Stock *', 'Images *', 'Action'].map(h => (
                                                 <span key={h} className="text-xs font-semibold uppercase tracking-wide text-slate-600">{h}</span>
                                             ))}
                                         </div>
@@ -1182,7 +1269,7 @@ reset({
                                                     </div>
                                                     {/* Price */}
                                                     <div className="mb-2 md:mb-0">
-                                                        <label className="mb-1 block text-xs font-semibold text-slate-500 md:hidden">Price (NRS) *</label>
+                                                        <label className="mb-1 block text-xs font-semibold text-slate-500 md:hidden">{`Price (${currencyCode}) *`}</label>
                                                         <input type="number" step="0.01" min="0" value={variant.price}
                                                             onChange={e => updateVariantField(vi, 'price', e.target.value)}
                                                             className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-400" />

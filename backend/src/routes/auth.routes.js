@@ -1,7 +1,13 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers/AuthController.js';
 import { protect } from '../middleware/auth.js';
-import { authRateLimiter } from '../middleware/rateLimiter.js';
+import {
+    authForgotPasswordRateLimiter,
+    authRateLimiter,
+    authRefreshRateLimiter,
+    authResetPasswordRateLimiter,
+} from '../middleware/rateLimiter.js';
+import { issueCsrfToken } from '../middleware/csrf.js';
 import {
     addressIdValidator,
     createAddressValidator,
@@ -21,13 +27,15 @@ router.post('/register', authRateLimiter, registerValidator, validate, (req, res
     authController.register(req, res, next)
 );
 
+router.get('/csrf-token', issueCsrfToken);
+
 router.post('/login', authRateLimiter, loginValidator, validate, (req, res, next) =>
     authController.login(req, res, next)
 );
 
 router.post('/logout', protect, (req, res, next) => authController.logout(req, res, next));
 
-router.post('/refresh-token', authRateLimiter, (req, res, next) =>
+router.post('/refresh-token', authRefreshRateLimiter, (req, res, next) =>
     authController.refreshToken(req, res, next)
 );
 
@@ -57,11 +65,11 @@ router.put('/preferences/product-discovery', protect, updateSearchPreferencesVal
     authController.updateSearchPreferences(req, res, next)
 );
 
-router.post('/forgot-password', authRateLimiter, emailValidator, validate, (req, res, next) =>
+router.post('/forgot-password', authForgotPasswordRateLimiter, emailValidator, validate, (req, res, next) =>
     authController.forgotPassword(req, res, next)
 );
 
-router.post('/reset-password', authRateLimiter, resetPasswordValidator, validate, (req, res, next) =>
+router.post('/reset-password', authResetPasswordRateLimiter, resetPasswordValidator, validate, (req, res, next) =>
     authController.resetPassword(req, res, next)
 );
 

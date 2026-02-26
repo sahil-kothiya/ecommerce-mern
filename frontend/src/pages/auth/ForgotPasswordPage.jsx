@@ -7,6 +7,8 @@ import toast from 'react-hot-toast';
 import authService from '../../services/authService';
 import { ErrorAlert, FieldError } from '../../components/common';
 import { processApiError, getFieldClasses, getFieldError } from '../../utils/errorUtils';
+import { useSiteSettings } from '../../context/SiteSettingsContext.jsx';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 const forgotPasswordSchema = yup.object().shape({
     email: yup
@@ -17,9 +19,12 @@ const forgotPasswordSchema = yup.object().shape({
 });
 
 const ForgotPasswordPage = () => {
-                const [isLoading, setIsLoading] = useState(false);
+    const { settings } = useSiteSettings();
+    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState([]);
     const [submitted, setSubmitted] = useState(false);
+    const siteName = String(settings?.siteName || 'Enterprise E-Commerce').trim();
+    const logoUrl = resolveImageUrl(settings?.logo, { placeholder: null });
 
     const {
         register,
@@ -71,6 +76,9 @@ const ForgotPasswordPage = () => {
 
                 <section className="p-6 sm:p-8 md:p-10">
                     <div className="mb-6 text-center md:text-left">
+                        {logoUrl && (
+                            <img src={logoUrl} alt={siteName} className="mb-3 h-10 w-10 rounded-lg object-cover" />
+                        )}
                         <div className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-100">
                             <svg className="h-7 w-7 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />

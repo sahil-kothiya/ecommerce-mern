@@ -35,10 +35,10 @@ const settingSchema = new Schema(
     twitter: { type: String, default: "" },
     youtube: { type: String, default: "" },
 
-    smtpHost: { type: String, default: "sandbox.smtp.mailtrap.io" },
-    smtpPort: { type: Number, default: 2525 },
-    smtpUser: { type: String, default: "45418ec1cb45a5" },
-    smtpPassword: { type: String, default: "c2787e1db12b54" },
+    smtpHost: { type: String, default: "" },
+    smtpPort: { type: Number, default: 587 },
+    smtpUser: { type: String, default: "" },
+    smtpPassword: { type: String, default: "" },
     smtpFrom: { type: String, default: "" },
 
     stripePublicKey: { type: String, default: "" },

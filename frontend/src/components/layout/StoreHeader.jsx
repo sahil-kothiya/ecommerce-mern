@@ -3,9 +3,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { API_CONFIG } from '../../constants';
 import authService from '../../services/authService';
 import useWishlistCount from '../../hooks/useWishlistCount';
+import { useSiteSettings } from '../../context/SiteSettingsContext.jsx';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
-const BRAND_NAME = 'Enterprise Commerce';
-const TOPBAR_MSG = '🚚 Free shipping on orders over $50  ·  ✨ 30-day easy returns  ·  🔒 Secure checkout';
 
 const useCartCount = () => {
     const [count, setCount] = useState(0);
@@ -48,7 +48,18 @@ const StoreHeader = () => {
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
     const isAuthenticated = authService.isAuthenticated();
+    const { settings } = useSiteSettings();
     const userMenuRef = useRef(null);
+    const siteName = String(settings?.siteName || 'Enterprise E-Commerce').trim();
+    const siteTagline = String(settings?.siteTagline || '').trim();
+    const brandMark = siteName
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((word) => word[0]?.toUpperCase() || '')
+        .join('') || 'EC';
+    const logoUrl = resolveImageUrl(settings?.logo, { placeholder: null });
+    const topbarMessage = siteTagline || 'Free shipping on orders over $50 - 30-day easy returns - Secure checkout';
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -103,7 +114,7 @@ const StoreHeader = () => {
         <header className="store-header fixed left-0 right-0 top-0 z-50">
             {/* Top announcement bar */}
             <div className="hidden sm:flex items-center justify-center bg-gradient-to-r from-[#0a2156] via-[#212191] to-[#0a2156] py-1.5 text-xs font-semibold tracking-wide text-[#d2dff9]">
-                {TOPBAR_MSG}
+                {topbarMessage}
             </div>
 
             {/* Main header */}
@@ -111,10 +122,16 @@ const StoreHeader = () => {
                 <div className="flex items-center gap-4 py-3">
                     {/* Brand */}
                     <Link to="/" className="flex items-center gap-3 flex-shrink-0">
-                        <span className="store-brand-mark flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black text-white">EC</span>
+                        <span className="store-brand-mark flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl text-sm font-black text-white">
+                            {logoUrl ? (
+                                <img src={logoUrl} alt={siteName} className="h-full w-full object-cover" />
+                            ) : (
+                                brandMark
+                            )}
+                        </span>
                         <span className="hidden sm:block">
-                            <span className="store-eyebrow block">Creator Store</span>
-                            <span className="store-display block text-[15px] text-[#131313]">{BRAND_NAME}</span>
+                            <span className="store-eyebrow block">{siteTagline || 'Creator Store'}</span>
+                            <span className="store-display block text-[15px] text-[#131313]">{siteName}</span>
                         </span>
                     </Link>
 
@@ -127,7 +144,7 @@ const StoreHeader = () => {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onFocus={() => setIsSearchFocused(true)}
                                 onBlur={() => setIsSearchFocused(false)}
-                                placeholder="Search products, brands, categories…"
+                                placeholder="Search products, brands, categories..."
                                 className={`store-input w-full py-2.5 pl-10 pr-4 text-sm transition-all ${isSearchFocused ? 'shadow-[0_0_0_3px_rgba(165,187,252,0.3)]' : ''}`}
                             />
                             <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4250d5]">
@@ -259,7 +276,7 @@ const StoreHeader = () => {
                         to="/products?sort=popular"
                         className={`store-nav-link whitespace-nowrap px-2.5 py-1 text-sm lg:text-xs text-[#f9730c] border-[rgba(249,115,12,0.25)] ${activeSort === 'popular' ? 'active' : ''}`}
                     >
-                        🔥 Featured
+                        Featured
                     </Link>
                 </nav>
             </div>
@@ -274,7 +291,7 @@ const StoreHeader = () => {
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search products…"
+                                placeholder="Search products..."
                                 className="store-input w-full py-2.5 pl-10 pr-4 text-sm"
                             />
                             <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4250d5]">

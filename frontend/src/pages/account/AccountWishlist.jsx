@@ -5,8 +5,11 @@ import { API_CONFIG } from '../../constants';
 import { getPrimaryProductImage, resolveImageUrl } from '../../utils/imageUrl';
 import { formatPrice, getProductDisplayPricing } from '../../utils/productUtils';
 import notify from '../../utils/notify';
+import { useSiteSettings } from '../../context/SiteSettingsContext';
 
 const AccountWishlist = () => {
+    const { settings } = useSiteSettings();
+    const currencyCode = String(settings?.currencyCode || 'USD').toUpperCase();
     const [items, setItems] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isBusy, setIsBusy] = useState(false);
@@ -123,7 +126,9 @@ const AccountWishlist = () => {
                                     <div className="mt-auto pt-3">
                                         {pricing ? (
                                             <p className="text-base font-bold text-slate-800">
-                                                {formatPrice ? formatPrice(pricing.salePrice ?? pricing.price) : `$${(pricing.salePrice ?? pricing.price ?? 0).toFixed(2)}`}
+                                                {formatPrice
+                                                    ? formatPrice(pricing.salePrice ?? pricing.price, currencyCode)
+                                                    : `${settings?.currencySymbol || '$'}${Number(pricing.salePrice ?? pricing.price ?? 0).toFixed(2)}`}
                                             </p>
                                         ) : null}
                                         <div className="mt-3 flex gap-2">

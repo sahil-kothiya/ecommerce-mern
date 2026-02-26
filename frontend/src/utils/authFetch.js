@@ -4,7 +4,18 @@
  */
 
 export const getAuthHeaders = () => {
-  return {};
+  if (typeof document === "undefined") {
+    return {};
+  }
+  const match = document.cookie
+    .split("; ")
+    .find((part) => part.startsWith("csrfToken="));
+  if (!match) {
+    return {};
+  }
+  return {
+    "X-CSRF-Token": decodeURIComponent(match.split("=").slice(1).join("=")),
+  };
 };
 
 /**

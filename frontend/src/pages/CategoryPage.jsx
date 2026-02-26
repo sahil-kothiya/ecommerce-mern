@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { API_CONFIG } from '../constants';
 import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
+import { useSiteSettings } from '../context/SiteSettingsContext';
 
 const CategoryPage = () => {
     const { slug } = useParams();
+    const { settings } = useSiteSettings();
+    const currencyCode = String(settings?.currencyCode || 'USD').toUpperCase();
     const [category, setCategory] = useState(null);
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -55,8 +58,8 @@ const CategoryPage = () => {
                     {products.map((product) => {
                         const pricing = getProductDisplayPricing(product);
                         const priceLabel = pricing.isRange
-                            ? `${formatPrice(pricing.minPrice)} - ${formatPrice(pricing.maxPrice)}`
-                            : formatPrice(pricing.finalPrice);
+                            ? `${formatPrice(pricing.minPrice, currencyCode)} - ${formatPrice(pricing.maxPrice, currencyCode)}`
+                            : formatPrice(pricing.finalPrice, currencyCode);
 
                         return (
                             <Link

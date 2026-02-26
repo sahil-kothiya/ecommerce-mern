@@ -2,6 +2,7 @@ export const API_CONFIG = {
   BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5001",
   ENDPOINTS: {
     PRODUCTS: "/api/products",
+    ADMIN_PRODUCTS: "/api/v1/admin/products",
     CATEGORIES: "/api/categories",
     BRANDS: "/api/brands",
     DISCOUNTS: "/api/discounts",
@@ -20,6 +21,13 @@ export const API_CONFIG = {
   },
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3,
+};
+
+export const DEMO_AUTH_CONFIG = {
+  ADMIN_EMAIL: import.meta.env.VITE_SEED_ADMIN_EMAIL || "admin@admin.com",
+  ADMIN_PASSWORD: import.meta.env.VITE_SEED_ADMIN_PASSWORD || "password123",
+  USER_EMAIL: import.meta.env.VITE_SEED_USER_EMAIL || "user@admin.com",
+  USER_PASSWORD: import.meta.env.VITE_SEED_USER_PASSWORD || "password123",
 };
 
 export const IMAGE_CONFIG = {
@@ -110,14 +118,35 @@ export const SORT_OPTIONS = [
 
 export const FILTER_CONFIG = {
   PRICE_RANGES: [
-    { min: 0, max: 50, label: "Under $50" },
-    { min: 50, max: 100, label: "$50 - $100" },
-    { min: 100, max: 200, label: "$100 - $200" },
-    { min: 200, max: 500, label: "$200 - $500" },
-    { min: 500, max: null, label: "Over $500" },
+    { min: 0, max: 50 },
+    { min: 50, max: 100 },
+    { min: 100, max: 200 },
+    { min: 200, max: 500 },
+    { min: 500, max: null },
   ],
   RATING_THRESHOLD: 1,
   MAX_RATING: 5,
+};
+
+/**
+ * Build a human-readable price range label using the current currency symbol.
+ * @param {{ min: number, max: number|null }} range
+ * @param {string} currencySymbol
+ * @returns {string}
+ */
+export const getPriceRangeLabel = (range, currencySymbol = "$") => {
+  const min = Number(range?.min || 0);
+  const max = range?.max == null ? null : Number(range.max);
+
+  if (max == null) {
+    return `Over ${currencySymbol}${min}`;
+  }
+
+  if (min <= 0) {
+    return `Under ${currencySymbol}${max}`;
+  }
+
+  return `${currencySymbol}${min} - ${currencySymbol}${max}`;
 };
 
 export const ERROR_MESSAGES = {
