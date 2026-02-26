@@ -3,6 +3,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/common/ProtectedRoute.jsx';
 import { API_CONFIG } from './constants';
 import { SiteSettingsProvider } from './context/SiteSettingsContext.jsx';
+import authService from './services/authService';
+import { clearLegacyRecentlyViewed } from './utils/recentlyViewed';
+import { logger } from './utils/logger.js';
 
 const HomePage = lazy(() => import('./pages/HomePage.jsx'));
 const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage.jsx'));
@@ -54,15 +57,58 @@ const VariantOptionsList = lazy(() => import('./pages/admin/variants/VariantOpti
 const VariantOptionForm = lazy(() => import('./pages/admin/variants/VariantOptionForm.jsx'));
 const OrdersList = lazy(() => import('./pages/admin/orders/OrdersList.jsx'));
 
+const PageSkeleton = () => (
+    <div className="flex min-h-screen flex-col bg-slate-50">
+        <div className="h-16 w-full animate-pulse bg-white shadow-sm" />
+        <div className="mx-auto mt-8 w-full max-w-6xl px-4 space-y-4">
+            <div className="h-6 w-48 animate-pulse rounded bg-slate-200" />
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="h-48 animate-pulse rounded-xl bg-slate-200" />
+                ))}
+            </div>
+        </div>
+    </div>
+);
+
 function App() {
     useEffect(() => {
-        fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/csrf-token`, {
-            credentials: "include",
-        }).catch(() => {});
+        clearLegacyRecentlyViewed();
+
+        const initAuth = async () => {
+            try {
+                await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/csrf-token`, {
+                    credentials: "include",
+                }).catch((err) => {
+                    logger.warn('CSRF token fetch failed (non-critical)', { error: err.message });
+                });
+
+                if (authService.isAuthenticated()) {
+                    try {
+                        await authService.getCurrentUser();
+                        logger.info('Auth state verified on app mount');
+                    } catch (authError) {
+                        if (authError.status === 401) {
+                            logger.warn('Session expired, clearing auth state');
+                            authService.reset();
+                        } else {
+                            logger.error('Failed to verify auth, but keeping session', { 
+                                error: authError.message,
+                                status: authError.status 
+                            });
+                        }
+                    }
+                }
+            } catch (error) {
+                logger.error('Auth initialization error', { error: error.message });
+            }
+        };
+
+        initAuth();
     }, []);
 
     return (
-        <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm text-slate-600">Loading page...</div>}>
+        <Suspense fallback={<PageSkeleton />}>
             <Routes>
             <Route element={<PublicLayout />}>
                         <Route index element={<HomePage />} />

@@ -6,7 +6,8 @@ import { getPrimaryProductImage, resolveImageUrl } from '../utils/imageUrl';
 import authService from '../services/authService';
 import StoreNav from '../components/common/StoreNav';
 import LazyImage from '../components/common/LazyImage';
-import { useSiteSettings } from '../context/SiteSettingsContext';
+import { useSiteSettings } from '../context/useSiteSettings';
+import { resolveBannerAction } from '../utils/bannerLink';
 
 const RECENT_SEARCHES_KEY = 'products_recent_searches';
 const SAVED_FILTERS_KEY = 'products_saved_filters';
@@ -74,6 +75,7 @@ const HeroBanner = ({ banners }) => {
     }, [slides.length]);
 
     const b = slides[idx];
+    const action = resolveBannerAction(b);
 
     return (
         <div className="relative mb-8 overflow-hidden rounded-2xl shadow-lg" style={{ minHeight: 220 }}>
@@ -109,9 +111,18 @@ const HeroBanner = ({ banners }) => {
                 {b.description && (
                     <p className="mt-1 max-w-md text-sm text-white/85">{b.description}</p>
                 )}
-                {b.link && (
+                {action.external || action.target === '_blank' ? (
+                    <a
+                        href={action.href}
+                        target={action.target}
+                        rel="noopener noreferrer"
+                        className="mt-3 inline-block rounded-xl bg-[#ffa336] px-5 py-2 text-sm font-bold text-white shadow hover:bg-[#f9730c] transition"
+                    >
+                        Shop Now →
+                    </a>
+                ) : (
                     <Link
-                        to={b.link}
+                        to={action.href}
                         className="mt-3 inline-block rounded-xl bg-[#ffa336] px-5 py-2 text-sm font-bold text-white shadow hover:bg-[#f9730c] transition"
                     >
                         Shop Now →
@@ -148,18 +159,29 @@ const parsePageSize = (value) => {
     return PAGE_SIZE_OPTIONS.includes(parsed) ? parsed : DEFAULT_PAGE_SIZE;
 };
 
+const buildFiltersFromSearchParams = (params) => ({
+    search: params.get('search') || '',
+    category: params.get('category') || 'all',
+    brand: params.get('brand') || 'all',
+    minPrice: params.get('minPrice') || '',
+    maxPrice: params.get('maxPrice') || '',
+    sort: ALLOWED_SORT_OPTIONS.has(params.get('sort')) ? params.get('sort') : defaultFilters.sort,
+});
+
+const areFiltersEqual = (left, right) => (
+    left.search === right.search
+    && left.category === right.category
+    && left.brand === right.brand
+    && left.minPrice === right.minPrice
+    && left.maxPrice === right.maxPrice
+    && left.sort === right.sort
+);
+
 const ProductsPage = () => {
     const { settings } = useSiteSettings();
     const currencyCode = String(settings?.currencyCode || 'USD').toUpperCase();
     const [searchParams, setSearchParams] = useSearchParams();
-    const initialFilters = {
-        search: searchParams.get('search') || '',
-        category: searchParams.get('category') || 'all',
-        brand: searchParams.get('brand') || 'all',
-        minPrice: searchParams.get('minPrice') || '',
-        maxPrice: searchParams.get('maxPrice') || '',
-        sort: ALLOWED_SORT_OPTIONS.has(searchParams.get('sort')) ? searchParams.get('sort') : defaultFilters.sort,
-    };
+    const initialFilters = buildFiltersFromSearchParams(searchParams);
     const initialPage = parsePositiveInt(searchParams.get('page'), 1);
     const initialPageSize = parsePageSize(searchParams.get('limit'));
 
@@ -174,6 +196,7 @@ const ProductsPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [message, setMessage] = useState('');
     const [prefsReady, setPrefsReady] = useState(false);
+    const [canSyncPreferences, setCanSyncPreferences] = useState(false);
     const [page, setPage] = useState(initialPage);
     const [pageSize, setPageSize] = useState(initialPageSize);
     const [pagination, setPagination] = useState({
@@ -187,12 +210,20 @@ const ProductsPage = () => {
 
     const isAuthenticated = authService.isAuthenticated();
 
+    const loadLocalPreferences = useCallback(() => {
+        const storedRecent = JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || '[]');
+        const storedSaved = JSON.parse(localStorage.getItem(SAVED_FILTERS_KEY) || '[]');
+        setRecentSearches(Array.isArray(storedRecent) ? storedRecent : []);
+        setSavedFilters(Array.isArray(storedSaved) ? storedSaved : []);
+    }, []);
+
     const persistPreferences = useCallback(async (nextSavedFilters, nextRecentSearches) => {
-        if (isAuthenticated) {
+        if (canSyncPreferences) {
             try {
                 await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/preferences/product-discovery`, {
                     method: 'PUT',
                     headers: authService.getAuthHeaders(),
+                    credentials: 'include',
                     body: JSON.stringify({
                         savedFilters: nextSavedFilters,
                         recentSearches: nextRecentSearches,
@@ -204,7 +235,7 @@ const ProductsPage = () => {
 
         localStorage.setItem(SAVED_FILTERS_KEY, JSON.stringify(nextSavedFilters));
         localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(nextRecentSearches));
-    }, [isAuthenticated]);
+    }, [canSyncPreferences]);
 
     useEffect(() => {
         const loadTaxonomy = async () => {
@@ -243,33 +274,37 @@ const ProductsPage = () => {
         const loadPreferences = async () => {
             if (isAuthenticated) {
                 try {
+                    await authService.getCurrentUser();
+                    setCanSyncPreferences(true);
+
                     const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/preferences/product-discovery`, {
                         headers: authService.getAuthHeaders(),
+                        credentials: 'include',
                     });
                     const payload = await response.json();
                     if (response.ok) {
                         const discovery = payload?.data?.productDiscovery || {};
                         setRecentSearches(Array.isArray(discovery.recentSearches) ? discovery.recentSearches : []);
                         setSavedFilters(Array.isArray(discovery.savedFilters) ? discovery.savedFilters : []);
+                    } else {
+                        loadLocalPreferences();
                     }
                 } catch {
-                    setRecentSearches([]);
-                    setSavedFilters([]);
+                    setCanSyncPreferences(false);
+                    loadLocalPreferences();
                 } finally {
                     setPrefsReady(true);
                 }
                 return;
             }
 
-            const storedRecent = JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || '[]');
-            const storedSaved = JSON.parse(localStorage.getItem(SAVED_FILTERS_KEY) || '[]');
-            setRecentSearches(Array.isArray(storedRecent) ? storedRecent : []);
-            setSavedFilters(Array.isArray(storedSaved) ? storedSaved : []);
+            setCanSyncPreferences(false);
+            loadLocalPreferences();
             setPrefsReady(true);
         };
 
         loadPreferences();
-    }, [isAuthenticated]);
+    }, [isAuthenticated, loadLocalPreferences]);
 
     useEffect(() => {
         if (!prefsReady) return;
@@ -297,6 +332,16 @@ const ProductsPage = () => {
 
         setSearchParams(params, { replace: true });
     }, [filters, page, pageSize, setSearchParams]);
+
+    useEffect(() => {
+        const nextFilters = buildFiltersFromSearchParams(searchParams);
+        const nextPage = parsePositiveInt(searchParams.get('page'), 1);
+        const nextPageSize = parsePageSize(searchParams.get('limit'));
+
+        setFilters((prev) => (areFiltersEqual(prev, nextFilters) ? prev : nextFilters));
+        setPage((prev) => (prev === nextPage ? prev : nextPage));
+        setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
+    }, [searchParams]);
 
     useEffect(() => {
         const loadProducts = async () => {
@@ -617,8 +662,10 @@ const ProductsPage = () => {
                         {products.map((product) => {
                             const pricing = getProductDisplayPricing(product);
                             const hasDiscount = pricing.hasDiscount;
+
+                            const showFromLabel = pricing.isRange;
                             const finalPriceLabel = pricing.isRange
-                                ? `${formatPrice(pricing.minPrice, currencyCode)} - ${formatPrice(pricing.maxPrice, currencyCode)}`
+                                ? formatPrice(pricing.minPrice, currencyCode)
                                 : formatPrice(pricing.finalPrice, currencyCode);
                             const imgUrl = resolveImageUrl(getPrimaryProductImage(product));
                             return (
@@ -649,6 +696,7 @@ const ProductsPage = () => {
                                         <p className="text-[11px] font-semibold text-[#4250d5]">{product.brand?.title || 'Brand'}</p>
                                         <h2 className="mt-1 line-clamp-2 text-sm font-semibold text-slate-900 group-hover:text-[#212191]">{product.title}</h2>
                                         <div className="mt-2 flex items-center gap-2">
+                                            {showFromLabel && <span className="text-xs text-slate-500 font-medium">From</span>}
                                             <span className="text-sm font-bold text-slate-800">{finalPriceLabel}</span>
                                             {hasDiscount && !pricing.isRange && (
                                                 <span className="text-xs text-slate-400 line-through">{formatPrice(pricing.basePrice, currencyCode)}</span>

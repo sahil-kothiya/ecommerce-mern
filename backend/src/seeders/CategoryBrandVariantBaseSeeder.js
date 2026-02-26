@@ -5,7 +5,8 @@ import { Category } from "../models/Category.js";
 import { Brand } from "../models/Brand.js";
 import { Filter } from "../models/Filter.js";
 import { Product } from "../models/Product.js";
-import { VariantType, VariantOption } from "../models/Supporting.models.js";
+import { VariantType } from "../models/VariantType.js";
+import { VariantOption } from "../models/VariantOption.js";
 
 export class CategoryBrandVariantBaseSeeder {
   constructor() {

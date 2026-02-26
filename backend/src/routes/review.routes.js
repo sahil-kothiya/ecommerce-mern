@@ -43,6 +43,14 @@ router.delete(
 );
 
 router.get(
+  "/mine",
+  protect,
+  reviewAdminQueryValidator,
+  validate,
+  reviewController.getMine.bind(reviewController),
+);
+
+router.get(
   "/",
   protect,
   authorize("admin"),

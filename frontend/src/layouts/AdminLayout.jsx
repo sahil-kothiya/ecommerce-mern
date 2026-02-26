@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
-import { useSiteSettings } from '../context/SiteSettingsContext.jsx';
+import { useSiteSettings } from '../context/useSiteSettings';
 import { resolveImageUrl } from '../utils/imageUrl';
 
 const MENU_ITEMS = [

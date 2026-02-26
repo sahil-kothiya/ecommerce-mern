@@ -1,34 +1,9 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { API_CONFIG } from "../constants";
-
-const DEFAULT_SITE_SETTINGS = Object.freeze({
-  siteName: "Enterprise E-Commerce",
-  siteTagline: "",
-  siteUrl: "",
-  logo: null,
-  favicon: null,
-  websiteEmail: "",
-  supportEmail: "",
-  phone: "",
-  whatsapp: "",
-  address: "",
-  currencyCode: "USD",
-  currencySymbol: "$",
-  timezone: "UTC",
-  maintenanceMode: false,
-  metaTitle: "",
-  metaDescription: "",
-  facebook: "",
-  instagram: "",
-  twitter: "",
-  youtube: "",
-});
-
-const SiteSettingsContext = createContext({
-  settings: DEFAULT_SITE_SETTINGS,
-  isLoading: true,
-  refresh: async () => {},
-});
+import {
+  DEFAULT_SITE_SETTINGS,
+  SiteSettingsContext,
+} from "./siteSettingsContextStore";
 
 /**
  * Site settings provider for public storefront pages.
@@ -88,13 +63,5 @@ export function SiteSettingsProvider({ children }) {
       {children}
     </SiteSettingsContext.Provider>
   );
-}
-
-/**
- * Read public site settings context.
- * @returns {{ settings: typeof DEFAULT_SITE_SETTINGS, isLoading: boolean, refresh: () => Promise<void> }}
- */
-export function useSiteSettings() {
-  return useContext(SiteSettingsContext);
 }
 

@@ -61,8 +61,10 @@ class AuthService {
     }
 
     try {
+      // Strip fields that must not be sent to the server
+      const { confirmPassword: _cp, role: _role, ...rest } = userData;
       const sanitizedData = {
-        ...userData,
+        ...rest,
         email: trimmedEmail,
         name: trimmedName,
       };
@@ -120,7 +122,7 @@ class AuthService {
   async _fetchCurrentUser() {
     try {
       const response = await apiClient.get(`${API_CONFIG.ENDPOINTS.AUTH}/me`);
-      const user = response.user;
+      const user = response?.data?.user ?? response?.user;
 
       this.setUser(user);
 
@@ -155,7 +157,7 @@ class AuthService {
         `${API_CONFIG.ENDPOINTS.AUTH}/profile`,
         sanitizedData,
       );
-      const user = response.user;
+      const user = response?.data?.user ?? response?.user;
 
       this.setUser(user);
 

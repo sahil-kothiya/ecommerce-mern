@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import authService from '../../services/authService';
+import apiClient from '../../services/apiClient';
 import { API_CONFIG } from '../../constants';
 import notify from '../../utils/notify';
 
@@ -42,8 +43,6 @@ const AccountProfile = () => {
     const [isSavingPassword, setIsSavingPassword] = useState(false);
     const [activeSection, setActiveSection] = useState('info');
 
-    const authHeaders = useMemo(() => authService.getAuthHeaders(), []);
-
     // ── Profile form ─────────────────────────────────────────────────────────
     const {
         register: regProfile,
@@ -65,9 +64,8 @@ const AccountProfile = () => {
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/me`, { headers: authHeaders });
-                const payload = await res.json();
-                const profile = payload?.data?.user || null;
+                const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.AUTH}/me`);
+                const profile = data?.data?.user || data?.user || null;
                 if (profile) {
                     resetProfile({ name: profile.name || '', email: profile.email || '', phone: profile.phone || '' });
                 }
@@ -78,34 +76,29 @@ const AccountProfile = () => {
             }
         };
         load();
-    }, [authHeaders, resetProfile]);
+    }, [resetProfile]);
 
     const onProfileSave = async (data) => {
         try {
             setIsSavingProfile(true);
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/profile`, {
-                method: 'PUT',
-                headers: authHeaders,
-                body: JSON.stringify({ name: data.name, email: data.email, phone: data.phone }),
+            const result = await apiClient.put(`${API_CONFIG.ENDPOINTS.AUTH}/profile`, {
+                name: data.name, 
+                email: data.email, 
+                phone: data.phone 
             });
-            const payload = await res.json();
-            if (!res.ok) {
-                // Map server field errors to inline errors
-                if (Array.isArray(payload?.errors)) {
-                    payload.errors.forEach(({ field, message }) => {
-                        if (field) setProfileError(field, { message });
-                    });
-                    return;
-                }
-                throw new Error(payload?.message || 'Failed to update profile');
-            }
-            const updatedUser = payload?.data?.user;
+            const updatedUser = result?.data?.user || result?.user;
             if (updatedUser) {
                 authService.setUser(updatedUser);
                 resetProfile({ name: updatedUser.name || '', email: updatedUser.email || '', phone: updatedUser.phone || '' });
             }
             notify.success('Profile updated successfully.');
         } catch (err) {
+            if (err.data?.errors) {
+                err.data.errors.forEach(({ field, message }) => {
+                    if (field) setProfileError(field, { message });
+                });
+                return;
+            }
             notify.error(err.message || 'Failed to update profile');
         } finally {
             setIsSavingProfile(false);
@@ -115,29 +108,20 @@ const AccountProfile = () => {
     const onPasswordSave = async (data) => {
         try {
             setIsSavingPassword(true);
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/change-password`, {
-                method: 'PUT',
-                headers: authHeaders,
-                body: JSON.stringify({
-                    currentPassword: data.currentPassword,
-                    newPassword: data.newPassword,
-                    confirmPassword: data.confirmPassword,
-                }),
+            await apiClient.put(`${API_CONFIG.ENDPOINTS.AUTH}/change-password`, {
+                currentPassword: data.currentPassword,
+                newPassword: data.newPassword,
+                confirmPassword: data.confirmPassword,
             });
-            const payload = await res.json();
-            if (!res.ok) {
-                // Map server field errors to inline errors
-                if (Array.isArray(payload?.errors)) {
-                    payload.errors.forEach(({ field, message }) => {
-                        if (field) setPasswordError(field, { message });
-                    });
-                    return;
-                }
-                throw new Error(payload?.message || 'Failed to change password');
-            }
-            resetPassword();
             notify.success('Password changed successfully.');
+            resetPassword();
         } catch (err) {
+            if (err.data?.errors) {
+                err.data.errors.forEach(({ field, message }) => {
+                    if (field) setPasswordError(field, { message });
+                });
+                return;
+            }
             notify.error(err.message || 'Failed to change password');
         } finally {
             setIsSavingPassword(false);

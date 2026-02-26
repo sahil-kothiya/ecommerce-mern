@@ -57,9 +57,18 @@ export class ProductService extends BaseService {
 
     const skip = (page - 1) * limit;
 
+    const listingFields =
+      "title slug images basePrice category brand isFeatured status hasVariants tags condition viewCount variants.sku variants.price variants.discount variants.stock variants.status variants.options";
+
     try {
       const [products, total] = await Promise.all([
-        this.model.find(filter).sort(sort).skip(skip).limit(limit).lean(),
+        this.model
+          .find(filter)
+          .select(listingFields)
+          .sort(sort)
+          .skip(skip)
+          .limit(limit)
+          .lean(),
         this.model.countDocuments(filter),
       ]);
 
@@ -79,12 +88,15 @@ export class ProductService extends BaseService {
   }
 
   async getFeaturedProducts(limit = 10) {
+    const listingFields =
+      "title slug images basePrice category brand isFeatured status hasVariants tags condition viewCount variants.sku variants.price variants.discount variants.stock variants.status variants.options";
     try {
       return await this.model
         .find({
           status: "active",
           isFeatured: true,
         })
+        .select(listingFields)
         .sort({ createdAt: -1 })
         .limit(limit)
         .lean();
@@ -94,10 +106,16 @@ export class ProductService extends BaseService {
     }
   }
 
-  async searchProducts(query, filters = {}) {
+  async searchProducts(query, filters = {}, page = 1, limit = 20) {
     if (!query) {
       throw new AppError("Search query is required", 400);
     }
+
+    const safeLimit = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
+    const safePage = Math.max(1, parseInt(page, 10) || 1);
+    const skip = (safePage - 1) * safeLimit;
+    const searchFields =
+      "title slug images basePrice category brand isFeatured status hasVariants tags condition";
 
     try {
       const searchFilter = {
@@ -106,13 +124,26 @@ export class ProductService extends BaseService {
         ...filters,
       };
 
-      const products = await this.model
-        .find(searchFilter, { score: { $meta: "textScore" } })
-        .sort({ score: { $meta: "textScore" } })
-        .limit(50)
-        .lean();
+      const [products, total] = await Promise.all([
+        this.model
+          .find(searchFilter, { score: { $meta: "textScore" } })
+          .select(searchFields)
+          .sort({ score: { $meta: "textScore" } })
+          .skip(skip)
+          .limit(safeLimit)
+          .lean(),
+        this.model.countDocuments(searchFilter),
+      ]);
 
-      return products;
+      return {
+        items: products,
+        pagination: {
+          page: safePage,
+          limit: safeLimit,
+          total,
+          pages: Math.ceil(total / safeLimit),
+        },
+      };
     } catch (error) {
       logger.error("ProductService.searchProducts error:", error);
       throw error;

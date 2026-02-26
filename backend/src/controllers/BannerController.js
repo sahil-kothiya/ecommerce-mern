@@ -3,7 +3,7 @@ import { BannerService } from "../services/BannerService.js";
 import { deleteUploadedFile } from "../middleware/uploadEnhanced.js";
 import mongoose from "mongoose";
 import { Banner } from "../models/Banner.js";
-import { Discount } from "../models/Supporting.models.js";
+import { Discount } from "../models/Discount.js";
 import { logger } from "../utils/logger.js";
 
 export class BannerController extends BaseController {

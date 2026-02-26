@@ -43,21 +43,53 @@ const toSafeNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const pickPositiveNumber = (...values) => {
+  for (const value of values) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return 0;
+};
+
 const clampDiscount = (discount) => {
   const parsed = toSafeNumber(discount, 0);
   return Math.max(0, Math.min(100, parsed));
 };
 
 const normalizeVariantPricing = (variant) => {
-  const basePrice = toSafeNumber(variant?.price, 0);
-  const discount = clampDiscount(variant?.discount);
-  const finalPrice = calculateDiscountPrice(basePrice, discount);
+  const explicitFinalPrice = pickPositiveNumber(
+    variant?.salePrice,
+    variant?.finalPrice,
+    variant?.discountPrice,
+  );
+  const explicitBasePrice = pickPositiveNumber(
+    variant?.price,
+    variant?.basePrice,
+    variant?.mrp,
+    variant?.listPrice,
+  );
+  const discount = clampDiscount(variant?.discount ?? variant?.baseDiscount);
+
+  const basePrice = explicitBasePrice || explicitFinalPrice;
+  const finalPrice =
+    explicitFinalPrice || calculateDiscountPrice(basePrice, discount);
+  const normalizedBasePrice = Math.max(basePrice, finalPrice);
+  const effectiveDiscount =
+    discount > 0
+      ? discount
+      : normalizedBasePrice > 0
+        ? Math.round(
+            ((normalizedBasePrice - finalPrice) / normalizedBasePrice) * 100,
+          )
+        : 0;
 
   return {
-    basePrice,
+    basePrice: normalizedBasePrice,
     finalPrice,
-    discount,
-    hasDiscount: discount > 0 && finalPrice < basePrice,
+    discount: clampDiscount(effectiveDiscount),
+    hasDiscount: finalPrice > 0 && finalPrice < normalizedBasePrice,
   };
 };
 
@@ -78,8 +110,11 @@ export const getProductDisplayPricing = (product, options = {}) => {
     };
   }
 
-  if (product.hasVariants) {
-    const variants = Array.isArray(product.variants) ? product.variants : [];
+  const variants = Array.isArray(product.variants) ? product.variants : [];
+  const shouldUseVariantPricing =
+    Boolean(product.hasVariants) || variants.length > 0;
+
+  if (shouldUseVariantPricing) {
     const activeVariants = variants.filter(
       (variant) => !variant?.status || variant.status === "active",
     );
@@ -142,20 +177,41 @@ export const getProductDisplayPricing = (product, options = {}) => {
     }
   }
 
-  const basePrice = toSafeNumber(product.basePrice, 0);
-  const discount = clampDiscount(product.baseDiscount);
-  const finalPrice = calculateDiscountPrice(basePrice, discount);
+  const explicitFinalPrice = pickPositiveNumber(
+    product.salePrice,
+    product.finalPrice,
+    product.discountPrice,
+  );
+  const explicitBasePrice = pickPositiveNumber(
+    product.basePrice,
+    product.price,
+    product.mrp,
+    product.listPrice,
+  );
+  const discount = clampDiscount(product.baseDiscount ?? product.discount);
+  const basePrice = explicitBasePrice || explicitFinalPrice;
+  const finalPrice =
+    explicitFinalPrice || calculateDiscountPrice(basePrice, discount);
+  const normalizedBasePrice = Math.max(basePrice, finalPrice);
+  const effectiveDiscount =
+    discount > 0
+      ? discount
+      : normalizedBasePrice > 0
+        ? Math.round(
+            ((normalizedBasePrice - finalPrice) / normalizedBasePrice) * 100,
+          )
+        : 0;
 
   return {
     isVariantBased: false,
     isRange: false,
-    basePrice,
+    basePrice: normalizedBasePrice,
     finalPrice,
     minPrice: finalPrice,
     maxPrice: finalPrice,
-    discount,
-    hasDiscount: discount > 0 && finalPrice < basePrice,
-    savings: Math.max(0, basePrice - finalPrice),
+    discount: clampDiscount(effectiveDiscount),
+    hasDiscount: finalPrice > 0 && finalPrice < normalizedBasePrice,
+    savings: Math.max(0, normalizedBasePrice - finalPrice),
   };
 };
 

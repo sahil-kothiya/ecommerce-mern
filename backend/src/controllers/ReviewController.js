@@ -5,6 +5,46 @@ import { Order } from "../models/Order.js";
 import { AppError } from "../middleware/errorHandler.js";
 
 export class ReviewController {
+  async getMine(req, res, next) {
+    try {
+      const page = Math.max(1, Number(req.query.page) || 1);
+      const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 20));
+      const skip = (page - 1) * limit;
+
+      const [reviews, total] = await Promise.all([
+        Review.find({ userId: req.user._id })
+          .populate("productId", "_id title slug status")
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        Review.countDocuments({ userId: req.user._id }),
+      ]);
+
+      const normalizedReviews = reviews.map((review) => ({
+        ...review,
+        product: review.productId,
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          reviews: normalizedReviews,
+          pagination: {
+            page,
+            limit,
+            total,
+            pages: Math.ceil(total / limit),
+            hasPrev: page > 1,
+            hasNext: page * limit < total,
+          },
+        },
+      });
+    } catch (error) {
+      next(new AppError("Failed to fetch your reviews", 500));
+    }
+  }
+
   async index(req, res, next) {
     try {
       const page = Math.max(1, Number(req.query.page) || 1);

@@ -1,16 +1,19 @@
 ﻿import React, { useEffect, useState, useCallback, useRef } from "react";
-import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { Elements, useStripe, useElements } from "@stripe/react-stripe-js";
 import authService from "../services/authService";
+import apiClient from "../services/apiClient";
 import paymentService from "../services/paymentService";
 import { API_CONFIG } from "../constants";
 import notify from "../utils/notify";
-import { useSiteSettings } from "../context/SiteSettingsContext.jsx";
+import { useSiteSettings } from "../context/useSiteSettings";
+import SearchableSelect from "../components/checkout/SearchableSelect.jsx";
+import StripeCardSection from "../components/checkout/StripeCardSection.jsx";
+import AddressPicker from "../components/checkout/AddressPicker.jsx";
 
 const schema = yup.object({
     firstName: yup.string().trim().required("First name is required"),
@@ -20,7 +23,7 @@ const schema = yup.object({
     address1: yup.string().trim().required("Address is required"),
     address2: yup.string().default(""),
     city: yup.string().trim().required("City is required"),
-    state: yup.string().default(""),
+    state: yup.string().default(""),  // Optional for international addresses
     postCode: yup.string().trim().required("Post code is required"),
     country: yup.string().default("US"),
     paymentMethod: yup.string().oneOf(["cod", "stripe"]).default("cod"),
@@ -45,256 +48,6 @@ const US_STATES = [
 ];
 
 const STATE_OPTIONS = US_STATES.map((s) => ({ value: s, label: s }));
-
-// ============================================================================
-// SEARCHABLE SELECT COMPONENT
-// ============================================================================
-const SearchableSelect = ({ value, onChange, options, placeholder, hasError, disabled = false }) => {
-    const [open, setOpen] = useState(false);
-    const [query, setQuery] = useState("");
-    const [rect, setRect] = useState(null);
-    const buttonRef = useRef(null);
-    const inputRef = useRef(null);
-
-    const filtered = options.filter((o) =>
-        o.label.toLowerCase().includes(query.toLowerCase())
-    );
-    const selectedLabel = options.find((o) => o.value === value)?.label || "";
-
-    // Recompute position on open / resize / scroll
-    const reposition = useCallback(() => {
-        if (buttonRef.current) setRect(buttonRef.current.getBoundingClientRect());
-    }, []);
-
-    useEffect(() => {
-        if (!open) return;
-        reposition();
-        window.addEventListener("resize", reposition);
-        window.addEventListener("scroll", reposition, { passive: true, capture: true });
-        return () => {
-            window.removeEventListener("resize", reposition);
-            window.removeEventListener("scroll", reposition, { capture: true });
-        };
-    }, [open, reposition]);
-
-    // Close on outside click
-    useEffect(() => {
-        if (!open) return;
-        const handler = (e) => {
-            if (
-                buttonRef.current && !buttonRef.current.contains(e.target) &&
-                !document.getElementById("ss-portal")?.contains(e.target)
-            ) {
-                setOpen(false);
-                setQuery("");
-            }
-        };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
-    }, [open]);
-
-    const handleOpen = () => {
-        if (disabled) return;
-        reposition();
-        setOpen(true);
-        setQuery("");
-        setTimeout(() => inputRef.current?.focus(), 40);
-    };
-
-    const handleSelect = (opt) => {
-        onChange(opt.value);
-        setOpen(false);
-        setQuery("");
-    };
-
-    // Portal dropdown — fully outside any stacking context
-    const dropdown = open && rect ? createPortal(
-        <div
-            id="ss-portal"
-            style={{
-                position: "fixed",
-                top: (() => {
-                    const spaceBelow = window.innerHeight - rect.bottom;
-                    return spaceBelow < 240 && rect.top > 240 ? undefined : rect.bottom + 4;
-                })(),
-                bottom: (() => {
-                    const spaceBelow = window.innerHeight - rect.bottom;
-                    return spaceBelow < 240 && rect.top > 240 ? window.innerHeight - rect.top + 4 : undefined;
-                })(),
-                left: rect.left,
-                width: rect.width,
-                zIndex: 99999,
-            }}
-            className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
-        >
-            <div className="border-b border-slate-100 px-3 py-2">
-                <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-1.5">
-                    <svg className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Search..."
-                        className="w-full bg-transparent text-xs text-slate-700 placeholder-slate-400 focus:outline-none"
-                    />
-                    {query && (
-                        <button type="button" onMouseDown={(e) => { e.preventDefault(); setQuery(""); }}
-                            className="flex-shrink-0 text-slate-400 hover:text-slate-600">
-                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    )}
-                </div>
-            </div>
-            <ul className="max-h-56 overflow-y-auto py-1">
-                {filtered.length === 0 ? (
-                    <li className="px-4 py-3 text-center text-xs text-slate-400">No results found</li>
-                ) : (
-                    filtered.map((opt) => (
-                        <li
-                            key={opt.value}
-                            onMouseDown={(e) => { e.preventDefault(); handleSelect(opt); }}
-                            className={`flex cursor-pointer items-center gap-2 px-4 py-2.5 text-sm transition hover:bg-[rgba(66,80,213,0.06)] ${
-                                opt.value === value
-                                    ? "bg-[rgba(66,80,213,0.08)] font-semibold text-[#4250d5]"
-                                    : "text-[#1f1f1f]"
-                            }`}
-                        >
-                            <span className="flex-1">{opt.label}</span>
-                            {opt.value === value && (
-                                <svg className="h-3.5 w-3.5 flex-shrink-0 text-[#4250d5]" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                            )}
-                        </li>
-                    ))
-                )}
-            </ul>
-        </div>,
-        document.body
-    ) : null;
-
-    return (
-        <div>
-            <button
-                ref={buttonRef}
-                type="button"
-                onClick={handleOpen}
-                disabled={disabled}
-                className={`relative w-full rounded-xl border px-4 py-3 pr-10 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-[rgba(66,80,213,0.25)] ${
-                    hasError ? "border-red-400 bg-red-50" : "border-slate-300 bg-white"
-                } ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
-            >
-                <span className={selectedLabel ? "text-[#1f1f1f]" : "text-slate-400"}>
-                    {selectedLabel || placeholder}
-                </span>
-                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                    <svg
-                        className={`h-4 w-4 text-slate-400 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
-                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                </span>
-            </button>
-            {dropdown}
-        </div>
-    );
-};
-
-const CARD_ELEMENT_OPTIONS = {
-    style: {
-        base: { fontSize: "15px", color: "#1f1f1f", fontFamily: "inherit", "::placeholder": { color: "#adb5bd" } },
-        invalid: { color: "#e03131" },
-    },
-};
-
-const StripeCardSection = () => (
-    <div className="mt-3 rounded-xl border border-purple-200 bg-purple-50/50 p-4">
-        <div className="mb-2 flex items-center gap-2">
-            <svg className="h-4 w-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            <span className="text-sm font-semibold text-purple-800">Secure Card Payment</span>
-            <span className="ml-auto text-xs text-purple-500">Powered by Stripe</span>
-        </div>
-        <div className="rounded-lg border border-purple-200 bg-white px-4 py-3">
-            <CardElement options={CARD_ELEMENT_OPTIONS} />
-        </div>
-        <p className="mt-2 text-xs text-purple-500">Your card is encrypted. We never store card details.</p>
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
-            {["VISA", "MasterCard", "Amex", "Discover"].map((b) => (
-                <span key={b} className="rounded border border-slate-200 bg-white px-2 py-0.5 font-mono">{b}</span>
-            ))}
-        </div>
-    </div>
-);
-
-const AddressPicker = ({ addresses, selectedId, onSelect, onAddNew }) => {
-    if (!addresses || !addresses.length) return null;
-    return (
-        <div className="mb-4">
-            <p className="mb-2 text-sm font-semibold text-slate-700">Saved Addresses</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {addresses.map((addr) => (
-                    <button
-                        key={addr._id}
-                        type="button"
-                        onClick={() => onSelect(addr)}
-                        className={`rounded-xl border p-3 text-left text-xs transition ${
-                            selectedId === addr._id
-                                ? "border-[#4250d5] bg-[rgba(66,80,213,0.06)] ring-1 ring-[#4250d5]"
-                                : "border-slate-200 bg-white hover:border-slate-300"
-                        }`}
-                    >
-                        <div className="mb-1 flex items-center gap-1.5">
-                            {addr.label && (
-                                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                                    {addr.label}
-                                </span>
-                            )}
-                            {addr.isDefault && (
-                                <span className="rounded bg-[rgba(66,80,213,0.1)] px-1.5 py-0.5 text-[10px] font-semibold text-[#4250d5]">
-                                    Default
-                                </span>
-                            )}
-                            {selectedId === addr._id && (
-                                <svg className="ml-auto h-3.5 w-3.5 text-[#4250d5]" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                            )}
-                        </div>
-                        <p className="font-semibold text-[#1f1f1f]">{addr.firstName} {addr.lastName}</p>
-                        <p className="text-slate-500">{addr.address1}{addr.address2 ? `, ${addr.address2}` : ""}</p>
-                        <p className="text-slate-500">
-                            {addr.city}{addr.state ? `, ${addr.state}` : ""} {addr.postCode}
-                        </p>
-                        <p className="text-slate-500">{addr.country}</p>
-                    </button>
-                ))}
-                <button
-                    type="button"
-                    onClick={onAddNew}
-                    className={`flex items-center justify-center gap-2 rounded-xl border border-dashed p-3 text-xs font-semibold transition ${
-                        selectedId === "new"
-                            ? "border-[#4250d5] bg-[rgba(66,80,213,0.04)] text-[#4250d5]"
-                            : "border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700"
-                    }`}
-                >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Use a different address
-                </button>
-            </div>
-            <div className="my-4 border-t border-slate-100" />
-        </div>
-    );
-};
 
 const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
     const navigate = useNavigate();
@@ -383,17 +136,13 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
     };
 
     const createOrder = async (formData, paymentIntentId = null, idempotencyKey = "") => {
-        const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}`, {
-            method: "POST",
-            headers: authService.getAuthHeaders(
-                idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}
-            ),
-            credentials: "include",
-            body: JSON.stringify({ ...formData, paymentIntentId }),
-        });
-        const result = await res.json();
-        if (!res.ok || !result?.success) throw new Error(result?.message || "Failed to place order");
-        return result;
+        const headers = {};
+        if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+        return apiClient.post(
+            `${API_CONFIG.ENDPOINTS.ORDERS}`,
+            { ...formData, paymentIntentId },
+            { headers },
+        );
     };
 
     const onSubmit = async (data) => {

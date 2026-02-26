@@ -6,7 +6,8 @@ import { Category } from "../models/Category.js";
 import { Brand } from "../models/Brand.js";
 import { Banner } from "../models/Banner.js";
 import { Product } from "../models/Product.js";
-import { VariantType, VariantOption } from "../models/Supporting.models.js";
+import { VariantType } from "../models/VariantType.js";
+import { VariantOption } from "../models/VariantOption.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

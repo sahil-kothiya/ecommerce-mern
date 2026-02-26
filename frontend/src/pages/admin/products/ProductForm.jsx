@@ -7,7 +7,7 @@ import * as yup from 'yup';
 import notify from '../../../utils/notify';
 import authFetch from '../../../utils/authFetch.js';
 import { resolveImageUrl } from '../../../utils/imageUrl';
-import { useSiteSettings } from '../../../context/SiteSettingsContext';
+import { useSiteSettings } from '../../../context/useSiteSettings';
 import { formatCurrency } from '../../../utils/currency';
 
 const schema = yup.object({

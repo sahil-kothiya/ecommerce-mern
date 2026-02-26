@@ -1,76 +1,47 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 
+// Cart is managed server-side. This slice holds the last-known server state
+// for optimistic UI only. All mutations go through the cart API endpoints.
 const initialState = {
-    items: JSON.parse(localStorage.getItem('cart') || '[]'),
-    totalItems: 0,
-    totalAmount: 0,
-    loading: false,
+  items: [],
+  totalItems: 0,
+  totalAmount: 0,
+  loading: false,
 };
 
 const calculateTotals = (items) => {
-    const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-    const totalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    return { totalItems, totalAmount };
+  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalAmount = items.reduce(
+    (sum, item) => sum + (item.price ?? 0) * item.quantity,
+    0,
+  );
+  return { totalItems, totalAmount };
 };
 
 const cartSlice = createSlice({
-    name: 'cart',
-    initialState: (() => {
-        const { totalItems, totalAmount } = calculateTotals(initialState.items);
-        return { ...initialState, totalItems, totalAmount };
-    })(),
-    reducers: {
-        addToCart: (state, action) => {
-            const existingItem = state.items.find(
-                (item) =>
-                    item.productId === action.payload.productId &&
-                    item.variantId === action.payload.variantId
-            );
-
-            if (existingItem) {
-                existingItem.quantity += action.payload.quantity;
-            } else {
-                state.items.push(action.payload);
-            }
-
-            const { totalItems, totalAmount } = calculateTotals(state.items);
-            state.totalItems = totalItems;
-            state.totalAmount = totalAmount;
-            localStorage.setItem('cart', JSON.stringify(state.items));
-        },
-
-        updateCartItem: (state, action) => {
-            const item = state.items.find((item) => item._id === action.payload.id);
-            if (item) {
-                item.quantity = action.payload.quantity;
-                const { totalItems, totalAmount } = calculateTotals(state.items);
-                state.totalItems = totalItems;
-                state.totalAmount = totalAmount;
-                localStorage.setItem('cart', JSON.stringify(state.items));
-            }
-        },
-
-        removeFromCart: (state, action) => {
-            state.items = state.items.filter((item) => item._id !== action.payload);
-            const { totalItems, totalAmount } = calculateTotals(state.items);
-            state.totalItems = totalItems;
-            state.totalAmount = totalAmount;
-            localStorage.setItem('cart', JSON.stringify(state.items));
-        },
-
-        clearCart: (state) => {
-            state.items = [];
-            state.totalItems = 0;
-            state.totalAmount = 0;
-            localStorage.removeItem('cart');
-        },
-
-        setLoading: (state, action) => {
-            state.loading = action.payload;
-        },
+  name: "cart",
+  initialState,
+  reducers: {
+    // Hydrate slice from server response after any cart API call
+    setCart: (state, action) => {
+      const items = action.payload?.items ?? [];
+      state.items = items;
+      const { totalItems, totalAmount } = calculateTotals(items);
+      state.totalItems = totalItems;
+      state.totalAmount = totalAmount;
     },
+
+    clearCart: (state) => {
+      state.items = [];
+      state.totalItems = 0;
+      state.totalAmount = 0;
+    },
+
+    setLoading: (state, action) => {
+      state.loading = action.payload;
+    },
+  },
 });
 
-export const { addToCart, updateCartItem, removeFromCart, clearCart, setLoading } =
-    cartSlice.actions;
+export const { setCart, clearCart, setLoading } = cartSlice.actions;
 export default cartSlice.reducer;

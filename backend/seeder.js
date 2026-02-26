@@ -10,7 +10,8 @@ import { User } from "./src/models/User.js";
 import { Product } from "./src/models/Product.js";
 import { Order } from "./src/models/Order.js";
 import { Review } from "./src/models/Review.js";
-import { VariantType, VariantOption } from "./src/models/Supporting.models.js";
+import { VariantType } from "./src/models/VariantType.js";
+import { VariantOption } from "./src/models/VariantOption.js";
 
 dotenv.config();
 
@@ -44,7 +45,10 @@ const CATEGORY_PRESETS = Object.freeze([
   "Books",
 ]);
 const CATEGORY_VARIANT_TYPE_RULES = Object.freeze([
-  { keywords: ["mobile", "phone", "smartphone"], types: ["ram", "storage", "color"] },
+  {
+    keywords: ["mobile", "phone", "smartphone"],
+    types: ["ram", "storage", "color"],
+  },
   { keywords: ["television", "tv"], types: ["screen-size"] },
   { keywords: ["laptop", "notebook"], types: ["ram", "storage", "color"] },
   { keywords: ["tablet"], types: ["storage", "color"] },
@@ -52,7 +56,10 @@ const CATEGORY_VARIANT_TYPE_RULES = Object.freeze([
   { keywords: ["headphone", "earbud"], types: ["color"] },
   { keywords: ["camera"], types: ["storage", "color"] },
   { keywords: ["gaming", "console"], types: ["storage", "color"] },
-  { keywords: ["clothing", "shirt", "fashion", "wear"], types: ["size", "color"] },
+  {
+    keywords: ["clothing", "shirt", "fashion", "wear"],
+    types: ["size", "color"],
+  },
   { keywords: ["shoe", "sneaker"], types: ["size", "color"] },
   { keywords: ["furniture"], types: ["material", "color"] },
   { keywords: ["kitchen", "appliance"], types: ["capacity", "color"] },
@@ -88,25 +95,16 @@ export function parseCliArgs(args) {
         Number.parseInt(next, 10) || DEFAULTS.categories,
       );
     if (arg === "--brands")
-      counts.brands = Math.max(
-        1,
-        Number.parseInt(next, 10) || DEFAULTS.brands,
-      );
+      counts.brands = Math.max(1, Number.parseInt(next, 10) || DEFAULTS.brands);
     if (arg === "--users")
-      counts.users = Math.max(
-        2,
-        Number.parseInt(next, 10) || DEFAULTS.users,
-      );
+      counts.users = Math.max(2, Number.parseInt(next, 10) || DEFAULTS.users);
     if (arg === "--products")
       counts.products = Math.max(
         10,
         Number.parseInt(next, 10) || DEFAULTS.products,
       );
     if (arg === "--orders")
-      counts.orders = Math.max(
-        1,
-        Number.parseInt(next, 10) || DEFAULTS.orders,
-      );
+      counts.orders = Math.max(1, Number.parseInt(next, 10) || DEFAULTS.orders);
     if (arg === "--reviews")
       counts.reviews = Math.max(
         1,
@@ -494,7 +492,8 @@ function buildOptionMatrix(typeNames, variantCatalog) {
 
 function cartesianProduct(list) {
   return list.reduce(
-    (acc, items) => acc.flatMap((entry) => items.map((item) => [...entry, item])),
+    (acc, items) =>
+      acc.flatMap((entry) => items.map((item) => [...entry, item])),
     [[]],
   );
 }
@@ -517,14 +516,19 @@ function buildVariants({
     );
   }
 
-  const limitedCombinations = combinations.slice(0, Math.min(4, combinations.length));
+  const limitedCombinations = combinations.slice(
+    0,
+    Math.min(4, combinations.length),
+  );
 
   return limitedCombinations.map((options, index) => {
     const key = options
       .map((option) => `${option.typeName}:${option.value}`)
       .sort()
       .join("|");
-    const readableVariant = options.map((option) => option.displayValue).join(" / ");
+    const readableVariant = options
+      .map((option) => option.displayValue)
+      .join(" / ");
     const suffix = readableVariant.toUpperCase().replace(/[^A-Z0-9]+/g, "-");
 
     return {
@@ -695,7 +699,10 @@ async function seedUsers(count) {
 async function seedProducts(count, categories, brands, variantCatalog) {
   console.log("[Seeder] Seeding products...");
   const takenSlugs = new Set();
-  const withVariantCount = Math.max(1, Math.floor(count * DEFAULTS.variantRatio));
+  const withVariantCount = Math.max(
+    1,
+    Math.floor(count * DEFAULTS.variantRatio),
+  );
   const withoutVariantCount = count - withVariantCount;
   const products = [];
 

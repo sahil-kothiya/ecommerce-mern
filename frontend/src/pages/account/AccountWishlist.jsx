@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import authService from '../../services/authService';
+import apiClient from '../../services/apiClient';
 import { API_CONFIG } from '../../constants';
 import { getPrimaryProductImage, resolveImageUrl } from '../../utils/imageUrl';
 import { formatPrice, getProductDisplayPricing } from '../../utils/productUtils';
 import notify from '../../utils/notify';
-import { useSiteSettings } from '../../context/SiteSettingsContext';
+import { useSiteSettings } from '../../context/useSiteSettings';
 
 const AccountWishlist = () => {
     const { settings } = useSiteSettings();
@@ -17,13 +17,8 @@ const AccountWishlist = () => {
     const load = async () => {
         try {
             setIsLoading(true);
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, {
-                headers: authService.getAuthHeaders(),
-                credentials: 'include',
-            });
-            if (!res.ok) { setItems([]); return; }
-            const data = await res.json();
-            setItems(data?.data?.items || []);
+            const data = await apiClient.get(API_CONFIG.ENDPOINTS.WISHLIST);
+            setItems(data?.data?.items || data?.items || []);
         } catch {
             setItems([]);
         } finally {
@@ -36,15 +31,7 @@ const AccountWishlist = () => {
     const removeItem = async (id) => {
         try {
             setIsBusy(true);
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${id}`, {
-                method: 'DELETE',
-                headers: authService.getAuthHeaders(),
-                credentials: 'include',
-            });
-            if (!res.ok) {
-                const payload = await res.json().catch(() => ({}));
-                throw new Error(payload?.message || 'Failed to remove item');
-            }
+            await apiClient.delete(`${API_CONFIG.ENDPOINTS.WISHLIST}/${id}`);
             notify.success('Removed from wishlist');
             window.dispatchEvent(new Event('wishlist:changed'));
             load();
@@ -58,13 +45,7 @@ const AccountWishlist = () => {
     const moveToCart = async (id) => {
         try {
             setIsBusy(true);
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${id}/move-to-cart`, {
-                method: 'POST',
-                headers: authService.getAuthHeaders(),
-                credentials: 'include',
-            });
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(payload?.message || 'Failed to move to cart');
+            await apiClient.post(`${API_CONFIG.ENDPOINTS.WISHLIST}/${id}/move-to-cart`);
             notify.success('Item moved to cart!');
             window.dispatchEvent(new Event('wishlist:changed'));
             window.dispatchEvent(new Event('cart:changed'));
@@ -109,6 +90,11 @@ const AccountWishlist = () => {
                         const img = getPrimaryProductImage(product);
                         const pricing = getProductDisplayPricing ? getProductDisplayPricing(product) : null;
                         const productUrl = `/products/${product.slug || product._id}`;
+                        const priceLabel = pricing
+                            ? (pricing.isRange
+                                ? formatPrice(pricing.minPrice, currencyCode)
+                                : formatPrice(pricing.finalPrice, currencyCode))
+                            : `${settings?.currencySymbol || '$'}0.00`;
                         return (
                             <div key={item._id} className="group flex flex-col rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 transition hover:shadow-md">
                                 <Link to={productUrl} className="block overflow-hidden rounded-t-2xl">
@@ -126,9 +112,8 @@ const AccountWishlist = () => {
                                     <div className="mt-auto pt-3">
                                         {pricing ? (
                                             <p className="text-base font-bold text-slate-800">
-                                                {formatPrice
-                                                    ? formatPrice(pricing.salePrice ?? pricing.price, currencyCode)
-                                                    : `${settings?.currencySymbol || '$'}${Number(pricing.salePrice ?? pricing.price ?? 0).toFixed(2)}`}
+                                                {pricing.isRange && <span className="mr-1 text-xs font-medium text-slate-500">From</span>}
+                                                {priceLabel}
                                             </p>
                                         ) : null}
                                         <div className="mt-3 flex gap-2">

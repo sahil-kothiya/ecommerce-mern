@@ -11,7 +11,9 @@ import { API_CONFIG, PRODUCT_CONDITIONS } from '../constants';
 import authService from '../services/authService';
 import reviewService from '../services/reviewService';
 import notify from '../utils/notify';
-import { useSiteSettings } from '../context/SiteSettingsContext';
+import { useSiteSettings } from '../context/useSiteSettings';
+import ProductCard from '../components/product/ProductCard';
+import { addRecentlyViewed, getRecentlyViewed } from '../utils/recentlyViewed';
 
 // ============================================================================
 // HELPERS
@@ -147,6 +149,11 @@ const ProductDetailPage = () => {
     const [reviews, setReviews] = useState([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [editingReviewId, setEditingReviewId] = useState(null);
+    const [similarProducts, setSimilarProducts] = useState([]);
+    const [similarProductsLoading, setSimilarProductsLoading] = useState(false);
+    const [recentlyViewed, setRecentlyViewed] = useState([]);
+    const [wishlistItems, setWishlistItems] = useState([]);
+    const [hoveredProduct, setHoveredProduct] = useState(null);
 
     const {
         register,
@@ -218,9 +225,88 @@ const ProductDetailPage = () => {
         }
     };
 
+    const loadSimilarProducts = async (productId, categoryId, brandId) => {
+        if (!productId) {
+            logger.warn('Missing productId for similar products', { productId });
+            return;
+        }
+        try {
+            setSimilarProductsLoading(true);
+            logger.info('Loading similar products', { categoryId, brandId, productId });
+            
+            let url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}?limit=16&status=active`;
+            
+            if (categoryId) {
+                url += `&categoryId=${categoryId}`;
+            }
+            
+            logger.info('Fetching similar products from:', url);
+            
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch similar products');
+            const data = await response.json();
+            
+            // API returns { success: true, data: { products: [...], pagination: {...} } }
+            const products = Array.isArray(data?.data?.products) 
+                ? data.data.products 
+                : (Array.isArray(data?.data) ? data.data : []);
+            
+            const filtered = products.filter(p => p._id !== productId).slice(0, 12);
+            
+            logger.info('Similar products loaded', { 
+                total: products.length, 
+                afterFilter: filtered.length,
+                categoryId,
+                sampleProduct: filtered[0]?.title 
+            });
+            
+            setSimilarProducts(filtered);
+        } catch (error) {
+            logger.error('Failed to load similar products', { error: error.message });
+            setSimilarProducts([]);
+        } finally {
+            setSimilarProductsLoading(false);
+        }
+    };
+
+    const loadWishlist = async () => {
+        if (!authService.isAuthenticated()) { setWishlistItems([]); return; }
+        try {
+            await authService.getCurrentUser();
+
+            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { 
+                headers: authService.getAuthHeaders(),
+                credentials: 'include'
+            });
+            if (!res.ok) {
+                authService.handleUnauthorizedResponse(res);
+                setWishlistItems([]);
+                return;
+            }
+            const data = await res.json();
+            setWishlistItems((Array.isArray(data?.data?.items) ? data.data.items : []).map((i) => i.productId).filter(Boolean));
+        } catch { setWishlistItems([]); }
+    };
+
     useEffect(() => {
         if (product?._id) {
+            addRecentlyViewed(product);
             loadReviews(product._id);
+            const categoryId = product?.category?._id || product?.category?.id;
+            const brandId = product?.brand?._id || product?.brand?.id;
+            logger.info('Product loaded, fetching similar products', { 
+                productId: product._id, 
+                categoryId, 
+                brandId,
+                categoryTitle: product?.category?.title,
+                brandTitle: product?.brand?.title 
+            });
+            loadSimilarProducts(product._id, categoryId, brandId);
+            loadWishlist();
+            
+            const recent = getRecentlyViewed(13).filter(p => p._id !== product._id).slice(0, 12);
+            setRecentlyViewed(recent);
+            logger.info('Recently viewed products loaded', { count: recent.length });
         }
     }, [product?._id]);
 
@@ -343,6 +429,7 @@ const ProductDetailPage = () => {
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
                 method: 'POST',
                 headers: authService.getAuthHeaders(),
+                credentials: 'include',
                 body: JSON.stringify({ productId: product._id, variantId: selectedVariant?._id || null, quantity }),
             });
             const data = await response.json();
@@ -354,6 +441,57 @@ const ProductDetailPage = () => {
     };
 
     const handleBuyNow = async () => { const ok = await handleAddToCart(); if (ok) navigate('/cart'); };
+
+    const handleSimilarProductAddToCart = async (similarProduct) => {
+        if (!authService.isAuthenticated()) { navigate('/login'); return; }
+        if (similarProduct?.hasVariants) { navigate(`/products/${similarProduct._id}`); return; }
+        try {
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
+                method: 'POST',
+                headers: authService.getAuthHeaders(),
+                credentials: 'include',
+                body: JSON.stringify({ productId: similarProduct._id, variantId: null, quantity: 1 }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data?.success) throw new Error(data?.message || 'Failed to add to cart');
+            window.dispatchEvent(new Event('cart:changed'));
+            notify.success('Added to cart');
+        } catch (error) { notify.error(error.message || 'Failed to add to cart'); }
+    };
+
+    const handleWishlistToggle = async (productId) => {
+        if (!authService.isAuthenticated()) { navigate('/login'); return; }
+        const inWishlist = wishlistItems.includes(productId);
+        try {
+            if (inWishlist) {
+                await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${productId}`, { 
+                    method: 'DELETE', 
+                    headers: authService.getAuthHeaders(),
+                    credentials: 'include'
+                });
+                setWishlistItems(prev => prev.filter(id => id !== productId));
+                notify.success('Removed from wishlist');
+            } else {
+                await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { 
+                    method: 'POST', 
+                    headers: authService.getAuthHeaders(),
+                    credentials: 'include',
+                    body: JSON.stringify({ productId })
+                });
+                setWishlistItems(prev => [...prev, productId]);
+                notify.success('Added to wishlist');
+            }
+        } catch { notify.error(inWishlist ? 'Failed to remove from wishlist' : 'Failed to add to wishlist'); }
+    };
+
+    const getSimilarProductImage = (product) => {
+        const images = Array.isArray(product?.images) ? product.images : [];
+        if (images.length === 0) return getRandomProductImage();
+        const primaryImage = images.find(img => img?.isPrimary);
+        const firstImage = primaryImage || images[0];
+        const path = typeof firstImage === 'string' ? firstImage : (firstImage?.path || firstImage?.url);
+        return resolveImageUrl(path, { placeholder: getRandomProductImage() });
+    };
 
     if (isLoading) return (
         <div className="flex min-h-[400px] items-center justify-center">
@@ -701,7 +839,7 @@ const ProductDetailPage = () => {
             </div>
 
             {/* Specifications */}
-            <div className="store-surface p-7">
+            <div className="store-surface p-7 mb-8">
                 <h2 className="store-display mb-5 text-xl text-[#131313]">Specifications</h2>
                 <div className="grid grid-cols-1 gap-0 md:grid-cols-2">
                     {[
@@ -718,7 +856,226 @@ const ProductDetailPage = () => {
                     ))}
                 </div>
             </div>
-        </div>
+
+            {/* Similar Products Section */}
+            <div className="store-surface p-7">
+                <div className="mb-5 flex items-center justify-between">
+                    <h2 className="store-display text-xl text-[#131313]">Similar Products</h2>
+                    {!similarProductsLoading && similarProducts.length > 0 && (
+                        <Link 
+                            to={`/products?categoryId=${product.category?._id || product.category?.id}`}
+                            className="text-sm font-semibold text-[#2874f0] hover:text-[#1557bf] flex items-center gap-1"
+                        >
+                            View All <span>→</span>
+                        </Link>
+                    )}
+                </div>
+                
+                {/* Loading State */}
+                {similarProductsLoading && (
+                    <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                            <div key={i} className="flex-shrink-0 w-[200px] space-y-3 animate-pulse">
+                                <div className="aspect-square bg-slate-200 rounded-xl" />
+                                <div className="h-4 bg-slate-200 rounded w-full" />
+                                <div className="h-4 w-2/3 bg-slate-200 rounded" />
+                                <div className="h-8 bg-slate-200 rounded w-full" />
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Products Grid */}
+                {!similarProductsLoading && similarProducts.length > 0 && (
+                    <div className="relative group">
+                        <div 
+                            id="similar-products-scroll"
+                            className="flex gap-4 overflow-x-auto pb-4 scroll-smooth snap-x snap-mandatory"
+                            style={{
+                                scrollbarWidth: 'thin',
+                                scrollbarColor: '#d1d5db transparent',
+                                WebkitOverflowScrolling: 'touch'
+                            }}
+                        >
+                            {similarProducts.map((item, index) => (
+                                <div key={item._id} className="flex-shrink-0 w-[200px] snap-start">
+                                    <ProductCard 
+                                        product={item}
+                                        currentImage={getSimilarProductImage(item)}
+                                        isHovered={hoveredProduct === item._id}
+                                        inWishlist={wishlistItems.includes(item._id)}
+                                        onHover={() => setHoveredProduct(item._id)}
+                                        onLeave={() => setHoveredProduct(null)}
+                                        onAddToCart={() => handleSimilarProductAddToCart(item)}
+                                        onWishlistToggle={() => handleWishlistToggle(item._id)}
+                                        currencyCode={currencyCode}
+                                        animDelay={index * 50}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                        
+                        {/* Scroll buttons */}
+                        {similarProducts.length > 4 && (
+                            <>
+                                <button
+                                    onClick={() => {
+                                        const container = document.getElementById('similar-products-scroll');
+                                        if (container) container.scrollBy({ left: -400, behavior: 'smooth' });
+                                    }}
+                                    className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 bg-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-slate-50"
+                                    aria-label="Scroll left"
+                                >
+                                    <svg className="w-5 h-5 text-[#212121]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const container = document.getElementById('similar-products-scroll');
+                                        if (container) container.scrollBy({ left: 400, behavior: 'smooth' });
+                                    }}
+                                    className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 bg-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-slate-50"
+                                    aria-label="Scroll right"
+                                >
+                                    <svg className="w-5 h-5 text-[#212121]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* No Products Message */}
+                {!similarProductsLoading && similarProducts.length === 0 && (
+                    <div className="py-12 text-center border-2 border-dashed border-slate-200 rounded-xl">
+                        <svg className="w-16 h-16 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                        </svg>
+                        <p className="text-[#666] text-sm font-medium">No similar products available</p>
+                        <Link 
+                            to="/products" 
+                            className="mt-3 inline-block text-sm text-[#2874f0] hover:text-[#1557bf] font-semibold"
+                        >
+                            Browse all products →
+                        </Link>
+                    </div>
+                )}
+            </div>
+            {/* Recently Viewed Products Section */}
+            <div className="store-surface p-7 mt-8 mb-8">
+                <div className="mb-5 flex items-center justify-between">
+                    <div>
+                        <h2 className="store-display text-xl text-[#131313]">Recently Viewed</h2>
+                        <p className="text-sm text-[#666] mt-1">Products you've viewed recently</p>
+                    </div>
+                    {recentlyViewed.length > 0 && (
+                        <Link 
+                            to="/products"
+                            className="text-sm font-semibold text-[#2874f0] hover:text-[#1557bf] flex items-center gap-1"
+                        >
+                            View All <span>→</span>
+                        </Link>
+                    )}
+                </div>
+
+                {/* Loading Skeleton */}
+                {!product && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                            <div key={i} className="animate-pulse">
+                                <div className="bg-slate-200 h-48 rounded-xl mb-3"></div>
+                                <div className="bg-slate-200 h-4 rounded mb-2"></div>
+                                <div className="bg-slate-200 h-4 w-2/3 rounded"></div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Products Grid */}
+                {product && recentlyViewed.length > 0 && (
+                    <div className="relative group">
+                        <div 
+                            id="recently-viewed-scroll-container"
+                            className="flex gap-4 overflow-x-auto pb-4 scroll-smooth snap-x snap-mandatory"
+                            style={{
+                                scrollbarWidth: 'thin',
+                                scrollbarColor: '#d1d5db transparent',
+                                WebkitOverflowScrolling: 'touch'
+                            }}
+                        >
+                            {recentlyViewed.map((prod) => {
+                                const recentProductImage = prod.images?.[0] 
+                                    ? resolveImageUrl(prod.images[0])
+                                    : getRandomProductImage();
+
+                                return (
+                                    <div key={prod._id} className="flex-shrink-0 w-[200px] snap-start">
+                                        <ProductCard
+                                            product={prod}
+                                            currentImage={recentProductImage}
+                                            inWishlist={wishlistItems.includes(prod._id)}
+                                            onWishlistToggle={() => handleWishlistToggle(prod._id)}
+                                            onAddToCart={() => handleSimilarProductAddToCart(prod)}
+                                            isHovered={hoveredProduct === prod._id}
+                                            onHover={() => setHoveredProduct(prod._id)}
+                                            onLeave={() => setHoveredProduct(null)}
+                                            currencyCode={currencyCode}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Scroll Navigation Arrows */}
+                        {recentlyViewed.length > 4 && (
+                            <>
+                                <button
+                                    onClick={() => {
+                                        const container = document.getElementById('recently-viewed-scroll-container');
+                                        if (container) container.scrollBy({ left: -400, behavior: 'smooth' });
+                                    }}
+                                    className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 bg-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-slate-50"
+                                    aria-label="Scroll left"
+                                >
+                                    <svg className="w-5 h-5 text-[#212121]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const container = document.getElementById('recently-viewed-scroll-container');
+                                        if (container) container.scrollBy({ left: 400, behavior: 'smooth' });
+                                    }}
+                                    className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 bg-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-slate-50"
+                                    aria-label="Scroll right"
+                                >
+                                    <svg className="w-5 h-5 text-[#212121]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* No Products Message */}
+                {product && recentlyViewed.length === 0 && (
+                    <div className="py-12 text-center border-2 border-dashed border-slate-200 rounded-xl">
+                        <svg className="w-16 h-16 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="text-[#666] text-sm font-medium">No recently viewed products</p>
+                        <Link 
+                            to="/products" 
+                            className="mt-3 inline-block text-sm text-[#2874f0] hover:text-[#1557bf] font-semibold"
+                        >
+                            Browse products →
+                        </Link>
+                    </div>
+                )}
+            </div>        </div>
     );
 };
 

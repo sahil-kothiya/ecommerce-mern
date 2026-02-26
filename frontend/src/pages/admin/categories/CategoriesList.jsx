@@ -28,7 +28,7 @@ const CategoriesList = () => {
             setIsLoading(true);
             const response = await fetch(
                 `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`,
-                { headers: authService.getAuthHeaders() }
+                { headers: authService.getAuthHeaders(), credentials: 'include' }
             );
             const data = await response.json();
 
@@ -62,6 +62,7 @@ const CategoriesList = () => {
                 {
                     method: 'DELETE',
                     headers: authService.getAuthHeaders(),
+                    credentials: 'include',
                 }
             );
 

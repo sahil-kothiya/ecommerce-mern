@@ -95,9 +95,9 @@ const CategoryEditorPage = () => {
         try {
             const headers = authService.getAuthHeaders();
             const [catRes, brandRes, filterRes] = await Promise.all([
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`, { headers }),
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}?page=1&limit=500`, { headers }),
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/filters`, { headers }),
+                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`, { headers, credentials: 'include' }),
+                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}?page=1&limit=500`, { headers, credentials: 'include' }),
+                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/filters`, { headers, credentials: 'include' }),
             ]);
 
             const catJson = await catRes.json();
@@ -134,7 +134,7 @@ const CategoryEditorPage = () => {
         try {
             setIsLoading(true);
             const headers = authService.getAuthHeaders();
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${id}`, { headers });
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${id}`, { headers, credentials: 'include' });
             const data = await response.json();
 
             if (!response.ok || !data?.data) {
@@ -215,6 +215,7 @@ const CategoryEditorPage = () => {
             const response = await fetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
                 headers,
+                credentials: 'include',
                 body: payload,
             });
 

@@ -58,7 +58,8 @@ const CategoryTreeManager = () => {
             const headers = authService.getAuthHeaders();
 
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`, {
-                headers
+                headers,
+                credentials: 'include',
             });
             
             logger.info('Response status:', response.status);
@@ -341,6 +342,7 @@ const CategoryTreeManager = () => {
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/reorder`, {
                 method: 'POST',
                 headers: authService.getAuthHeaders(),
+                credentials: 'include',
                 body: JSON.stringify({ updates }),
             });
 
@@ -386,6 +388,7 @@ const CategoryTreeManager = () => {
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryToDelete.id}`, {
                 method: 'DELETE',
                 headers: authService.getAuthHeaders(),
+                credentials: 'include',
             });
 
             if (response.status === 401) {
@@ -416,6 +419,7 @@ const toggleStatus = async (categoryId, currentStatus) => {
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryId}`, {
                 method: 'PUT',
                 headers: authService.getAuthHeaders(),
+                credentials: 'include',
                 body: JSON.stringify({ status: newStatus }),
             });
 
@@ -434,6 +438,7 @@ const toggleStatus = async (categoryId, currentStatus) => {
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryId}`, {
                 method: 'PUT',
                 headers: authService.getAuthHeaders(),
+                credentials: 'include',
                 body: JSON.stringify({ isFeatured: !currentIsFeatured }),
             });
 

@@ -20,6 +20,16 @@ const getCookieOptions = () => {
 
 const createToken = () => crypto.randomBytes(32).toString("hex");
 
+/**
+ * CSRF Protection Middleware
+ *
+ * Security Policy:
+ * - Cookie-based sessions (accessToken/refreshToken cookies) MUST include CSRF token
+ * - Authorization: Bearer header requests bypass CSRF (assumed to be trusted SPA clients)
+ *
+ * If your API accepts Bearer tokens from untrusted origins, add explicit CSRF
+ * validation for those routes or re-architect to use cookie-only auth.
+ */
 export const csrfProtection = (req, res, next) => {
   let csrfToken = req.cookies?.[CSRF_COOKIE_NAME];
   if (!csrfToken) {

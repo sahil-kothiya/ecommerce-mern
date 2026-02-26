@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import authService from '../../services/authService';
+import apiClient from '../../services/apiClient';
 import { API_CONFIG } from '../../constants';
 
 const StarRating = ({ rating }) => (
@@ -24,15 +24,11 @@ const AccountReviews = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const authHeaders = useMemo(() => authService.getAuthHeaders(), []);
-
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.REVIEWS}?mine=true`, { headers: authHeaders });
-                const payload = await res.json();
-                if (!res.ok) throw new Error(payload?.message || 'Failed to load reviews');
-                const list = payload?.data?.reviews || payload?.data || [];
+                const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.REVIEWS}/mine`);
+                const list = data?.data?.reviews || data?.data || [];
                 setReviews(Array.isArray(list) ? list : []);
             } catch (err) {
                 setError(err.message);
@@ -41,7 +37,7 @@ const AccountReviews = () => {
             }
         };
         load();
-    }, [authHeaders]);
+    }, []);
 
     if (isLoading) {
         return (
@@ -76,14 +72,17 @@ const AccountReviews = () => {
                 <div className="space-y-4">
                     {reviews.map((review) => (
                         <div key={review._id} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+                            {(() => {
+                                const product = review.product || review.productId;
+                                return (
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
-                                    {review.product && (
+                                    {product && (
                                         <Link
-                                            to={`/products/${review.product._id || review.product}`}
+                                            to={`/products/${product._id || product}`}
                                             className="mb-1 block truncate text-sm font-bold text-blue-600 hover:underline"
                                         >
-                                            {review.product.name || 'View Product →'}
+                                            {product.title || product.name || 'View Product →'}
                                         </Link>
                                     )}
                                     <div className="mb-2 flex items-center gap-3">
@@ -100,6 +99,8 @@ const AccountReviews = () => {
                                     {review.status || 'pending'}
                                 </span>
                             </div>
+                                );
+                            })()}
                         </div>
                     ))}
                 </div>

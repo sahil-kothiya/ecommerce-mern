@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import authService from '../../services/authService';
+import apiClient from '../../services/apiClient';
 import { API_CONFIG } from '../../constants';
 
 const StatCard = ({ label, value, icon, to, color }) => (
@@ -28,22 +28,17 @@ const AccountDashboard = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const authHeaders = useMemo(() => authService.getAuthHeaders(), []);
-
     useEffect(() => {
         const load = async () => {
             try {
                 setIsLoading(true);
-                const [profileRes, ordersRes] = await Promise.all([
-                    fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/me`, { headers: authHeaders }),
-                    fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}`, { headers: authHeaders }),
+                const [profileData, ordersData] = await Promise.all([
+                    apiClient.get(`${API_CONFIG.ENDPOINTS.AUTH}/me`),
+                    apiClient.get(API_CONFIG.ENDPOINTS.ORDERS),
                 ]);
 
-                const profilePayload = await profileRes.json();
-                const ordersPayload = await ordersRes.json();
-
-                if (profileRes.ok) setUser(profilePayload?.data?.user || null);
-                if (ordersRes.ok) setOrders(Array.isArray(ordersPayload?.data?.orders) ? ordersPayload.data.orders : []);
+                if (profileData) setUser(profileData?.data?.user || profileData?.user || null);
+                if (ordersData) setOrders(Array.isArray(ordersData?.data?.orders) ? ordersData.data.orders : ordersData?.orders || []);
             } catch (err) {
                 setError(err.message || 'Failed to load dashboard');
             } finally {
@@ -51,7 +46,7 @@ const AccountDashboard = () => {
             }
         };
         load();
-    }, [authHeaders]);
+    }, []);
 
     const stats = useMemo(() => {
         const total = orders.length;

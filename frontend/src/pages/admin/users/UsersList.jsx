@@ -70,6 +70,7 @@ const UsersList = () => {
 
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}?${query.toString()}`, {
                 headers: authService.getAuthHeaders({}, false),
+                credentials: 'include',
             });
             if (authService.handleUnauthorizedResponse(response)) return;
             const data = await response.json();
@@ -131,6 +132,7 @@ const UsersList = () => {
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}/${userToDelete._id}`, {
                 method: 'DELETE',
                 headers: authService.getAuthHeaders({}, false),
+                credentials: 'include',
             });
             if (authService.handleUnauthorizedResponse(response)) return;
             const data = await response.json();

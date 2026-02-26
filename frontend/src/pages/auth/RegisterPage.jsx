@@ -8,7 +8,7 @@ import * as yup from 'yup';
 import authService from '../../services/authService';
 import { ErrorAlert, FieldError } from '../../components/common';
 import { processApiError, getFieldClasses, getFieldError } from '../../utils/errorUtils';
-import { useSiteSettings } from '../../context/SiteSettingsContext.jsx';
+import { useSiteSettings } from '../../context/useSiteSettings';
 import { resolveImageUrl } from '../../utils/imageUrl';
 
 const registerSchema = yup.object().shape({

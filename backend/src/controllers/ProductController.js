@@ -1,7 +1,8 @@
 import { Product } from "../models/Product.js";
 import { Category } from "../models/Category.js";
 import { Brand } from "../models/Brand.js";
-import { VariantType, VariantOption } from "../models/Supporting.models.js";
+import { VariantType } from "../models/VariantType.js";
+import { VariantOption } from "../models/VariantOption.js";
 import mongoose from "mongoose";
 import slugify from "slugify";
 import { logger } from "../utils/logger.js";
@@ -38,6 +39,7 @@ const PRODUCT_LIST_SELECT = [
   "basePrice",
   "baseDiscount",
   "baseStock",
+  "variants",
   "images",
   "category",
   "brand",

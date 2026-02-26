@@ -1,12 +1,10 @@
 import mongoose from "mongoose";
-import Stripe from "stripe";
-import { Order } from "../models/Order.js";
+import { BaseController } from "../core/BaseController.js";
+import { OrderService } from "../services/OrderService.js";
 import { Cart } from "../models/Cart.js";
 import { Product } from "../models/Product.js";
-import { Setting } from "../models/Setting.js";
+import { Order } from "../models/Order.js";
 import { AppError } from "../middleware/errorHandler.js";
-import { logger } from "../utils/logger.js";
-import { calculateCartTotals } from "../utils/pricing.js";
 
 const ORDER_STATUSES = ["new", "process", "delivered", "cancelled"];
 const PAYMENT_STATUSES = ["paid", "unpaid"];
@@ -42,7 +40,9 @@ const parseSort = (sortInput = "-createdAt") => {
 };
 
 const buildSearchQuery = (search = "") => {
-  const trimmed = String(search || "").trim().slice(0, 80);
+  const trimmed = String(search || "")
+    .trim()
+    .slice(0, 80);
   if (!trimmed) return null;
   const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -56,63 +56,7 @@ const buildSearchQuery = (search = "") => {
   };
 };
 
-const PAYMENT_METHODS = ["cod", "stripe", "paypal"];
-
 const round = (value) => Math.round((Number(value) || 0) * 100) / 100;
-
-const getPrimaryImagePath = (images = []) => {
-  if (!Array.isArray(images) || !images.length) return null;
-  const primary = images.find((image) => image?.isPrimary);
-  return (
-    primary?.path || primary?.url || images[0]?.path || images[0]?.url || null
-  );
-};
-
-const enrichOrderItemsWithResolvedImages = async (orders = []) => {
-  const normalizedOrders = Array.isArray(orders) ? orders : [orders];
-  const productIds = [
-    ...new Set(
-      normalizedOrders
-        .flatMap((order) => order?.items || [])
-        .map((item) => item?.productId?.toString())
-        .filter(Boolean),
-    ),
-  ];
-
-  if (!productIds.length) return normalizedOrders;
-
-  const products = await Product.find({ _id: { $in: productIds } })
-    .select("_id images variants")
-    .lean();
-  const productMap = new Map(
-    products.map((product) => [product._id.toString(), product]),
-  );
-
-  return normalizedOrders.map((order) => ({
-    ...order,
-    items: (order.items || []).map((item) => {
-      const product = productMap.get(item?.productId?.toString());
-      if (!product) return item;
-
-      const variant = item.variantId
-        ? (product.variants || []).find(
-            (entry) => entry._id.toString() === item.variantId.toString(),
-          )
-        : null;
-
-      const resolvedImage =
-        getPrimaryImagePath(variant?.images) ||
-        getPrimaryImagePath(product.images) ||
-        item.image ||
-        null;
-
-      return {
-        ...item,
-        image: resolvedImage || item.image,
-      };
-    }),
-  }));
-};
 
 const resolveOrderItemPricing = (product, variantId = null) => {
   if (variantId) {
@@ -141,389 +85,62 @@ const resolveOrderItemPricing = (product, variantId = null) => {
   };
 };
 
-// Returns true when the error means MongoDB is not in a replica set (transactions unsupported)
-const isTransactionUnsupportedError = (err) => {
-  if (err?.code === 20) return true;
-  const msg = String(err?.message || "").toLowerCase();
-  return (
-    msg.includes("transaction") &&
-    (msg.includes("replica") || msg.includes("mongos"))
-  );
-};
-
-const buildOrderFromCart = async (sess, params) => {
-  const {
-    userId,
-    firstName,
-    lastName,
-    email,
-    phone,
-    address1,
-    address2,
-    city,
-    state,
-    postCode,
-    country,
-    paymentMethod,
-    stripePaymentStatus,
-    stripeTransactionId,
-    idempotencyKey,
-    notes,
-    couponCode,
-  } = params;
-
-  const cartItems = sess
-    ? await Cart.find({ userId }).session(sess).lean()
-    : await Cart.find({ userId }).lean();
-
-  if (!cartItems.length) throw new AppError("Cart is empty", 400);
-
-  const productIds = [
-    ...new Set(cartItems.map((item) => item.productId.toString())),
-  ];
-  const productQuery = Product.find({
-    _id: { $in: productIds },
-    status: "active",
-  });
-  const products = sess
-    ? await productQuery.session(sess).lean()
-    : await productQuery.lean();
-
-  const productMap = new Map(
-    products.map((item) => [item._id.toString(), item]),
-  );
-
-  const orderItems = [];
-  let totalQuantity = 0;
-  let subTotal = 0;
-
-  for (const cartItem of cartItems) {
-    const product = productMap.get(cartItem.productId.toString());
-    if (!product)
-      throw new AppError("One or more cart products are unavailable", 400);
-
-    const quantity = Number(cartItem.quantity || 0);
-    if (!quantity || quantity < 1)
-      throw new AppError("Invalid cart quantity", 400);
-
-    let itemTitle = product.title;
-    let itemSku = product.baseSku;
-    let itemPrice = round(
-      product.basePrice * (1 - (product.baseDiscount || 0) / 100),
-    );
-    let itemImage = getPrimaryImagePath(product.images);
-    let stockUpdated = null;
-
-    if (cartItem.variantId) {
-      const variant = (product.variants || []).find(
-        (entry) => entry._id.toString() === cartItem.variantId.toString(),
-      );
-      if (!product.hasVariants || !variant || variant.status !== "active") {
-        throw new AppError("One or more cart variants are unavailable", 400);
-      }
-
-      itemTitle = `${product.title} (${variant.displayName || variant.sku})`;
-      itemSku = variant.sku;
-      itemPrice = round(variant.price * (1 - (variant.discount || 0) / 100));
-      itemImage = getPrimaryImagePath(variant.images) || itemImage;
-
-      stockUpdated = await Product.findOneAndUpdate(
-        {
-          _id: product._id,
-          status: "active",
-          "variants._id": variant._id,
-          "variants.stock": { $gte: quantity },
-        },
-        { $inc: { "variants.$.stock": -quantity, salesCount: quantity } },
-        sess ? { session: sess, new: true } : { new: true },
-      ).lean();
-    } else {
-      stockUpdated = await Product.findOneAndUpdate(
-        {
-          _id: product._id,
-          status: "active",
-          hasVariants: false,
-          baseStock: { $gte: quantity },
-        },
-        { $inc: { baseStock: -quantity, salesCount: quantity } },
-        sess ? { session: sess, new: true } : { new: true },
-      ).lean();
-    }
-
-    if (!stockUpdated)
-      throw new AppError(`Insufficient stock for ${product.title}`, 400);
-
-    const amount = round(itemPrice * quantity);
-    subTotal += amount;
-    totalQuantity += quantity;
-
-    orderItems.push({
-      productId: product._id,
-      variantId: cartItem.variantId || null,
-      title: itemTitle,
-      sku: itemSku || `SKU-${product._id.toString().slice(-8).toUpperCase()}`,
-      price: itemPrice,
-      quantity,
-      amount,
-      image: itemImage || undefined,
-    });
+export class OrderController extends BaseController {
+  constructor() {
+    super();
+    this.orderService = new OrderService();
   }
 
-  subTotal = round(subTotal);
-  const shippingCost = subTotal >= 100 ? 0 : 10;
-  const couponDiscount = 0;
-  const totalAmount = round(subTotal + shippingCost - couponDiscount);
-
-  const order = new Order({
-    userId,
-    items: orderItems,
-    subTotal,
-    shippingCost,
-    couponDiscount,
-    totalAmount,
-    quantity: totalQuantity,
-    firstName: String(firstName).trim(),
-    lastName: String(lastName).trim(),
-    email: String(email).trim().toLowerCase(),
-    phone: String(phone).trim(),
-    address1: String(address1).trim(),
-    address2: String(address2 || "").trim() || undefined,
-    city: String(city).trim(),
-    state: String(state || "").trim() || undefined,
-    postCode: String(postCode).trim(),
-    country: String(country).trim(),
-    paymentMethod,
-    paymentStatus: stripePaymentStatus,
-    transactionId: stripeTransactionId,
-    idempotencyKey: idempotencyKey || undefined,
-    status: "new",
-    couponCode: String(couponCode || "").trim() || undefined,
-    notes: String(notes || "").trim() || undefined,
-  });
-
-  await order.save(sess ? { session: sess } : {});
-
-  if (sess) {
-    await Cart.deleteMany({ userId }).session(sess);
-  } else {
-    await Cart.deleteMany({ userId });
-  }
-
-  return order.toObject();
-};
-
-export class OrderController {
   async store(req, res, next) {
-    const session = await mongoose.startSession();
-    let createdOrder = null;
-
     try {
       const userId = req.user?._id || req.user?.id;
       const idempotencyKey = String(req.headers["idempotency-key"] || "")
         .trim()
         .slice(0, 120);
-      const {
-        firstName,
-        lastName,
-        email,
-        phone,
-        address1,
-        address2,
-        city,
-        state,
-        postCode,
-        country,
-        paymentMethod,
-        notes,
-        couponCode,
-      } = req.body;
 
-      if (!PAYMENT_METHODS.includes(paymentMethod)) {
-        throw new AppError("Invalid payment method", 422);
-      }
-
-      if (idempotencyKey) {
-        const existingOrder = await Order.findOne({ userId, idempotencyKey }).lean();
-        if (existingOrder) {
-          return res.status(200).json({
-            success: true,
-            message: "Order already created for this idempotency key",
-            data: existingOrder,
-          });
-        }
-      }
-
-      let stripePaymentStatus = "unpaid";
-      let stripeTransactionId = undefined;
-
-      if (paymentMethod === "stripe") {
-        const { paymentIntentId } = req.body;
-        if (!paymentIntentId) {
-          throw new AppError("Stripe payment intent ID is required", 422);
-        }
-        const settings = await Setting.findOne({ key: "main" })
-          .select("stripeSecretKey")
-          .lean();
-        if (!settings?.stripeSecretKey) {
-          throw new AppError("Stripe is not configured", 503);
-        }
-        const stripe = new Stripe(settings.stripeSecretKey);
-        const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
-
-        if (intent.status !== "succeeded") {
-          throw new AppError(
-            `Payment not completed. Status: ${intent.status}`,
-            402,
-          );
-        }
-
-        const cartItems = await Cart.find({ userId }).lean();
-        if (!cartItems.length) {
-          throw new AppError("Cart is empty", 400);
-        }
-
-        const totals = calculateCartTotals(cartItems);
-        const paidAmountInCents = Number(intent.amount_received || intent.amount || 0);
-        const paidCurrency = String(intent.currency || "").toLowerCase();
-        const intentUserId = String(intent.metadata?.userId || "");
-
-        if (intentUserId !== String(userId)) {
-          throw new AppError("Payment intent does not belong to this user", 403);
-        }
-        if (paidCurrency !== "usd") {
-          throw new AppError("Invalid payment currency", 400);
-        }
-        if (paidAmountInCents !== totals.amountInCents) {
-          throw new AppError(
-            "Payment amount does not match current cart total. Please retry checkout.",
-            409,
-          );
-        }
-
-        const duplicatePaymentOrder = await Order.findOne({
-          transactionId: paymentIntentId,
-        }).lean();
-        if (duplicatePaymentOrder) {
-          throw new AppError("This payment intent has already been used", 409);
-        }
-
-        stripePaymentStatus = "paid";
-        stripeTransactionId = paymentIntentId;
-        logger.info(`Stripe payment verified: ${paymentIntentId}`);
-      }
-
-      const requiredFields = {
-        firstName,
-        lastName,
-        email,
-        phone,
-        address1,
-        city,
-        postCode,
-        country,
-      };
-      const missingField = Object.entries(requiredFields).find(
-        ([, value]) => !String(value || "").trim(),
-      );
-      if (missingField) {
-        throw new AppError(`Missing required field: ${missingField[0]}`, 422);
-      }
-
-      const orderParams = {
+      const result = await this.orderService.createOrder(
         userId,
-        firstName,
-        lastName,
-        email,
-        phone,
-        address1,
-        address2,
-        city,
-        state,
-        postCode,
-        country,
-        paymentMethod,
-        stripePaymentStatus,
-        stripeTransactionId,
+        req.body,
         idempotencyKey,
-        notes,
-        couponCode,
-      };
+      );
 
-      // Attempt within a transaction; fall back to non-transactional for standalone MongoDB
-      try {
-        await session.withTransaction(async () => {
-              createdOrder = await buildOrderFromCart(session, orderParams);
-            });
-      } catch (txErr) {
-        if (isTransactionUnsupportedError(txErr)) {
-          logger.warn(
-            "MongoDB transactions unavailable (standalone mode) — retrying without transaction",
-          );
-          createdOrder = await buildOrderFromCart(null, orderParams);
-        } else {
-          throw txErr;
-        }
+      if (result.alreadyExists) {
+        return res.status(200).json({
+          success: true,
+          message: "Order already created for this idempotency key",
+          data: result.order,
+        });
       }
 
       return res.status(201).json({
         success: true,
         message: "Order placed successfully",
-        data: createdOrder,
+        data: result.order,
       });
     } catch (error) {
-      if (!(error instanceof AppError)) {
-        logger.error("Unexpected order creation error:", {
-          message: error.message,
-          name: error.name,
-          code: error.code,
-          stack: error.stack,
-        });
-      }
       return next(
         error instanceof AppError
           ? error
           : new AppError(error.message || "Failed to create order", 500),
       );
-    } finally {
-      await session.endSession();
     }
   }
 
   async index(req, res, next) {
     try {
       const userId = req.user?._id || req.user?.id;
-      const { page, limit, skip } = parsePagination(req.query, 10, 50);
-      const sort = parseSort(req.query.sort);
-
-      const query = { userId };
-      if (ORDER_STATUSES.includes(req.query.status)) {
-        query.status = req.query.status;
-      }
-      if (PAYMENT_STATUSES.includes(req.query.paymentStatus)) {
-        query.paymentStatus = req.query.paymentStatus;
-      }
-      const searchQuery = buildSearchQuery(req.query.search);
-      if (searchQuery) Object.assign(query, searchQuery);
-
-      const [orders, total] = await Promise.all([
-        Order.find(query).sort(sort).skip(skip).limit(limit).lean(),
-        Order.countDocuments(query),
-      ]);
-      const enrichedOrders = await enrichOrderItemsWithResolvedImages(orders);
+      const result = await this.orderService.getUserOrders(userId, {
+        page: req.query.page,
+        limit: req.query.limit,
+        status: req.query.status,
+        paymentStatus: req.query.paymentStatus,
+        search: req.query.search,
+        sort: req.query.sort,
+      });
 
       return res.json({
         success: true,
-        data: {
-          orders: enrichedOrders,
-          pagination: {
-            page,
-            limit,
-            total,
-            pages: Math.ceil(total / limit),
-            hasPrev: page > 1,
-            hasNext: page * limit < total,
-          },
-        },
+        data: result,
       });
     } catch (error) {
       return next(new AppError("Failed to fetch orders", 500));
@@ -532,52 +149,27 @@ export class OrderController {
 
   async show(req, res, next) {
     try {
-      const { id } = req.params;
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return next(new AppError("Invalid order ID", 400));
-      }
-
       const userId = req.user?._id || req.user?.id;
-      const order = await Order.findOne({ _id: id, userId }).lean();
+      const order = await this.orderService.getOrderById(req.params.id, userId);
 
-      if (!order) {
-        return next(new AppError("Order not found", 404));
-      }
-
-      const [enrichedOrder] = await enrichOrderItemsWithResolvedImages([order]);
-      return res.json({ success: true, data: enrichedOrder });
+      return res.json({ success: true, data: order });
     } catch (error) {
-      return next(new AppError("Failed to fetch order", 500));
+      return next(
+        error instanceof AppError
+          ? error
+          : new AppError("Failed to fetch order", 500),
+      );
     }
   }
 
   async listReturns(req, res, next) {
     try {
       const userId = req.user?._id || req.user?.id;
-      const orders = await Order.find({
-        userId,
-        "returnRequests.0": { $exists: true },
-      })
-        .select("orderNumber status createdAt returnRequests")
-        .sort({ createdAt: -1 })
-        .lean();
-
-      const returnRequests = orders.flatMap((order) =>
-        (order.returnRequests || []).map((request) => ({
-          ...request,
-          orderId: order._id,
-          orderNumber: order.orderNumber,
-          orderStatus: order.status,
-          orderCreatedAt: order.createdAt,
-        })),
-      );
+      const result = await this.orderService.getUserReturnRequests(userId);
 
       return res.json({
         success: true,
-        data: {
-          returnRequests,
-          total: returnRequests.length,
-        },
+        data: result,
       });
     } catch (error) {
       return next(new AppError("Failed to fetch returns", 500));
@@ -587,156 +179,29 @@ export class OrderController {
   async reorder(req, res, next) {
     try {
       const userId = req.user?._id || req.user?.id;
-      const { id } = req.params;
-
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return next(new AppError("Invalid order ID", 400));
-      }
-
-      const order = await Order.findOne({ _id: id, userId }).lean();
-      if (!order) {
-        return next(new AppError("Order not found", 404));
-      }
-
-      const addedItems = [];
-      const skippedItems = [];
-      const orderItems = order.items || [];
-      const productIds = [
-        ...new Set(orderItems.map((item) => String(item.productId))),
-      ];
-      const products = await Product.find({
-        _id: { $in: productIds },
-        status: "active",
-      }).lean();
-      const productMap = new Map(
-        products.map((product) => [String(product._id), product]),
+      const result = await this.orderService.reorderFromExisting(
+        req.params.id,
+        userId,
       );
-      const cartRows = await Cart.find({ userId, productId: { $in: productIds } }).lean();
-      const existingMap = new Map(
-        cartRows.map((row) => [
-          `${String(row.productId)}:${String(row.variantId || "")}`,
-          row,
-        ]),
-      );
-
-      const bulkUpdates = [];
-
-      for (const item of orderItems) {
-        const product = productMap.get(String(item.productId));
-
-        if (!product) {
-          skippedItems.push({
-            productId: item.productId,
-            reason: "Product unavailable",
-          });
-          continue;
-        }
-
-        const pricing = resolveOrderItemPricing(product, item.variantId);
-        if (!pricing) {
-          skippedItems.push({
-            productId: item.productId,
-            variantId: item.variantId,
-            reason: "Variant unavailable",
-          });
-          continue;
-        }
-
-        if (pricing.stock < 1) {
-          skippedItems.push({
-            productId: item.productId,
-            variantId: item.variantId,
-            reason: "Out of stock",
-          });
-          continue;
-        }
-
-        const compositeKey = `${String(product._id)}:${String(
-          pricing.variantId || "",
-        )}`;
-        const existing = existingMap.get(compositeKey);
-
-        const requestedQty = Math.max(1, Number(item.quantity || 1));
-        const existingQty = existing?.quantity || 0;
-        const maxAddable = Math.max(0, pricing.stock - existingQty);
-        const quantityToAdd = Math.min(requestedQty, maxAddable);
-
-        if (quantityToAdd < 1) {
-          skippedItems.push({
-            productId: item.productId,
-            variantId: item.variantId,
-            reason: "Stock limit reached in cart",
-          });
-          continue;
-        }
-
-        if (existing) {
-          const nextQty = existingQty + quantityToAdd;
-          bulkUpdates.push({
-            updateOne: {
-              filter: { _id: existing._id },
-              update: {
-                $set: {
-                  quantity: nextQty,
-                  price: pricing.price,
-                  amount: round(nextQty * pricing.price),
-                },
-              },
-            },
-          });
-          existing.quantity = nextQty;
-          existing.price = pricing.price;
-          existing.amount = round(nextQty * pricing.price);
-        } else {
-          bulkUpdates.push({
-            insertOne: {
-              document: {
-                userId,
-                productId: product._id,
-                variantId: pricing.variantId,
-                quantity: quantityToAdd,
-                price: pricing.price,
-                amount: round(quantityToAdd * pricing.price),
-              },
-            },
-          });
-          existingMap.set(compositeKey, {
-            quantity: quantityToAdd,
-            price: pricing.price,
-            amount: round(quantityToAdd * pricing.price),
-          });
-        }
-
-        addedItems.push({
-          productId: item.productId,
-          variantId: item.variantId,
-          quantity: quantityToAdd,
-        });
-      }
-
-      if (bulkUpdates.length > 0) {
-        await Cart.bulkWrite(bulkUpdates, { ordered: false });
-      }
-
-      const cartItems = await Cart.find({ userId })
-        .populate("productId")
-        .sort({ createdAt: -1 })
-        .lean();
 
       return res.json({
         success: true,
-        message:
-          addedItems.length > 0
-            ? "Items added to cart from order"
-            : "No items were added from this order",
+        message: result.message,
         data: {
-          addedItems,
-          skippedItems,
-          cartItems,
+          addedItems: result.cart,
+          skippedItems: result.unavailableItems.map((title) => ({
+            reason: "Unavailable",
+            title,
+          })),
+          cartItems: result.cart,
         },
       });
     } catch (error) {
-      return next(new AppError("Failed to reorder items", 500));
+      return next(
+        error instanceof AppError
+          ? error
+          : new AppError("Failed to reorder items", 500),
+      );
     }
   }
 
@@ -848,7 +313,8 @@ export class OrderController {
         Order.countDocuments(query),
       ]);
 
-      const enrichedOrders = await enrichOrderItemsWithResolvedImages(orders);
+      const enrichedOrders =
+        await this.orderService.enrichOrderItemsWithImages(orders);
 
       return res.json({
         success: true,
@@ -956,7 +422,8 @@ export class OrderController {
         return next(new AppError("Order not found", 404));
       }
 
-      const [enrichedOrder] = await enrichOrderItemsWithResolvedImages([order]);
+      const [enrichedOrder] =
+        await this.orderService.enrichOrderItemsWithImages([order]);
 
       return res.json({
         success: true,

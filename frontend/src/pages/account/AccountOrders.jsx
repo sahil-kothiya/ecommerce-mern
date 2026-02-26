@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import authService from '../../services/authService';
+import apiClient from '../../services/apiClient';
 import { API_CONFIG } from '../../constants';
 import { resolveImageUrl } from '../../utils/imageUrl';
-import { useSiteSettings } from '../../context/SiteSettingsContext';
+import { useSiteSettings } from '../../context/useSiteSettings';
 import { formatCurrency } from '../../utils/currency';
 
 // ============================================================================
@@ -274,16 +274,12 @@ const AccountOrders = () => {
     const [statusFilter, setStatusFilter] = useState('');
     const [expandedOrder, setExpandedOrder] = useState(null);
 
-    const authHeaders = useMemo(() => authService.getAuthHeaders(), []);
-
     useEffect(() => {
         const load = async () => {
             try {
                 setIsLoading(true);
-                const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}`, { headers: authHeaders });
-                const payload = await res.json();
-                if (!res.ok) throw new Error(payload?.message || 'Failed to load orders');
-                setOrders(Array.isArray(payload?.data?.orders) ? payload.data.orders : []);
+                const data = await apiClient.get(API_CONFIG.ENDPOINTS.ORDERS);
+                setOrders(Array.isArray(data?.data?.orders) ? data.data.orders : data?.orders || []);
             } catch (err) {
                 setError(err.message);
             } finally {
@@ -291,7 +287,7 @@ const AccountOrders = () => {
             }
         };
         load();
-    }, [authHeaders]);
+    }, []);
 
     const filteredOrders = useMemo(() =>
         statusFilter ? orders.filter((o) => o.status === statusFilter) : orders,
@@ -305,14 +301,9 @@ const AccountOrders = () => {
     const handleReorder = async (orderId) => {
         try {
             setActionOrderId(orderId);
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}/${orderId}/reorder`, {
-                method: 'POST',
-                headers: authHeaders,
-            });
-            const payload = await res.json();
-            if (!res.ok) throw new Error(payload?.message || 'Failed to reorder');
-            const added   = payload?.data?.addedItems?.length  || 0;
-            const skipped = payload?.data?.skippedItems?.length || 0;
+            const data = await apiClient.post(`${API_CONFIG.ENDPOINTS.ORDERS}/${orderId}/reorder`);
+            const added   = data?.data?.addedItems?.length  || 0;
+            const skipped = data?.data?.skippedItems?.length || 0;
             notify(`Reorder complete: ${added} item(s) added to cart${skipped ? `, ${skipped} skipped` : ''}.`);
         } catch (err) {
             notify(err.message, false);
@@ -329,13 +320,9 @@ const AccountOrders = () => {
         }
         try {
             setActionOrderId(orderId);
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}/${orderId}/returns`, {
-                method: 'POST',
-                headers: { ...authHeaders, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reason: reason.trim() }),
+            await apiClient.post(`${API_CONFIG.ENDPOINTS.ORDERS}/${orderId}/returns`, {
+                reason: reason.trim()
             });
-            const payload = await res.json();
-            if (!res.ok) throw new Error(payload?.message || 'Failed to submit return');
             notify('Return request submitted successfully.');
         } catch (err) {
             notify(err.message, false);

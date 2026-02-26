@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { API_CONFIG } from "../../../constants";
 import ConfirmDialog from "../../../components/common/ConfirmDialog";
 import notify from "../../../utils/notify";
+import { formatPrice, getProductDisplayPricing } from "../../../utils/productUtils";
 
 const FILTER_COUNTS_DEFAULT = Object.freeze({
   all: 0,
@@ -337,28 +338,10 @@ const ProductsList = () => {
           {products.map((product) => {
             const primaryImage = getPrimaryProductImage(product);
             const isVariant = Boolean(product.hasVariants);
-            const finalPrice = isVariant
-              ? null
-              : Number(product.basePrice || 0) - (Number(product.basePrice || 0) * Number(product.baseDiscount || 0)) / 100;
-
-            const variantPrices = (Array.isArray(product.variants) ? product.variants : [])
-              .filter((variant) => !variant?.status || variant.status === "active")
-              .map((variant) => {
-                const price = Number(variant?.price || 0);
-                const discount = Number(variant?.discount || 0);
-                if (price <= 0) return null;
-                return price - (price * discount) / 100;
-              })
-              .filter((price) => Number.isFinite(price) && price > 0);
-
-            const minVariantPrice = variantPrices.length ? Math.min(...variantPrices) : null;
-            const maxVariantPrice = variantPrices.length ? Math.max(...variantPrices) : null;
-            const variantPriceLabel =
-              minVariantPrice === null
-                ? "Varies"
-                : minVariantPrice === maxVariantPrice
-                  ? `$${minVariantPrice.toFixed(2)}`
-                  : `$${minVariantPrice.toFixed(2)} - $${maxVariantPrice.toFixed(2)}`;
+            const pricing = getProductDisplayPricing(product);
+            const variantPriceLabel = pricing.isRange
+              ? `${formatPrice(pricing.minPrice, "USD")} - ${formatPrice(pricing.maxPrice, "USD")}`
+              : formatPrice(pricing.finalPrice, "USD");
 
             return (
               <div
@@ -407,10 +390,10 @@ const ProductsList = () => {
                   <div className="flex items-end justify-between">
                     <div>
                       <p className="text-xs uppercase tracking-wider text-slate-500">Price</p>
-                      {isVariant ? <p className="text-lg font-black text-indigo-600">{variantPriceLabel}</p> : <p className="text-lg font-black text-slate-900">${Number(finalPrice || 0).toFixed(2)}</p>}
+                      <p className={`text-lg font-black ${isVariant ? "text-indigo-600" : "text-slate-900"}`}>{variantPriceLabel}</p>
                     </div>
-                    {Number(product.baseDiscount) > 0 ? (
-                      <span className="rounded-full border border-emerald-200 bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">-{product.baseDiscount}%</span>
+                    {pricing.discount > 0 ? (
+                      <span className="rounded-full border border-emerald-200 bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">-{Math.round(pricing.discount)}%</span>
                     ) : null}
                   </div>
 

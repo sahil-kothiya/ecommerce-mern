@@ -2,12 +2,15 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { getRandomProductImage } from '../services/imageService';
 import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
-import { getPrimaryProductImage, resolveImageUrl } from '../utils/imageUrl';
-import { API_CONFIG, PRODUCT_CONDITIONS, CURRENCY_CONFIG } from '../constants';
+import { getImageSource, getPrimaryProductImage, resolveImageUrl } from '../utils/imageUrl';
+import { API_CONFIG, CURRENCY_CONFIG } from '../constants';
 import authService from '../services/authService';
 import notify from '../utils/notify';
 import LazyImage from '../components/common/LazyImage';
-import { useSiteSettings } from '../context/SiteSettingsContext.jsx';
+import { useSiteSettings } from '../context/useSiteSettings';
+import ProductCard from '../components/product/ProductCard';
+import { getRecentlyViewed } from '../utils/recentlyViewed';
+import { resolveBannerAction } from '../utils/bannerLink';
 
 const PRODUCT_FETCH_LIMIT = 48;
 const FEATURED_CATEGORY_LIMIT = 12;
@@ -196,7 +199,7 @@ const HeroBanner = ({ banners, onShopNow, fallbackTitle, fallbackDescription }) 
                     {b?.description || fallbackDescription || 'Discover amazing deals across top categories.'}
                 </p>
                 <div className="animate-fade-up delay-300 flex flex-wrap gap-3">
-                    <button onClick={onShopNow} className="store-btn-primary tap-bounce rounded-2xl px-7 py-3 text-sm font-bold">Shop Now →</button>
+                    <button onClick={() => onShopNow(b)} className="store-btn-primary tap-bounce rounded-2xl px-7 py-3 text-sm font-bold">Shop Now →</button>
                     <Link to="/products" className="inline-flex items-center gap-2 rounded-2xl border border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.1)] px-7 py-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-[rgba(255,255,255,0.2)] transition">Browse All</Link>
                 </div>
             </div>
@@ -211,75 +214,6 @@ const HeroBanner = ({ banners, onShopNow, fallbackTitle, fallbackDescription }) 
     );
 };
 
-const ProductCard = ({ product, currentImage, isHovered, inWishlist, onHover, onLeave, onAddToCart, onWishlistToggle, formatCurrency, animDelay = 0 }) => {
-    if (!product) return null;
-    const pricing = getProductDisplayPricing(product);
-    const hasDiscount = pricing.hasDiscount;
-    const finalPriceLabel = pricing.isRange
-        ? `${formatCurrency(pricing.minPrice)} - ${formatCurrency(pricing.maxPrice)}`
-        : formatCurrency(pricing.finalPrice);
-    return (
-        <Link to={`/products/${product._id}`} style={{ animationDelay: `${animDelay}ms` }} className="store-product-card animate-fade-up group flex flex-col overflow-hidden"
-            onMouseEnter={() => onHover(product)} onMouseLeave={() => onLeave(product)}>
-            <div className="relative overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50">
-                <LazyImage
-                    src={currentImage}
-                    alt={product.title}
-                    wrapperClassName="h-56 w-full"
-                    className="h-56 w-full object-cover group-hover:scale-105"
-                    fallback={<div className="flex h-56 w-full items-center justify-center bg-gradient-to-br from-slate-100 to-blue-100"><svg className="h-10 w-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>}
-                />
-                {product.condition && (
-                    <span className="absolute left-3 top-3 rounded-full bg-gradient-to-r from-[#4250d5] to-[#f9730c] px-2.5 py-1 text-[10px] font-bold text-white shadow">
-                        {product.condition === PRODUCT_CONDITIONS.HOT && '🔥 Hot'}
-                        {product.condition === PRODUCT_CONDITIONS.NEW && '✨ New'}
-                        {product.condition === PRODUCT_CONDITIONS.DEFAULT && '⭐ Trending'}
-                    </span>
-                )}
-                {hasDiscount && (
-                    <span className="absolute right-10 top-3 rounded-full border border-[rgba(255,163,51,0.5)] bg-[rgba(249,115,12,0.9)] px-2 py-0.5 text-[10px] font-bold text-white">
-                        -{Math.round(pricing.discount)}%
-                    </span>
-                )}
-                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onWishlistToggle(product); }}
-                    className={`absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border transition-all ${inWishlist ? 'border-rose-300 bg-rose-100 text-rose-600 shadow' : 'border-[rgba(165,187,252,0.4)] bg-white/80 text-[#4250d5] hover:border-rose-300 hover:bg-rose-50 hover:text-rose-500'} ${isHovered ? 'scale-110' : ''}`}>
-                    {inWishlist
-                        ? <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5A5.5 5.5 0 017.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3A5.5 5.5 0 0122 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
-                        : <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>}
-                </button>
-            </div>
-            <div className="flex flex-1 flex-col gap-2.5 p-4">
-                <div className="flex items-center justify-between">
-                    <span className="rounded-lg border border-[rgba(165,187,252,0.35)] bg-[rgba(66,80,213,0.06)] px-2 py-0.5 text-[11px] font-semibold text-[#4250d5]">
-                        {product.brand?.title || 'Brand'}
-                    </span>
-                    <div className="flex items-center gap-0.5">
-                        <span className="text-[11px] text-[#ffa336]">{'★'.repeat(Math.min(5, Math.floor(product.ratings?.average || 4)))}</span>
-                        <span className="text-[10px] text-[#999]">({product.ratings?.count || 0})</span>
-                    </div>
-                </div>
-                <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-tight text-[#1f1f1f] transition group-hover:text-[#212191]">
-                    {product.title}
-                </h3>
-                <div className="mt-auto space-y-2 pt-1">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-base font-bold text-[#131313]">{finalPriceLabel}</span>
-                            {hasDiscount && !pricing.isRange && <span className="text-xs text-[#999] line-through">{formatCurrency(pricing.basePrice)}</span>}
-                        </div>
-                        {hasDiscount && <span className="rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">Save {Math.round(pricing.discount)}%</span>}
-                    </div>
-                    <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddToCart(product); }}
-                        className="store-btn-primary tap-bounce w-full rounded-xl py-2 text-xs font-bold flex items-center justify-center gap-1.5">
-                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m1.6 8L5.4 5M7 13l-1.5 7h13M9 20a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z" /></svg>
-                        Add to Cart
-                    </button>
-                </div>
-            </div>
-        </Link>
-    );
-};
-
 const HomePage = () => {
     const navigate = useNavigate();
     const { settings } = useSiteSettings();
@@ -288,18 +222,61 @@ const HomePage = () => {
     const [featuredProducts, setFeaturedProducts] = useState([]);
     const [banners, setBanners] = useState([]);
     const [wishlistItems, setWishlistItems] = useState([]);
+    const [recentlyViewed, setRecentlyViewed] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [hoveredProduct, setHoveredProduct] = useState(null);
     const [currentImageIndex, setCurrentImageIndex] = useState({});
     const [sortOption, setSortOption] = useState('newest');
     const hoverIntervalsRef = useRef({});
+    const fallbackImageRef = useRef({});
+    const failedImageRef = useRef({});
+
+    const getStableFallbackImage = (productId) => {
+        const key = String(productId || 'unknown');
+        if (!fallbackImageRef.current[key]) {
+            fallbackImageRef.current[key] = getRandomProductImage();
+        }
+        return fallbackImageRef.current[key];
+    };
+
+    const getUsableProductImages = (product) => {
+        const productId = String(product?._id || 'unknown');
+        const failedSet = failedImageRef.current[productId] || new Set();
+        const images = Array.isArray(product?.images) ? product.images : [];
+
+        const urls = images
+            .map((img) => resolveImageUrl(getImageSource(img), { placeholder: null }))
+            .filter((url) => Boolean(url) && !failedSet.has(url));
+
+        console.debug(`[HomePage] getUsableProductImages pid=${productId} total=${images.length} usable=${urls.length} failed=${failedSet.size}`, urls);
+        return urls;
+    };
+
+    const markProductImageFailed = (product, failedSrc) => {
+        if (!product?._id || !failedSrc) return;
+        const productId = String(product._id);
+        if (!failedImageRef.current[productId]) {
+            failedImageRef.current[productId] = new Set();
+        }
+        failedImageRef.current[productId].add(failedSrc);
+        console.debug(`[HomePage] markProductImageFailed pid=${productId} failedSrc=${failedSrc} totalFailed=${failedImageRef.current[productId].size}`);
+        setCurrentImageIndex((prev) => ({ ...prev, [productId]: 0 }));
+    };
 
     const loadWishlist = useCallback(async () => {
         if (!authService.isAuthenticated()) { setWishlistItems([]); return; }
         try {
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { headers: authService.getAuthHeaders() });
-            if (res.status === 401) { authService.reset(); setWishlistItems([]); return; }
-            if (!res.ok) { setWishlistItems([]); return; }
+            await authService.getCurrentUser();
+
+            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { 
+                headers: authService.getAuthHeaders(),
+                credentials: 'include'
+            });
+            if (!res.ok) {
+                authService.handleUnauthorizedResponse(res);
+                setWishlistItems([]);
+                return;
+            }
             const data = await res.json();
             setWishlistItems((Array.isArray(data?.data?.items) ? data.data.items : []).map((i) => i.productId).filter(Boolean));
         } catch { setWishlistItems([]); }
@@ -358,19 +335,28 @@ const HomePage = () => {
 
     useEffect(() => {
         loadData(); loadWishlist();
+        const recent = getRecentlyViewed(12);
+        setRecentlyViewed(recent);
         return () => Object.values(hoverIntervalsRef.current).forEach(clearInterval);
     }, [loadData, loadWishlist]);
 
     const addToCart = async (product) => {
         if (!authService.isAuthenticated()) { navigate('/login'); return; }
-        if (product?.hasVariants) {
-            notify.info('Please choose a variant from product details');
+        
+        const activeVariants = Array.isArray(product?.variants)
+            ? product.variants.filter(v => !v.status || v.status === 'active')
+            : [];
+        const hasVariants = product?.hasVariants === true && activeVariants.length > 0;
+        
+        if (hasVariants) {
+            notify.info('Redirecting to select your preferred options...');
             navigate(`/products/${product._id}`);
             return;
         }
         try {
             const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
                 method: 'POST', headers: authService.getAuthHeaders(),
+                credentials: 'include',
                 body: JSON.stringify({ productId: product._id, quantity: 1 }),
             });
             const data = await res.json();
@@ -386,16 +372,30 @@ const HomePage = () => {
         if (inList) {
             setWishlistItems((prev) => prev.filter((i) => i._id !== product._id));
             try {
-                const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { headers: authService.getAuthHeaders() });
-                if (!res.ok) return;
+                const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { headers: authService.getAuthHeaders(), credentials: 'include' });
+                if (!res.ok) {
+                    authService.handleUnauthorizedResponse(res);
+                    return;
+                }
                 const data = await res.json();
                 const matched = (Array.isArray(data?.data?.items) ? data.data.items : []).find((i) => i.productId?._id === product._id || i.productId === product._id);
-                if (matched?._id) { await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${matched._id}`, { method: 'DELETE', headers: authService.getAuthHeaders() }); window.dispatchEvent(new Event('wishlist:changed')); }
+                if (matched?._id) {
+                    const deleteRes = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${matched._id}`, { method: 'DELETE', headers: authService.getAuthHeaders(), credentials: 'include' });
+                    if (!deleteRes.ok) {
+                        authService.handleUnauthorizedResponse(deleteRes);
+                        return;
+                    }
+                    window.dispatchEvent(new Event('wishlist:changed'));
+                }
             } catch (_err) { /* ignore */ }
         } else {
             setWishlistItems((prev) => prev.some((i) => i._id === product._id) ? prev : [...prev, product]);
             try {
-                await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { method: 'POST', headers: authService.getAuthHeaders(), body: JSON.stringify({ productId: product._id }) });
+                const createRes = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { method: 'POST', headers: authService.getAuthHeaders(), credentials: 'include', body: JSON.stringify({ productId: product._id }) });
+                if (!createRes.ok) {
+                    authService.handleUnauthorizedResponse(createRes);
+                    return;
+                }
                 window.dispatchEvent(new Event('wishlist:changed'));
             } catch (_err) { /* ignore */ }
         }
@@ -403,9 +403,18 @@ const HomePage = () => {
 
     const handleProductHover = (product) => {
         setHoveredProduct(product._id);
-        if ((product.images?.length || 0) < 2 || hoverIntervalsRef.current[product._id]) return;
+        const usableImages = getUsableProductImages(product);
+        console.debug(`[HomePage] handleProductHover pid=${product._id} usable=${usableImages.length}`, usableImages);
+        if (usableImages.length < 2 || hoverIntervalsRef.current[product._id]) return;
         hoverIntervalsRef.current[product._id] = setInterval(() => {
-            setCurrentImageIndex((prev) => ({ ...prev, [product._id]: ((prev[product._id] || 0) + 1) % product.images.length }));
+            // Re-compute usable images inside interval to respect any newly failed URLs
+            const freshImages = getUsableProductImages(product);
+            if (freshImages.length < 1) return;
+            setCurrentImageIndex((prev) => {
+                const nextIdx = ((prev[product._id] || 0) + 1) % freshImages.length;
+                console.debug(`[HomePage] interval tick pid=${product._id} idx ${prev[product._id] || 0} → ${nextIdx} of ${freshImages.length}`);
+                return { ...prev, [product._id]: nextIdx };
+            });
         }, IMAGE_ROTATION_INTERVAL);
     };
 
@@ -413,19 +422,24 @@ const HomePage = () => {
         setHoveredProduct(null);
         clearInterval(hoverIntervalsRef.current[product._id]);
         delete hoverIntervalsRef.current[product._id];
+        console.debug(`[HomePage] handleProductLeave pid=${product._id} — interval cleared`);
         setCurrentImageIndex((prev) => ({ ...prev, [product._id]: 0 }));
     };
 
     const getProductImage = (product) => {
-        const imgs = product.images || [];
-        if (!imgs.length) {
-            const primary = getPrimaryProductImage(product);
-            const resolvedPrimary = resolveImageUrl(primary, { placeholder: null });
-            return resolvedPrimary || getRandomProductImage();
+        const usableImages = getUsableProductImages(product);
+        if (usableImages.length > 0) {
+            const index = (currentImageIndex[product._id] || 0) % usableImages.length;
+            const url = usableImages[index];
+            console.debug(`[HomePage] getProductImage pid=${product._id} idx=${index}/${usableImages.length} url=${url}`);
+            return url;
         }
-        const raw = imgs[currentImageIndex[product._id] || 0] || imgs[0];
-        const resolved = resolveImageUrl(raw, { placeholder: null });
-        return resolved || getRandomProductImage();
+
+        const fallbackPrimary = resolveImageUrl(getImageSource(getPrimaryProductImage(product)), { placeholder: null });
+        const resolved = fallbackPrimary;
+        const url = resolved || getStableFallbackImage(product?._id);
+        console.debug(`[HomePage] getProductImage pid=${product._id} fallback url=${url}`);
+        return url;
     };
 
     const formatCurrency = (price) => {
@@ -443,6 +457,17 @@ const HomePage = () => {
 
     const featuredGridProducts = sortProducts(featuredProducts.length ? featuredProducts : products.slice(0, FEATURED_PRODUCTS_TARGET));
 
+    const handleHeroShopNow = (banner) => {
+        const action = resolveBannerAction(banner);
+
+        if (action.external || action.target === '_blank') {
+            window.open(action.href, action.target || '_blank', 'noopener,noreferrer');
+            return;
+        }
+
+        navigate(action.href || '/products');
+    };
+
     const cardProps = (product) => ({
         product,
         currentImage: getProductImage(product),
@@ -450,6 +475,7 @@ const HomePage = () => {
         inWishlist: wishlistItems.some((i) => i._id === product._id),
         onHover: handleProductHover, onLeave: handleProductLeave,
         onAddToCart: addToCart, onWishlistToggle: toggleWishlist,
+        onImageError: (failedSrc) => markProductImageFailed(product, failedSrc),
         formatCurrency,
     });
 
@@ -462,7 +488,7 @@ const HomePage = () => {
                     description: settings?.metaDescription || settings?.siteTagline || 'Discover amazing deals across top categories.',
                     image: null,
                 }]}
-                onShopNow={() => navigate('/products')}
+                onShopNow={handleHeroShopNow}
                 fallbackTitle={settings?.metaTitle || settings?.siteName || 'Up to 80% Off'}
                 fallbackDescription={settings?.metaDescription || settings?.siteTagline || 'Discover amazing deals across top categories.'}
             />
@@ -554,7 +580,79 @@ const HomePage = () => {
                     </div>
                 )}
             </section>
+            {/* Recently Viewed Products Section */}
+            {!isLoading && recentlyViewed.length > 0 && (
+                <section className="mb-14">
+                    <div className="mb-6">
+                        <p className="store-eyebrow mb-2 text-[#666]">Your History</p>
+                        <h2 className="store-display text-2xl text-[#131313] sm:text-3xl">Recently Viewed</h2>
+                        <p className="text-sm text-[#666] mt-1">Products you've checked out recently</p>
+                    </div>
 
+                    <div className="relative group">
+                        <div 
+                            id="home-recently-viewed-scroll"
+                            className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4"
+                            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                        >
+                            {recentlyViewed.map((prod) => {
+                                const recentUsableImages = getUsableProductImages(prod);
+                                const recentFallback = getStableFallbackImage(prod?._id);
+                                const displayImage = recentUsableImages.length > 0
+                                    ? recentUsableImages[(currentImageIndex[prod._id] || 0) % recentUsableImages.length]
+                                    : (resolveImageUrl(getImageSource(getPrimaryProductImage(prod)), { placeholder: null }) || recentFallback);
+
+                                return (
+                                    <div key={prod._id} className="flex-none w-[200px] sm:w-[220px] snap-start">
+                                        <ProductCard
+                                            product={prod}
+                                            currentImage={displayImage}
+                                            inWishlist={wishlistItems.includes(prod._id)}
+                                            onWishlistToggle={() => toggleWishlist(prod)}
+                                            onAddToCart={() => addToCart(prod)}
+                                            isHovered={hoveredProduct === prod._id}
+                                            onImageError={(failedSrc) => markProductImageFailed(prod, failedSrc)}
+                                            onHover={handleProductHover}
+                                            onLeave={handleProductLeave}
+                                            currencyCode={String(settings?.currencyCode || 'USD').toUpperCase()}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Scroll Navigation Arrows */}
+                        {recentlyViewed.length > 4 && (
+                            <>
+                                <button
+                                    onClick={() => {
+                                        const container = document.getElementById('home-recently-viewed-scroll');
+                                        if (container) container.scrollBy({ left: -400, behavior: 'smooth' });
+                                    }}
+                                    className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 bg-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-slate-50"
+                                    aria-label="Scroll left"
+                                >
+                                    <svg className="w-5 h-5 text-[#212121]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const container = document.getElementById('home-recently-viewed-scroll');
+                                        if (container) container.scrollBy({ left: 400, behavior: 'smooth' });
+                                    }}
+                                    className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 bg-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-slate-50"
+                                    aria-label="Scroll right"
+                                >
+                                    <svg className="w-5 h-5 text-[#212121]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </section>
+            )}
             {/* Trust badges */}
             <section className="mt-14 store-hero rounded-3xl px-8 py-10 text-center sm:px-12">
                 <div className="relative">

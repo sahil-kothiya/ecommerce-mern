@@ -795,6 +795,36 @@
         transform: scale(1);
     }
 
+    /* ── Hover-rotation slide transitions ──────────────────────── */
+    @keyframes img-slide-in-right {
+        from { transform: translateX(100%); }
+        to   { transform: translateX(0);    }
+    }
+
+    @keyframes img-slide-out-left {
+        from { transform: translateX(0);     }
+        to   { transform: translateX(-100%); }
+    }
+
+    /* incoming image slides in from the right */
+    .img-slide-in {
+        animation: img-slide-in-right 0.38s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        will-change: transform;
+    }
+
+    /* outgoing image slides out to the left (absolute, behind incoming) */
+    .img-slide-out {
+        animation: img-slide-out-left 0.38s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        will-change: transform;
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: inherit;
+        object-position: inherit;
+        pointer-events: none;
+    }
+
     /* ── Scroll-performance helpers ──────────────────────────── */
     .product-card-wrap {
         content-visibility: auto;
@@ -845,4 +875,14 @@
     .delay-600 { animation-delay: 600ms; }
     .delay-700 { animation-delay: 700ms; }
     .delay-800 { animation-delay: 800ms; }
+
+    /* Scrollbar utilities */
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
 }
+

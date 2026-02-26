@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { API_CONFIG } from '../../constants';
 import authService from '../../services/authService';
 import useWishlistCount from '../../hooks/useWishlistCount';
-import { useSiteSettings } from '../../context/SiteSettingsContext.jsx';
+import { useSiteSettings } from '../../context/useSiteSettings';
 import { resolveImageUrl } from '../../utils/imageUrl';
 
 
@@ -13,11 +13,17 @@ const useCartCount = () => {
     const refresh = useCallback(async () => {
         if (!authService.isAuthenticated()) { setCount(0); return; }
         try {
+            await authService.getCurrentUser();
+
             const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
                 headers: authService.getAuthHeaders(),
                 credentials: 'include',
             });
-            if (!res.ok) { setCount(0); return; }
+            if (!res.ok) {
+                authService.handleUnauthorizedResponse(res);
+                setCount(0);
+                return;
+            }
             const data = await res.json();
             const count = data?.data?.summary?.totalItems ?? (Array.isArray(data?.data?.items) ? data.data.items.reduce((s, i) => s + (i.quantity || 1), 0) : 0);
             setCount(count);

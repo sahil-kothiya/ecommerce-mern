@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
 import { API_CONFIG } from '../constants';
 import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
 import { getPrimaryProductImage, resolveImageUrl } from '../utils/imageUrl';
 import notify from '../utils/notify';
-import { useSiteSettings } from '../context/SiteSettingsContext';
+import { useSiteSettings } from '../context/useSiteSettings';
 
 const WishlistPage = () => {
+    const navigate = useNavigate();
     const { settings } = useSiteSettings();
     const currencyCode = String(settings?.currencyCode || 'USD').toUpperCase();
     const [items, setItems] = useState([]);
@@ -44,10 +45,24 @@ const WishlistPage = () => {
         } finally { setIsBusy(false); }
     };
 
-    const moveToCart = async (id) => {
+    const moveToCart = async (item) => {
+        const product = item.productId;
+        if (!product) return;
+
+        const activeVariants = Array.isArray(product?.variants)
+            ? product.variants.filter(v => !v.status || v.status === 'active')
+            : [];
+        const hasVariants = product?.hasVariants === true && activeVariants.length > 0;
+
+        if (hasVariants) {
+            notify.info('Redirecting to select your options...');
+            navigate(`/products/${product.slug || product._id}`);
+            return;
+        }
+
         try {
             setIsBusy(true);
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${id}/move-to-cart`, {
+            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${item._id}/move-to-cart`, {
                 method: 'POST',
                 headers: authService.getAuthHeaders(),
                 credentials: 'include',
@@ -95,8 +110,10 @@ const WishlistPage = () => {
                         if (!product) return null;
                         const pricing = getProductDisplayPricing(product);
                         const imgUrl = resolveImageUrl(getPrimaryProductImage(product));
+
+                        const showFromLabel = pricing.isRange;
                         const priceLabel = pricing.isRange
-                            ? `${formatPrice(pricing.minPrice, currencyCode)} - ${formatPrice(pricing.maxPrice, currencyCode)}`
+                            ? formatPrice(pricing.minPrice, currencyCode)
                             : formatPrice(pricing.finalPrice, currencyCode);
                         return (
                             <div key={item._id} className="store-surface p-4">
@@ -106,13 +123,16 @@ const WishlistPage = () => {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <Link to={`/products/${product.slug || product._id}`} className="font-semibold text-[#1f1f1f] hover:text-[#212191] line-clamp-1 transition">{product.title}</Link>
-                                        <p className="mt-1 text-sm font-bold text-[#4250d5]">{priceLabel}</p>
+                                        <p className="mt-1 text-sm font-bold text-[#4250d5]">
+                                            {showFromLabel && <span className="text-xs font-medium text-[#666] mr-1">From</span>}
+                                            {priceLabel}
+                                        </p>
                                         {product.brand?.title && <p className="text-xs text-[#999]">{product.brand.title}</p>}
                                     </div>
                                     <div className="flex flex-shrink-0 items-center gap-2">
-                                        <button onClick={() => moveToCart(item._id)} disabled={isBusy}
+                                        <button onClick={() => moveToCart(item)} disabled={isBusy}
                                             className="store-btn-primary tap-bounce rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-40 whitespace-nowrap">
-                                            Move to Cart
+                                            {product.hasVariants ? 'Select Options' : 'Move to Cart'}
                                         </button>
                                         <button onClick={() => removeItem(item._id)} disabled={isBusy}
                                             className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:opacity-40 transition">

@@ -1,224 +1,16 @@
 import mongoose from "mongoose";
-import { Discount } from "../models/Supporting.models.js";
+import { BaseController } from "../core/BaseController.js";
+import { DiscountService } from "../services/DiscountService.js";
+import { Discount } from "../models/Discount.js";
 import { Category } from "../models/Category.js";
 import { Product } from "../models/Product.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { logger } from "../utils/logger.js";
 
-export class DiscountController {
-  createFieldError(field, message) {
-    return { field, message };
-  }
-
-  sendValidationError(next, errors) {
-    return next(
-      new AppError(errors[0]?.message || "Validation failed", 400, errors),
-    );
-  }
-
-  normalizeType(value) {
-    if (value === "amount") return "fixed";
-    return value;
-  }
-
-  parseBoolean(value, fallback = false) {
-    if (typeof value === "boolean") return value;
-    if (typeof value === "string") {
-      const normalized = value.trim().toLowerCase();
-      if (["true", "1", "yes", "on"].includes(normalized)) return true;
-      if (["false", "0", "no", "off", ""].includes(normalized)) return false;
-    }
-    if (typeof value === "number") return value === 1;
-    return fallback;
-  }
-
-  parseObjectIdArray(value) {
-    if (value === undefined || value === null || value === "") return [];
-
-    let parsed = value;
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      if (!trimmed) return [];
-
-      if (trimmed.startsWith("[")) {
-        try {
-          parsed = JSON.parse(trimmed);
-        } catch {
-          parsed = trimmed.split(",").map((item) => item.trim());
-        }
-      } else {
-        parsed = trimmed.split(",").map((item) => item.trim());
-      }
-    }
-
-    if (!Array.isArray(parsed)) parsed = [parsed];
-
-    return [
-      ...new Set(
-        parsed
-          .map((item) => String(item).trim())
-          .filter((item) => mongoose.Types.ObjectId.isValid(item)),
-      ),
-    ];
-  }
-
-  parseNumber(value, fallback = null) {
-    if (value === undefined || value === null || value === "") return fallback;
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : fallback;
-  }
-
-  validatePayload(payload, isPartial = false) {
-    const errors = [];
-
-    if (!isPartial || payload.title !== undefined) {
-      if (!payload.title || !String(payload.title).trim()) {
-        errors.push(this.createFieldError("title", "Title is required"));
-      }
-    }
-
-    if (!isPartial || payload.type !== undefined) {
-      if (!["percentage", "fixed"].includes(payload.type)) {
-        errors.push(
-          this.createFieldError(
-            "type",
-            "Discount type must be percentage or fixed",
-          ),
-        );
-      }
-    }
-
-    if (
-      !isPartial ||
-      payload.value !== undefined ||
-      payload.type !== undefined
-    ) {
-      if (
-        payload.value === null ||
-        payload.value === undefined ||
-        Number.isNaN(payload.value)
-      ) {
-        errors.push(
-          this.createFieldError("value", "Discount value is required"),
-        );
-      } else if (payload.type === "percentage") {
-        if (!Number.isInteger(payload.value)) {
-          errors.push(
-            this.createFieldError(
-              "value",
-              "Percentage value must be an integer",
-            ),
-          );
-        }
-        if (payload.value < 1 || payload.value > 100) {
-          errors.push(
-            this.createFieldError(
-              "value",
-              "Percentage value must be between 1 and 100",
-            ),
-          );
-        }
-      } else if (payload.type === "fixed" && payload.value <= 0) {
-        errors.push(
-          this.createFieldError("value", "Fixed amount must be greater than 0"),
-        );
-      }
-    }
-
-    if (
-      !isPartial ||
-      payload.startsAt !== undefined ||
-      payload.endsAt !== undefined
-    ) {
-      if (!payload.startsAt || Number.isNaN(payload.startsAt.getTime())) {
-        errors.push(
-          this.createFieldError(
-            "startsAt",
-            "Start date is required and must be valid",
-          ),
-        );
-      }
-
-      if (!payload.endsAt || Number.isNaN(payload.endsAt.getTime())) {
-        errors.push(
-          this.createFieldError(
-            "endsAt",
-            "End date is required and must be valid",
-          ),
-        );
-      }
-
-      if (
-        payload.startsAt instanceof Date &&
-        payload.endsAt instanceof Date &&
-        !Number.isNaN(payload.startsAt.getTime()) &&
-        !Number.isNaN(payload.endsAt.getTime()) &&
-        payload.startsAt >= payload.endsAt
-      ) {
-        errors.push(
-          this.createFieldError(
-            "endsAt",
-            "End date must be later than start date",
-          ),
-        );
-      }
-    }
-
-    if (
-      !isPartial ||
-      payload.categories !== undefined ||
-      payload.products !== undefined
-    ) {
-      const hasCategories =
-        Array.isArray(payload.categories) && payload.categories.length > 0;
-      const hasProducts =
-        Array.isArray(payload.products) && payload.products.length > 0;
-      if (!hasCategories && !hasProducts) {
-        const message = "Select at least one category or product";
-        errors.push(this.createFieldError("categories", message));
-        errors.push(this.createFieldError("products", message));
-      }
-    }
-
-    return errors;
-  }
-
-  async validateReferencedDocuments(payload) {
-    const errors = [];
-
-    if (Array.isArray(payload.categories) && payload.categories.length > 0) {
-      const categoryCount = await Category.countDocuments({
-        _id: { $in: payload.categories },
-        status: "active",
-      });
-
-      if (categoryCount !== payload.categories.length) {
-        errors.push(
-          this.createFieldError(
-            "categories",
-            "One or more selected categories are invalid or inactive",
-          ),
-        );
-      }
-    }
-
-    if (Array.isArray(payload.products) && payload.products.length > 0) {
-      const productCount = await Product.countDocuments({
-        _id: { $in: payload.products },
-        status: "active",
-      });
-
-      if (productCount !== payload.products.length) {
-        errors.push(
-          this.createFieldError(
-            "products",
-            "One or more selected products are invalid or inactive",
-          ),
-        );
-      }
-    }
-
-    return errors;
+export class DiscountController extends BaseController {
+  constructor() {
+    super();
+    this.discountService = new DiscountService();
   }
 
   async index(req, res, next) {
@@ -235,38 +27,31 @@ export class DiscountController {
         },
       );
 
-      const page = Math.max(1, Number(req.query.page) || 1);
-      const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 20));
-      const skip = (page - 1) * limit;
+      const result = await this.discountService.getDiscounts({
+        page: req.query.page,
+        limit: req.query.limit,
+        status:
+          req.query.isActive !== undefined
+            ? req.query.isActive === "true"
+              ? "active"
+              : "inactive"
+            : undefined,
+        type: req.query.type,
+        search: req.query.search,
+      });
 
-      const query = {};
-      if (req.query.type) query.type = this.normalizeType(req.query.type);
-      if (req.query.isActive !== undefined)
-        query.isActive = this.parseBoolean(req.query.isActive, true);
-      if (req.query.search)
-        query.title = { $regex: req.query.search, $options: "i" };
-
-      const [discounts, total] = await Promise.all([
-        Discount.find(query)
-          .populate("categories", "_id title slug")
-          .populate("products", "_id title slug status")
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        Discount.countDocuments(query),
-      ]);
+      const discounts = await Discount.find({
+        _id: { $in: result.discounts.map((d) => d._id) },
+      })
+        .populate("categories", "_id title slug")
+        .populate("products", "_id title slug status")
+        .lean();
 
       res.json({
         success: true,
         data: {
           discounts,
-          pagination: {
-            page,
-            limit,
-            total,
-            pages: Math.ceil(total / limit),
-          },
+          pagination: result.pagination,
         },
       });
     } catch (error) {
@@ -303,21 +88,20 @@ export class DiscountController {
 
   async show(req, res, next) {
     try {
-      const { id } = req.params;
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return next(new AppError("Invalid discount ID", 400));
-      }
+      const discount = await this.discountService.getDiscountById(
+        req.params.id,
+      );
 
-      const discount = await Discount.findById(id)
+      const populated = await Discount.findById(discount._id)
         .populate("categories", "_id title slug")
-        .populate("products", "_id title slug status");
+        .populate("products", "_id title slug status")
+        .lean();
 
-      if (!discount) {
-        return next(new AppError("Discount not found", 404));
-      }
-
-      return res.json({ success: true, data: discount });
+      return res.json({ success: true, data: populated });
     } catch (error) {
+      if (error instanceof AppError) {
+        return next(error);
+      }
       logger.error("Discount show error", { error: error.message });
       return next(new AppError("Failed to fetch discount", 500));
     }
@@ -325,43 +109,33 @@ export class DiscountController {
 
   async create(req, res, next) {
     try {
-      const payload = {
-        title: req.body.title?.trim(),
-        type: this.normalizeType(req.body.type),
-        value: this.parseNumber(req.body.value),
-        startsAt: req.body.startsAt ? new Date(req.body.startsAt) : null,
-        endsAt: req.body.endsAt ? new Date(req.body.endsAt) : null,
-        isActive: this.parseBoolean(req.body.isActive, true),
-        categories: this.parseObjectIdArray(req.body.categories),
-        products: this.parseObjectIdArray(req.body.products),
-        priority: Number.isInteger(this.parseNumber(req.body.priority))
-          ? this.parseNumber(req.body.priority)
-          : 0,
-      };
+      const created = await this.discountService.createDiscount({
+        title: req.body.title,
+        type: req.body.type,
+        value: req.body.value,
+        startsAt: req.body.startsAt,
+        endsAt: req.body.endsAt,
+        status: req.body.isActive === false ? "inactive" : "active",
+        applyToCategories: req.body.categories !== undefined,
+        applyToProducts: req.body.products !== undefined,
+        categoryIds: req.body.categories,
+        productIds: req.body.products,
+      });
 
-      const errors = this.validatePayload(payload, false);
-      if (errors.length > 0) {
-        return this.sendValidationError(next, errors);
-      }
-
-      const referenceErrors = await this.validateReferencedDocuments(payload);
-      if (referenceErrors.length > 0) {
-        return this.sendValidationError(next, referenceErrors);
-      }
-
-      const created = await Discount.create(payload);
       const populated = await Discount.findById(created._id)
         .populate("categories", "_id title slug")
-        .populate("products", "_id title slug status");
+        .populate("products", "_id title slug status")
+        .lean();
 
-      return res
-        .status(201)
-        .json({
-          success: true,
-          message: "Discount created successfully",
-          data: populated,
-        });
+      return res.status(201).json({
+        success: true,
+        message: "Discount created successfully",
+        data: populated,
+      });
     } catch (error) {
+      if (error instanceof AppError) {
+        return next(error);
+      }
       logger.error("Discount create error", { error: error.message });
       return next(
         new AppError(error.message || "Failed to create discount", 500),
@@ -371,80 +145,38 @@ export class DiscountController {
 
   async update(req, res, next) {
     try {
-      const { id } = req.params;
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return next(new AppError("Invalid discount ID", 400));
-      }
-
-      const existing = await Discount.findById(id);
-      if (!existing) {
-        return next(new AppError("Discount not found", 404));
-      }
-
-      const value =
-        req.body.value !== undefined
-          ? this.parseNumber(req.body.value)
-          : existing.value;
-      const type = this.normalizeType(req.body.type ?? existing.type);
-
-      const payload = {
-        title:
-          req.body.title !== undefined
-            ? req.body.title?.trim()
-            : existing.title,
-        type,
-        value,
-        startsAt:
-          req.body.startsAt !== undefined
-            ? new Date(req.body.startsAt)
-            : existing.startsAt,
-        endsAt:
-          req.body.endsAt !== undefined
-            ? new Date(req.body.endsAt)
-            : existing.endsAt,
-        isActive:
+      const updated = await this.discountService.updateDiscount(req.params.id, {
+        title: req.body.title,
+        type: req.body.type,
+        value: req.body.value,
+        startsAt: req.body.startsAt,
+        endsAt: req.body.endsAt,
+        status:
           req.body.isActive !== undefined
-            ? this.parseBoolean(req.body.isActive, true)
-            : existing.isActive,
-        categories:
-          req.body.categories !== undefined
-            ? this.parseObjectIdArray(req.body.categories)
-            : existing.categories.map((v) => String(v)),
-        products:
-          req.body.products !== undefined
-            ? this.parseObjectIdArray(req.body.products)
-            : existing.products.map((v) => String(v)),
-        priority:
-          req.body.priority !== undefined
-            ? Number.isInteger(this.parseNumber(req.body.priority))
-              ? this.parseNumber(req.body.priority)
-              : 0
-            : existing.priority,
-      };
+            ? req.body.isActive
+              ? "active"
+              : "inactive"
+            : undefined,
+        applyToCategories: req.body.categories !== undefined,
+        applyToProducts: req.body.products !== undefined,
+        categoryIds: req.body.categories,
+        productIds: req.body.products,
+      });
 
-      const errors = this.validatePayload(payload, false);
-      if (errors.length > 0) {
-        return this.sendValidationError(next, errors);
-      }
-
-      const referenceErrors = await this.validateReferencedDocuments(payload);
-      if (referenceErrors.length > 0) {
-        return this.sendValidationError(next, referenceErrors);
-      }
-
-      Object.assign(existing, payload);
-      await existing.save();
-
-      const updated = await Discount.findById(existing._id)
+      const populated = await Discount.findById(updated._id)
         .populate("categories", "_id title slug")
-        .populate("products", "_id title slug status");
+        .populate("products", "_id title slug status")
+        .lean();
 
       return res.json({
         success: true,
         message: "Discount updated successfully",
-        data: updated,
+        data: populated,
       });
     } catch (error) {
+      if (error instanceof AppError) {
+        return next(error);
+      }
       logger.error("Discount update error", { error: error.message });
       return next(
         new AppError(error.message || "Failed to update discount", 500),
@@ -454,22 +186,16 @@ export class DiscountController {
 
   async destroy(req, res, next) {
     try {
-      const { id } = req.params;
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return next(new AppError("Invalid discount ID", 400));
-      }
+      await this.discountService.deleteDiscount(req.params.id);
 
-      const discount = await Discount.findById(id);
-      if (!discount) {
-        return next(new AppError("Discount not found", 404));
-      }
-
-      await discount.deleteOne();
       return res.json({
         success: true,
         message: "Discount deleted successfully",
       });
     } catch (error) {
+      if (error instanceof AppError) {
+        return next(error);
+      }
       logger.error("Discount delete error", { error: error.message });
       return next(new AppError("Failed to delete discount", 500));
     }

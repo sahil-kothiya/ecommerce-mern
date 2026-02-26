@@ -10,7 +10,7 @@ import authService from '../../services/authService';
 import { DEMO_AUTH_CONFIG } from '../../constants';
 import { ErrorAlert, FieldError } from '../../components/common';
 import { processApiError, getFieldClasses, getFieldError } from '../../utils/errorUtils';
-import { useSiteSettings } from '../../context/SiteSettingsContext.jsx';
+import { useSiteSettings } from '../../context/useSiteSettings';
 import { resolveImageUrl } from '../../utils/imageUrl';
 
 const loginSchema = yup.object().shape({

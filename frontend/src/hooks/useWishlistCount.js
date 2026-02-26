@@ -12,6 +12,8 @@ export const useWishlistCount = () => {
     }
 
     try {
+      await authService.getCurrentUser();
+
       const response = await fetch(
         `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`,
         {
@@ -19,12 +21,14 @@ export const useWishlistCount = () => {
           credentials: "include",
         },
       );
-      const payload = await response.json();
 
       if (!response.ok) {
+        authService.handleUnauthorizedResponse(response);
         setCount(0);
         return;
       }
+
+      const payload = await response.json();
 
       const items = Array.isArray(payload?.data?.items)
         ? payload.data.items

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { API_CONFIG } from '../../constants';
-import { useSiteSettings } from '../../context/SiteSettingsContext.jsx';
+import { useSiteSettings } from '../../context/useSiteSettings';
 import { resolveImageUrl } from '../../utils/imageUrl';
 
 const QUICK_LINKS = [

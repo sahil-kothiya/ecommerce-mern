@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import authService from '../../services/authService';
+import React, { useEffect, useState } from 'react';
+import apiClient from '../../services/apiClient';
 import { API_CONFIG } from '../../constants';
 
 const RETURN_STATUS_STYLES = {
@@ -14,15 +14,11 @@ const AccountReturns = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const authHeaders = useMemo(() => authService.getAuthHeaders(), []);
-
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ORDERS}/returns`, { headers: authHeaders });
-                const payload = await res.json();
-                if (!res.ok) throw new Error(payload?.message || 'Failed to load returns');
-                setReturns(Array.isArray(payload?.data?.returnRequests) ? payload.data.returnRequests : []);
+                const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.ORDERS}/returns`);
+                setReturns(Array.isArray(data?.data?.returnRequests) ? data.data.returnRequests : data?.returnRequests || []);
             } catch (err) {
                 setError(err.message);
             } finally {
@@ -30,7 +26,7 @@ const AccountReturns = () => {
             }
         };
         load();
-    }, [authHeaders]);
+    }, []);
 
     if (isLoading) {
         return (

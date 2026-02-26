@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { API_CONFIG } from '../constants';
 import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
-import { useSiteSettings } from '../context/SiteSettingsContext';
+import { useSiteSettings } from '../context/useSiteSettings';
 
 const CategoryPage = () => {
     const { slug } = useParams();
@@ -57,8 +57,9 @@ const CategoryPage = () => {
                 <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {products.map((product) => {
                         const pricing = getProductDisplayPricing(product);
+                        const showFromLabel = pricing.isRange;
                         const priceLabel = pricing.isRange
-                            ? `${formatPrice(pricing.minPrice, currencyCode)} - ${formatPrice(pricing.maxPrice, currencyCode)}`
+                            ? formatPrice(pricing.minPrice, currencyCode)
                             : formatPrice(pricing.finalPrice, currencyCode);
 
                         return (
@@ -68,7 +69,10 @@ const CategoryPage = () => {
                                 className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-cyan-300 hover:shadow-md"
                             >
                                 <h2 className="line-clamp-2 text-sm font-semibold text-slate-900">{product.title}</h2>
-                                <p className="mt-2 text-sm text-slate-600">{priceLabel}</p>
+                                <p className="mt-2 text-sm text-slate-600">
+                                    {showFromLabel && <span className="text-xs text-slate-500 mr-1">From</span>}
+                                    {priceLabel}
+                                </p>
                             </Link>
                         );
                     })}

@@ -3,7 +3,7 @@ import notify from '../../../utils/notify';
 import { API_CONFIG } from '../../../constants';
 import { AdminLoadingState, AdminPageHeader, AdminSurface } from '../../../components/admin/AdminTheme';
 import authFetch from '../../../utils/authFetch.js';
-import { useSiteSettings } from '../../../context/SiteSettingsContext';
+import { useSiteSettings } from '../../../context/useSiteSettings';
 import { formatCurrency } from '../../../utils/currency';
 
 const ORDER_STATUSES = ['new', 'process', 'delivered', 'cancelled'];

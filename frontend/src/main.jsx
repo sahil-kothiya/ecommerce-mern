@@ -9,25 +9,6 @@ import ErrorBoundary from './components/common/ErrorBoundary.jsx';
 import { store } from './store';
 import './index.css';
 
-const originalFetch = window.fetch.bind(window);
-window.fetch = (input, init = {}) => {
-    const mergedHeaders = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
-
-    const nextInit = {
-        ...init,
-        headers: mergedHeaders,
-    };
-
-    if (init.credentials) {
-        return originalFetch(input, nextInit);
-    }
-
-    return originalFetch(input, {
-        ...nextInit,
-        credentials: 'include',
-    });
-};
-
 ReactDOM.createRoot(document.getElementById('root')).render(
     <ErrorBoundary>
         <Provider store={store}>

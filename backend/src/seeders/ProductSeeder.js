@@ -4,7 +4,8 @@ import mongoose from "mongoose";
 import { Product } from "../models/Product.js";
 import { Category } from "../models/Category.js";
 import { Brand } from "../models/Brand.js";
-import { VariantType, VariantOption } from "../models/Supporting.models.js";
+import { VariantType } from "../models/VariantType.js";
+import { VariantOption } from "../models/VariantOption.js";
 
 const CONFIG = {
   DEFAULT_PRODUCT_COUNT: 100000,

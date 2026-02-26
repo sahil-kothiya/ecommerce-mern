@@ -4,8 +4,8 @@ import { API_CONFIG } from '../../constants';
 import { AdminLoadingState, AdminSurface } from '../../components/admin/AdminTheme';
 import notify from '../../utils/notify';
 import apiClient from '../../services/apiClient';
-import { getProductDisplayPricing } from '../../utils/productUtils';
-import { useSiteSettings } from '../../context/SiteSettingsContext';
+import { formatPrice, getProductDisplayPricing } from '../../utils/productUtils';
+import { useSiteSettings } from '../../context/useSiteSettings';
 import { formatCurrency } from '../../utils/currency';
 
 const Dashboard = () => {
@@ -183,9 +183,10 @@ const Dashboard = () => {
                         ) : (
                             stats.topProducts.map((product, index) => {
                                 const pricing = getProductDisplayPricing(product);
+                                const priceCurrency = String(settings?.currencyCode || 'USD').toUpperCase();
                                 const priceLabel = pricing.isRange
-                                    ? `${formatCurrency(pricing.minPrice, settings)} - ${formatCurrency(pricing.maxPrice, settings)}`
-                                    : formatCurrency(pricing.finalPrice, settings);
+                                    ? `${formatPrice(pricing.minPrice, priceCurrency)} - ${formatPrice(pricing.maxPrice, priceCurrency)}`
+                                    : formatPrice(pricing.finalPrice, priceCurrency);
 
                                 return (
                                 <div key={product._id || product.title || index} className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-cyan-50 px-3 py-2.5">

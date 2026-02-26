@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import authService from '../../services/authService';
+import apiClient from '../../services/apiClient';
 import { API_CONFIG } from '../../constants';
 import notify from '../../utils/notify';
 
@@ -33,8 +33,6 @@ const AccountAddresses = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [showForm, setShowForm] = useState(false);
 
-    const authHeaders = useMemo(() => authService.getAuthHeaders(), []);
-
     const { register, handleSubmit, reset, setError, formState: { errors } } = useForm({
         resolver: yupResolver(addressSchema),
         defaultValues,
@@ -46,8 +44,8 @@ const AccountAddresses = () => {
     useEffect(() => {
         const load = async () => {
             try {
-                const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/me`, { headers: authHeaders });
-                const payload = await res.json();
+                const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.AUTH}/me`);
+                const payload = data?.data?.user || data?.user || {};
                 setAddresses(Array.isArray(payload?.data?.user?.addresses) ? payload.data.user.addresses : []);
             } catch {
                 notify.error('Failed to load addresses');
@@ -56,7 +54,7 @@ const AccountAddresses = () => {
             }
         };
         load();
-    }, [authHeaders]);
+    }, []);
 
     const resetForm = () => {
         reset(defaultValues);
@@ -83,19 +81,12 @@ const AccountAddresses = () => {
     };
 
     const onSubmit = async (data) => {
-        const url = editingId
-            ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/addresses/${editingId}`
-            : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/addresses`;
         try {
             setIsSaving(true);
-            const res = await fetch(url, {
-                method: editingId ? 'PUT' : 'POST',
-                headers: authHeaders,
-                body: JSON.stringify(data),
-            });
-            const payload = await res.json();
-            if (!res.ok) throw new Error(payload?.message || 'Failed to save address');
-            setAddresses(payload?.data?.addresses || []);
+            const result = editingId
+                ? await apiClient.put(`${API_CONFIG.ENDPOINTS.AUTH}/addresses/${editingId}`, data)
+                : await apiClient.post(`${API_CONFIG.ENDPOINTS.AUTH}/addresses`, data);
+            setAddresses(result?.data?.addresses || result?.addresses || []);
             notify.success(`Address ${editingId ? 'updated' : 'added'} successfully`);
             resetForm();
         } catch (err) {
@@ -114,13 +105,8 @@ const AccountAddresses = () => {
     const handleDelete = async (addrId) => {
         if (!window.confirm('Remove this address?')) return;
         try {
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/addresses/${addrId}`, {
-                method: 'DELETE',
-                headers: authHeaders,
-            });
-            const payload = await res.json();
-            if (!res.ok) throw new Error(payload?.message || 'Failed to delete');
-            setAddresses(payload?.data?.addresses || []);
+            const data = await apiClient.delete(`${API_CONFIG.ENDPOINTS.AUTH}/addresses/${addrId}`);
+            setAddresses(data?.data?.addresses || data?.addresses || []);
             if (editingId === addrId) resetForm();
             notify.success('Address removed');
         } catch (err) {

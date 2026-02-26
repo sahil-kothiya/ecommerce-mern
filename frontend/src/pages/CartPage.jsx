@@ -4,7 +4,7 @@ import authService from '../services/authService';
 import { API_CONFIG } from '../constants';
 import { getPrimaryCartItemImage, resolveImageUrl } from '../utils/imageUrl';
 import notify from '../utils/notify';
-import { useSiteSettings } from '../context/SiteSettingsContext';
+import { useSiteSettings } from '../context/useSiteSettings';
 import { formatCurrency } from '../utils/currency';
 
 const CartPage = () => {
@@ -21,7 +21,7 @@ const CartPage = () => {
     const loadCart = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, { headers: authService.getAuthHeaders() });
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, { headers: authService.getAuthHeaders(), credentials: 'include' });
             const data = await response.json();
             if (!response.ok || !data?.success) throw new Error(data?.message || 'Failed to load cart');
             setCart(data.data || cart);
@@ -42,6 +42,7 @@ const CartPage = () => {
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.COUPONS}/validate`, {
                 method: 'POST',
                 headers: authService.getAuthHeaders(),
+                credentials: 'include',
                 body: JSON.stringify({ code, total: Number(cart.summary?.subTotal || 0) }),
             });
             const data = await response.json();
@@ -76,7 +77,7 @@ const CartPage = () => {
         if (quantity < 1) return;
         try {
             setIsBusy(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}/${itemId}`, { method: 'PUT', headers: authService.getAuthHeaders(), body: JSON.stringify({ quantity }) });
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}/${itemId}`, { method: 'PUT', headers: authService.getAuthHeaders(), credentials: 'include', body: JSON.stringify({ quantity }) });
             const data = await response.json();
             if (!response.ok || !data?.success) throw new Error(data?.message || 'Failed');
             setCart(data.data || cart);
@@ -87,7 +88,7 @@ const CartPage = () => {
     const removeItem = async (itemId) => {
         try {
             setIsBusy(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}/${itemId}`, { method: 'DELETE', headers: authService.getAuthHeaders({}, false) });
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}/${itemId}`, { method: 'DELETE', headers: authService.getAuthHeaders({}, false), credentials: 'include' });
             const data = await response.json();
             if (!response.ok || !data?.success) throw new Error(data?.message || 'Failed');
             setCart(data.data || cart);
@@ -98,7 +99,7 @@ const CartPage = () => {
     const clearCart = async () => {
         try {
             setIsBusy(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, { method: 'DELETE', headers: authService.getAuthHeaders({}, false) });
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, { method: 'DELETE', headers: authService.getAuthHeaders({}, false), credentials: 'include' });
             const data = await response.json();
             if (!response.ok || !data?.success) throw new Error(data?.message || 'Failed');
             setCart(data.data || cart);
