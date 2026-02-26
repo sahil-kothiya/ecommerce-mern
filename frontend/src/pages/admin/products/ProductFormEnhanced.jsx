@@ -6,6 +6,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { API_CONFIG } from '../../../constants';
 import notify from '../../../utils/notify';
+import { resolveImageUrl } from '../../../utils/imageUrl';
 
 const schema = yup.object({
     title: yup.string().trim().required('Title is required'),
@@ -158,14 +159,7 @@ const buildVariantFromCombo = (combo = []) => ({
 });
 
 const getImageUrl = (path) => {
-    if (!path) return null;
-    if (path.startsWith('http')) return path;
-    return `${API_CONFIG.BASE_URL}/uploads/${path.replace(/^\//, '')}`;
-};
-
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    return resolveImageUrl(path, { placeholder: null });
 };
 
 const authFetch = (url, options = {}) => {
@@ -173,7 +167,7 @@ const authFetch = (url, options = {}) => {
     return fetch(url, {
         credentials: 'include',
         ...rest,
-        headers: { ...getAuthHeaders(), ...headers },
+        headers,
     });
 };
 
@@ -520,7 +514,7 @@ const ProductFormEnhanced = () => {
                     const previews = [];
                     await Promise.allSettled(
                         selected.map(async (imgName) => {
-                            const res = await fetch(`/images/${encodeURIComponent(imgName)}`);
+                            const res = await fetch(`${API_CONFIG.BASE_URL}/images/${encodeURIComponent(imgName)}`);
                             if (!res.ok) return;
                             const blob = await res.blob();
                             const ext = imgName.split('.').pop().toLowerCase();
@@ -850,7 +844,7 @@ const ProductFormEnhanced = () => {
                                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
                                     {existingImages.map((img, i) => (
                                         <div key={i} className="relative group aspect-square bg-gray-100 rounded-xl overflow-hidden border-2 border-gray-200">
-                                            <img src={getImageUrl(img.path)} alt="" className="w-full h-full object-cover" onError={e => { e.target.src = '/placeholder.png'; }} />
+                                            <img src={getImageUrl(img.path)} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" onError={e => { e.target.src = '/placeholder.png'; }} />
                                             {img.isPrimary && <span className="absolute top-1 left-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full">â˜…</span>}
                                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1">
                                                 <button type="button" onClick={() => setPrimaryImage(i, true)} className="bg-white text-gray-800 p-1.5 rounded-full opacity-0 group-hover:opacity-100 text-xs">âœ“</button>
@@ -872,7 +866,7 @@ const ProductFormEnhanced = () => {
                                             onDragOver={handleDragOver}
                                             onDrop={(e) => handleDrop(e, i)}
                                             className={`relative group aspect-square bg-gray-100 rounded-xl overflow-hidden border-2 cursor-move transition-all ${draggedIndex === i ? 'border-blue-500 opacity-50' : 'border-gray-200'}`}>
-                                            <img src={preview.url} alt={preview.name} className="w-full h-full object-cover" />
+                                            <img src={preview.url} alt={preview.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                                             {preview.isPrimary && <span className="absolute top-1 left-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full">â˜…</span>}
                                             <span className="absolute top-1 right-1 bg-white/90 text-gray-700 text-xs px-1.5 py-0.5 rounded-full">{i + 1}</span>
                                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1">
@@ -1139,7 +1133,7 @@ const ProductFormEnhanced = () => {
                                                         <div className="flex flex-wrap gap-1.5 items-center">
                                                             {(variant.images || []).map((img, ii) => (
                                                                 <div key={ii} className="relative group w-12 h-12 bg-gray-100 rounded overflow-hidden border border-gray-200 flex-shrink-0">
-                                                                    <img src={getImageUrl(img.path)} alt="" className="w-full h-full object-cover"
+                                                                    <img src={getImageUrl(img.path)} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover"
                                                                         onError={e => { e.target.src = '/placeholder.png'; }} />
                                                                     <button type="button" onClick={() => removeVariantImage(vi, ii, true)}
                                                                         className="absolute inset-0 bg-red-500/0 hover:bg-red-500/70 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 text-white text-sm font-bold">x</button>
@@ -1147,7 +1141,7 @@ const ProductFormEnhanced = () => {
                                                             ))}
                                                             {(variantImages[vi]?.previews || []).map((src, ii) => (
                                                                 <div key={`new-${ii}`} className="relative group w-12 h-12 bg-gray-100 rounded overflow-hidden border-2 border-blue-400 flex-shrink-0">
-                                                                    <img src={src} alt="" className="w-full h-full object-cover" />
+                                                                    <img src={src} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                                                                     <button type="button" onClick={() => removeVariantImage(vi, ii, false)}
                                                                         className="absolute inset-0 bg-red-500/0 hover:bg-red-500/70 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 text-white text-sm font-bold">x</button>
                                                                 </div>

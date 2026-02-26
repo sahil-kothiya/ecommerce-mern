@@ -51,8 +51,14 @@ async function migrateCoupons() {
       coupon.usedCount,
       toNumber(coupon.usageCount, 0),
     );
-    const startDate = toDateOrNull(coupon.startDate || coupon.validFrom);
-    const expiryDate = toDateOrNull(coupon.expiryDate || coupon.validUntil);
+    const userUsageLimit =
+      coupon.userUsageLimit != null
+        ? coupon.userUsageLimit
+        : coupon.perUserLimit != null
+          ? coupon.perUserLimit
+          : null;
+    const startDate = toDateOrNull(coupon.startDate ?? coupon.validFrom);
+    const expiryDate = toDateOrNull(coupon.expiryDate ?? coupon.validUntil);
 
     let nextStatus = coupon.status;
     if (
@@ -71,6 +77,10 @@ async function migrateCoupons() {
       updatedAt: new Date(),
     };
 
+    if (userUsageLimit != null) {
+      setData.userUsageLimit = userUsageLimit;
+    }
+
     if (startDate) {
       setData.startDate = startDate;
     }
@@ -85,6 +95,7 @@ async function migrateCoupons() {
       String(coupon.status || "") !== String(nextStatus || "") ||
       Boolean(coupon.minOrderAmount !== undefined) ||
       Boolean(coupon.usageCount !== undefined) ||
+      Boolean(coupon.perUserLimit !== undefined) ||
       Boolean(coupon.validFrom !== undefined) ||
       Boolean(coupon.validUntil !== undefined) ||
       (startDate &&
@@ -105,6 +116,7 @@ async function migrateCoupons() {
           $unset: {
             minOrderAmount: "",
             usageCount: "",
+            perUserLimit: "",
             validFrom: "",
             validUntil: "",
           },

@@ -1,16 +1,14 @@
 /**
  * Shared authenticated fetch utility for admin API calls.
- * Automatically attaches Authorization header from localStorage + credentials: 'include'.
+ * Uses cookie-based auth via credentials: 'include'.
  */
 
 export const getAuthHeaders = () => {
-  const token =
-    localStorage.getItem("auth_token") || localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return {};
 };
 
 /**
- * Drop-in replacement for fetch() that always sends the Bearer token.
+ * Drop-in replacement for fetch() that always sends auth cookies.
  * For FormData bodies, do NOT set Content-Type (browser sets it with boundary).
  */
 const authFetch = (url, options = {}) => {

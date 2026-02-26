@@ -1,5 +1,6 @@
 import { BaseController } from '../core/BaseController.js';
 import { CartService } from '../services/CartService.js';
+import { logger } from '../utils/logger.js';
 
 export class CartController extends BaseController {
     constructor() {
@@ -54,7 +55,7 @@ export class CartController extends BaseController {
                 data: cart
             });
         } catch (error) {
-            console.error('Cart index error:', error);
+            logger.error('Cart index error', { error: error.message });
             res.status(500).json({
                 success: false,
                 message: 'Failed to fetch cart',
@@ -154,7 +155,7 @@ export class CartController extends BaseController {
                 data: cart
             });
         } catch (error) {
-            console.error('Add to cart error:', error);
+            logger.error('Add to cart error', { error: error.message });
             res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to add item to cart'
@@ -198,7 +199,7 @@ export class CartController extends BaseController {
                 data: cart
             });
         } catch (error) {
-            console.error('Update cart item error:', error);
+            logger.error('Update cart item error', { error: error.message });
             res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to update cart item'
@@ -234,7 +235,7 @@ export class CartController extends BaseController {
                 data: cart
             });
         } catch (error) {
-            console.error('Remove cart item error:', error);
+            logger.error('Remove cart item error', { error: error.message });
             res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to remove cart item'
@@ -269,7 +270,7 @@ export class CartController extends BaseController {
                 data: cart
             });
         } catch (error) {
-            console.error('Clear cart error:', error);
+            logger.error('Clear cart error', { error: error.message });
             res.status(500).json({
                 success: false,
                 message: 'Failed to clear cart'
@@ -332,7 +333,7 @@ export class CartController extends BaseController {
                 data: userCart
             });
         } catch (error) {
-            console.error('Merge session cart error:', error);
+            logger.error('Merge session cart error', { error: error.message });
             res.status(500).json({
                 success: false,
                 message: 'Failed to merge session cart'
@@ -359,7 +360,7 @@ export class CartController extends BaseController {
                 data: { count }
             });
         } catch (error) {
-            console.error('Cart count error:', error);
+            logger.error('Cart count error', { error: error.message });
             res.status(500).json({
                 success: false,
                 message: 'Failed to get cart count'
@@ -393,7 +394,7 @@ export class CartController extends BaseController {
                 data: validation
             });
         } catch (error) {
-            console.error('Cart validation error:', error);
+            logger.error('Cart validation error', { error: error.message });
             res.status(500).json({
                 success: false,
                 message: 'Failed to validate cart'
@@ -435,7 +436,7 @@ export class CartController extends BaseController {
                 data: estimate
             });
         } catch (error) {
-            console.error('Shipping estimate error:', error);
+            logger.error('Shipping estimate error', { error: error.message });
             res.status(500).json({
                 success: false,
                 message: 'Failed to calculate shipping estimate'
@@ -478,7 +479,7 @@ export class CartController extends BaseController {
                 data: cart
             });
         } catch (error) {
-            console.error('Apply coupon error:', error);
+            logger.error('Apply coupon error', { error: error.message });
             res.status(400).json({
                 success: false,
                 message: error.message || 'Failed to apply coupon'
@@ -513,7 +514,7 @@ export class CartController extends BaseController {
                 data: cart
             });
         } catch (error) {
-            console.error('Remove coupon error:', error);
+            logger.error('Remove coupon error', { error: error.message });
             res.status(500).json({
                 success: false,
                 message: 'Failed to remove coupon'

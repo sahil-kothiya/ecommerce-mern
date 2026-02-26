@@ -8,25 +8,39 @@ import authService from '../services/authService';
 import notify from '../utils/notify';
 import LazyImage from '../components/common/LazyImage';
 
-const PRODUCT_FETCH_LIMIT = 120;
+const PRODUCT_FETCH_LIMIT = 48;
 const FEATURED_CATEGORY_LIMIT = 12;
-const FEATURED_PRODUCTS_TARGET = 60;
-const PRODUCTS_PER_CATEGORY_LIMIT = 40;
+const FEATURED_PRODUCTS_TARGET = 24;
+const PRODUCTS_PER_CATEGORY_LIMIT = 16;
 const IMAGE_ROTATION_INTERVAL = 1400;
 const BANNER_URL = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}?limit=5&status=active`;
 
-const bucketBySlug = (products) =>
-    products.reduce((acc, p) => {
-        const slug = p.category?.slug;
-        if (!slug) return acc;
-        if (!acc[slug]) acc[slug] = [];
-        if (acc[slug].length < PRODUCTS_PER_CATEGORY_LIMIT) acc[slug].push(p);
-        return acc;
-    }, {});
+const parseCategoryList = (payload) => {
+    if (Array.isArray(payload?.data?.categories)) return payload.data.categories;
+    if (Array.isArray(payload?.data?.items)) return payload.data.items;
+    if (Array.isArray(payload?.data)) return payload.data;
+    return [];
+};
 
-const buildCategoryMap = (cats, buckets) => {
+const normalizeCategoryKey = (value) => String(value || '').trim().toLowerCase();
+
+const productInCategory = (product, category) => {
+    const productSlug = normalizeCategoryKey(product?.category?.slug);
+    const categorySlug = normalizeCategoryKey(category?.slug);
+    if (productSlug && categorySlug && productSlug === categorySlug) return true;
+
+    const productCategoryId = String(product?.category?.id || product?.category?._id || '').trim();
+    const categoryId = String(category?._id || category?.id || '').trim();
+    return Boolean(productCategoryId && categoryId && productCategoryId === categoryId);
+};
+
+const buildCategoryMap = (cats, products) => {
     const map = {};
-    cats.forEach((c) => { map[c.slug] = buckets[c.slug] || []; });
+    cats.forEach((c) => {
+        map[c.slug] = products
+            .filter((p) => productInCategory(p, c))
+            .slice(0, PRODUCTS_PER_CATEGORY_LIMIT);
+    });
     return map;
 };
 
@@ -96,11 +110,11 @@ const LoadingSkeleton = () => (
         </div>
 
         {/* Product grid skeleton */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {Array.from({ length: 12 }).map((_, i) => (
                 <div key={i} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-                    <div className="img-shimmer h-44 w-full" />
-                    <div className="space-y-2 p-3.5">
+                    <div className="img-shimmer h-56 w-full" />
+                    <div className="space-y-2 p-4">
                         <div className="img-shimmer h-3 w-1/3 rounded" />
                         <div className="img-shimmer h-4 w-3/4 rounded" />
                         <div className="img-shimmer h-4 w-1/2 rounded" />
@@ -115,19 +129,62 @@ const LoadingSkeleton = () => (
 const HeroBanner = ({ banners, onShopNow }) => {
     const [activeIdx, setActiveIdx] = useState(0);
     const timerRef = useRef(null);
+    const slides = banners.length
+        ? banners
+        : [{
+            title: 'Up to 80% Off',
+            description: 'Discover amazing deals on fashion, electronics, and more! Free shipping on orders over $50.',
+            image: null,
+        }];
+
+    useEffect(() => {
+        if (activeIdx >= slides.length) setActiveIdx(0);
+    }, [activeIdx, slides.length]);
+
     const start = useCallback(() => {
         clearInterval(timerRef.current);
-        if (banners.length > 1) timerRef.current = setInterval(() => setActiveIdx((p) => (p + 1) % banners.length), 4500);
-    }, [banners.length]);
+        if (slides.length > 1) timerRef.current = setInterval(() => setActiveIdx((p) => (p + 1) % slides.length), 4500);
+    }, [slides.length]);
+
     useEffect(() => { start(); return () => clearInterval(timerRef.current); }, [start]);
     const goTo = (i) => { setActiveIdx(i); start(); };
-    const b = banners[activeIdx];
+    const b = slides[activeIdx];
+
     return (
-        <section className="store-hero mb-10 px-8 py-16 sm:px-12 sm:py-20 lg:py-24">
-            <div className="absolute -right-10 -top-20 h-56 w-56 rounded-full bg-[#ffa336]/30 blur-3xl pointer-events-none animate-hero-orb" />
-            <div className="absolute -bottom-16 -left-8 h-48 w-48 rounded-full bg-[#a5bbfc]/30 blur-3xl pointer-events-none animate-hero-orb-alt" />
-            <div className="absolute left-1/2 top-1/3 h-40 w-40 -translate-x-1/2 rounded-full bg-[#f9730c]/15 blur-2xl pointer-events-none animate-hero-orb" style={{ animationDuration: '13s' }} />
-            <div className="relative max-w-2xl">
+        <section className="store-hero relative mb-10 overflow-hidden px-8 py-16 sm:px-12 sm:py-20 lg:py-24">
+            <div className="absolute inset-0">
+                <div
+                    className="flex h-full transition-transform duration-700 ease-out"
+                    style={{ width: `${slides.length * 100}%`, transform: `translateX(-${activeIdx * (100 / slides.length)}%)` }}
+                >
+                    {slides.map((slide, idx) => {
+                        const slideImage = resolveImageUrl(slide.image || slide.photo, { placeholder: null });
+                        return (
+                            <div key={slide._id || slide.slug || idx} className="relative h-full" style={{ width: `${100 / slides.length}%` }}>
+                                {slideImage ? (
+                                    <LazyImage
+                                        src={slideImage}
+                                        alt={slide.title || `Promo Banner ${idx + 1}`}
+                                        wrapperClassName="h-full w-full"
+                                        className="h-full w-full object-cover"
+                                        rootMargin="0px"
+                                        fallback={<div className="h-full w-full bg-gradient-to-r from-[#0a2156] via-[#212191] to-[#f9730c]" />}
+                                    />
+                                ) : (
+                                    <div className="h-full w-full bg-gradient-to-r from-[#0a2156] via-[#212191] to-[#f9730c]" />
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-[#1c2f8f]/50 to-[#f9730c]/40" />
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            <div className="absolute -right-10 -top-20 h-56 w-56 rounded-full bg-[#ffa336]/20 blur-3xl pointer-events-none animate-hero-orb" />
+            <div className="absolute -bottom-16 -left-8 h-48 w-48 rounded-full bg-[#a5bbfc]/20 blur-3xl pointer-events-none animate-hero-orb-alt" />
+            <div className="absolute left-1/2 top-1/3 h-40 w-40 -translate-x-1/2 rounded-full bg-[#f9730c]/10 blur-2xl pointer-events-none animate-hero-orb" style={{ animationDuration: '13s' }} />
+
+            <div className="relative z-10 max-w-2xl">
                 <span className="animate-fade-up delay-75 mb-5 inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.12)] px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
                     🎉 Limited Time Offer
                 </span>
@@ -142,9 +199,9 @@ const HeroBanner = ({ banners, onShopNow }) => {
                     <Link to="/products" className="inline-flex items-center gap-2 rounded-2xl border border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.1)] px-7 py-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-[rgba(255,255,255,0.2)] transition">Browse All</Link>
                 </div>
             </div>
-            {banners.length > 1 && (
+            {slides.length > 1 && (
                 <div className="absolute bottom-5 left-8 flex items-center gap-2">
-                    {banners.map((_, i) => (
+                    {slides.map((_, i) => (
                         <button key={i} onClick={() => goTo(i)} className={`h-1.5 rounded-full transition-all ${i === activeIdx ? 'w-6 bg-[#ffa336]' : 'w-1.5 bg-white/40 hover:bg-white/70'}`} />
                     ))}
                 </div>
@@ -167,9 +224,9 @@ const ProductCard = ({ product, currentImage, isHovered, inWishlist, onHover, on
                 <LazyImage
                     src={currentImage}
                     alt={product.title}
-                    wrapperClassName="h-44 w-full"
-                    className="h-44 w-full object-cover group-hover:scale-105"
-                    fallback={<div className="flex h-44 w-full items-center justify-center bg-gradient-to-br from-slate-100 to-blue-100"><svg className="h-10 w-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>}
+                    wrapperClassName="h-56 w-full"
+                    className="h-56 w-full object-cover group-hover:scale-105"
+                    fallback={<div className="flex h-56 w-full items-center justify-center bg-gradient-to-br from-slate-100 to-blue-100"><svg className="h-10 w-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>}
                 />
                 {product.condition && (
                     <span className="absolute left-3 top-3 rounded-full bg-gradient-to-r from-[#4250d5] to-[#f9730c] px-2.5 py-1 text-[10px] font-bold text-white shadow">
@@ -190,7 +247,7 @@ const ProductCard = ({ product, currentImage, isHovered, inWishlist, onHover, on
                         : <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>}
                 </button>
             </div>
-            <div className="flex flex-1 flex-col gap-2 p-3.5">
+            <div className="flex flex-1 flex-col gap-2.5 p-4">
                 <div className="flex items-center justify-between">
                     <span className="rounded-lg border border-[rgba(165,187,252,0.35)] bg-[rgba(66,80,213,0.06)] px-2 py-0.5 text-[11px] font-semibold text-[#4250d5]">
                         {product.brand?.title || 'Brand'}
@@ -226,11 +283,9 @@ const HomePage = () => {
     const navigate = useNavigate();
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
-    const [productsByCategory, setProductsByCategory] = useState({});
     const [featuredProducts, setFeaturedProducts] = useState([]);
     const [banners, setBanners] = useState([]);
     const [wishlistItems, setWishlistItems] = useState([]);
-    const [selectedCategory, setSelectedCategory] = useState('all');
     const [isLoading, setIsLoading] = useState(true);
     const [hoveredProduct, setHoveredProduct] = useState(null);
     const [currentImageIndex, setCurrentImageIndex] = useState({});
@@ -252,7 +307,7 @@ const HomePage = () => {
         try {
             setIsLoading(true);
             const [prodsRes, catsRes, bannersRes] = await Promise.all([
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}?limit=${PRODUCT_FETCH_LIMIT}&sort=-popularity`),
+                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}?limit=${PRODUCT_FETCH_LIMIT}&sort=popular&status=active&includeCount=false`),
                 fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`),
                 fetch(BANNER_URL).catch(() => null),
             ]);
@@ -263,15 +318,28 @@ const HomePage = () => {
                 bannersRes ? bannersRes.json().catch(() => null) : Promise.resolve(null),
             ]);
             const apiProducts = (prodsData?.data?.products || []).map((p) => ({ ...p, images: Array.isArray(p.images) ? p.images : [] }));
-            const apiCategories = Array.isArray(catsData?.data) ? catsData.data : (catsData?.data?.categories || []);
+            const apiCategories = parseCategoryList(catsData);
             if (!apiProducts.length) throw new Error('No products');
-            const categoriesWithCounts = apiCategories
-                .map((c) => ({ ...c, productCount: apiProducts.filter((p) => p.category?.slug === c.slug).length }))
+            const fallbackCategories = Object.values(
+                apiProducts.reduce((acc, product) => {
+                    const slug = product?.category?.slug;
+                    if (!slug || acc[slug]) return acc;
+                    acc[slug] = {
+                        _id: product?.category?.id || slug,
+                        slug,
+                        title: product?.category?.title || slug,
+                    };
+                    return acc;
+                }, {})
+            );
+            const sourceCategories = (apiCategories.length ? apiCategories : fallbackCategories)
+                .filter((c) => Boolean(c?.slug));
+            const categoriesWithCounts = sourceCategories
+                .map((c) => ({ ...c, productCount: apiProducts.filter((p) => productInCategory(p, c)).length }))
                 .sort((a, b) => b.productCount - a.productCount).slice(0, FEATURED_CATEGORY_LIMIT);
-            const buckets = bucketBySlug(apiProducts);
+            const buckets = buildCategoryMap(categoriesWithCounts, apiProducts);
             setProducts(apiProducts);
             setCategories(categoriesWithCounts);
-            setProductsByCategory(buildCategoryMap(categoriesWithCounts, buckets));
             setFeaturedProducts(aggregateFeatured(categoriesWithCounts, buckets, apiProducts));
             const indices = {};
             apiProducts.forEach((p) => { indices[p._id] = 0; });
@@ -369,7 +437,6 @@ const HomePage = () => {
     };
 
     const featuredGridProducts = sortProducts(featuredProducts.length ? featuredProducts : products.slice(0, FEATURED_PRODUCTS_TARGET));
-    const visibleCategoryProducts = sortProducts(selectedCategory === 'all' ? [] : (productsByCategory[selectedCategory] || []));
 
     const cardProps = (product) => ({
         product,
@@ -382,7 +449,7 @@ const HomePage = () => {
     });
 
     return (
-        <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[90rem] px-4 pb-16 sm:px-6 lg:px-8">
             {/* Hero */}
             <HeroBanner banners={banners} onShopNow={() => navigate('/products')} />
 
@@ -415,12 +482,12 @@ const HomePage = () => {
                         <Link to="/products" className="store-btn-secondary tap-bounce rounded-xl px-4 py-2 text-sm">View All →</Link>
                     </div>
                     <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-9">
-                        <button onClick={() => setSelectedCategory('all')} className={`store-category-chip animate-fade-up delay-75 flex flex-col items-center gap-1.5 px-3 py-3 text-center ${selectedCategory === 'all' ? 'active' : ''}`}>
+                        <button onClick={() => navigate('/products')} className="store-category-chip animate-fade-up delay-75 flex flex-col items-center gap-1.5 px-3 py-3 text-center">
                             <span className="text-xl">🛒</span>
                             <span className="text-xs font-semibold">All</span>
                         </button>
                         {categories.slice(0, 8).map((cat, i) => (
-                            <button key={cat._id || cat.slug} style={{ animationDelay: `${(i + 2) * 60}ms` }} onClick={() => setSelectedCategory(cat.slug)} className={`store-category-chip animate-fade-up flex flex-col items-center gap-1.5 px-3 py-3 text-center ${selectedCategory === cat.slug ? 'active' : ''}`}>
+                            <button key={cat._id || cat.slug} style={{ animationDelay: `${(i + 2) * 60}ms` }} onClick={() => navigate(`/products?category=${encodeURIComponent(cat.slug)}`)} className="store-category-chip animate-fade-up flex flex-col items-center gap-1.5 px-3 py-3 text-center">
                                 <span className="text-xl">{catIcon(cat.title)}</span>
                                 <span className="line-clamp-2 text-xs font-semibold leading-tight">{cat.title}</span>
                             </button>
@@ -433,18 +500,15 @@ const HomePage = () => {
             <section className="animate-fade-up" style={{ animationDelay: '200ms' }}>
                 <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <p className="store-eyebrow mb-1">{selectedCategory === 'all' ? 'Curated for You' : 'Category'}</p>
+                        <p className="store-eyebrow mb-1">Curated for You</p>
                         <h2 className="store-display text-xl text-[#131313] sm:text-2xl">
-                            {selectedCategory === 'all' ? 'Featured Products' : (categories.find((c) => c.slug === selectedCategory)?.title || 'Products')}
+                            Featured Products
                             <span className="ml-2 text-sm font-normal text-[#666]">
-                                ({selectedCategory === 'all' ? featuredGridProducts.length : visibleCategoryProducts.length})
+                                ({featuredGridProducts.length})
                             </span>
                         </h2>
                     </div>
                     <div className="flex items-center gap-3">
-                        {selectedCategory !== 'all' && (
-                            <button onClick={() => setSelectedCategory('all')} className="store-btn-secondary tap-bounce rounded-xl px-4 py-2 text-sm">← All</button>
-                        )}
                         <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="store-input cursor-pointer rounded-xl px-4 py-2 text-sm">
                             <option value="newest">Newest</option>
                             <option value="price-low">Price: Low → High</option>
@@ -454,34 +518,20 @@ const HomePage = () => {
                     </div>
                 </div>
 
-                {/* Category filter pills */}
-                <div className="mb-6 flex flex-wrap gap-2 overflow-x-auto pb-1">
-                    <button onClick={() => setSelectedCategory('all')} className={`store-category-chip animate-fade-up px-4 py-1.5 text-sm ${selectedCategory === 'all' ? 'active' : ''}`}>All Products</button>
-                    {categories.slice(0, 6).map((cat, i) => (
-                        <button key={cat._id || cat.slug} style={{ animationDelay: `${(i + 1) * 55}ms` }} onClick={() => setSelectedCategory(cat.slug)} className={`store-category-chip animate-fade-up px-4 py-1.5 text-sm ${selectedCategory === cat.slug ? 'active' : ''}`}>
-                            {cat.title} {cat.productCount > 0 && <span className="opacity-70">({cat.productCount})</span>}
-                        </button>
-                    ))}
-                </div>
-
-                {isLoading ? (<LoadingSkeleton />) : selectedCategory === 'all' ? (
-                    <div key="all" className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                {isLoading ? (<LoadingSkeleton />) : featuredGridProducts.length > 0 ? (
+                    <div key="all" className="grid grid-cols-2 gap-4 md:grid-cols-4">
                         {featuredGridProducts.map((p, i) => <ProductCard key={p._id} {...cardProps(p)} animDelay={Math.min(i * 45, 700)} />)}
                     </div>
-                ) : !visibleCategoryProducts.length ? (
+                ) : (
                     <div className="store-surface animate-fade-in-scale py-14 text-center">
                         <div className="text-4xl mb-3">🛍️</div>
                         <h3 className="store-display text-lg text-[#212191] mb-1">No Products Found</h3>
-                        <p className="text-sm text-[#666] mb-5">No products in this category yet.</p>
-                        <button onClick={() => setSelectedCategory('all')} className="store-btn-primary tap-bounce inline-block rounded-xl px-6 py-2.5 text-sm font-bold">Browse All</button>
-                    </div>
-                ) : (
-                    <div key={selectedCategory} className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                        {visibleCategoryProducts.map((p, i) => <ProductCard key={p._id} {...cardProps(p)} animDelay={Math.min(i * 45, 700)} />)}
+                        <p className="text-sm text-[#666] mb-5">No featured products available yet.</p>
+                        <Link to="/products" className="store-btn-primary tap-bounce inline-block rounded-xl px-6 py-2.5 text-sm font-bold">Browse All</Link>
                     </div>
                 )}
 
-                {!isLoading && selectedCategory === 'all' && featuredGridProducts.length > 0 && (
+                {!isLoading && featuredGridProducts.length > 0 && (
                     <div className="mt-10 text-center">
                         <Link to="/products" className="store-btn-primary tap-bounce inline-flex items-center gap-2 rounded-2xl px-8 py-3.5 text-sm font-bold">
                             View All Products

@@ -60,7 +60,10 @@ describe("authService", () => {
         name: "John Doe",
         phone: "1234567890", // Should not be stored
       };
-      apiClient.post.mockResolvedValue({ user: fullUser });
+      apiClient.post.mockResolvedValue({
+        user: fullUser,
+        accessToken: "legacy-token-should-not-store",
+      });
 
       await authService.login("user@example.com", "Password123!", true);
 
@@ -134,7 +137,10 @@ describe("authService", () => {
         email: "new@example.com",
         name: "Jane Doe",
       };
-      apiClient.post.mockResolvedValue({ user: fullUser });
+      apiClient.post.mockResolvedValue({
+        user: fullUser,
+        accessToken: "legacy-token-should-not-store",
+      });
 
       await authService.register({
         name: "Jane Doe",
@@ -210,14 +216,10 @@ describe("authService", () => {
     it("clears all auth data even when logout API call fails", async () => {
       apiClient.post.mockRejectedValue(new Error("Network error"));
       authService.setUser({ _id: "u1", role: "customer", name: "Test" });
-      localStorage.setItem("auth_token", "legacy-token");
-      localStorage.setItem("token", "legacy-token-2");
 
       await authService.logout();
 
       expect(localStorage.getItem("auth_user")).toBeNull();
-      expect(localStorage.getItem("auth_token")).toBeNull();
-      expect(localStorage.getItem("token")).toBeNull();
       expect(authService.getUser()).toBeNull();
     });
 
@@ -579,15 +581,11 @@ describe("authService", () => {
 
     it("reset() clears cache, pending requests, and localStorage keys", () => {
       authService.setUser({ _id: "u1", role: "customer", name: "Test" });
-      localStorage.setItem("auth_token", "token1");
-      localStorage.setItem("token", "token2");
 
       authService.reset();
 
       expect(authService.getUser()).toBeNull();
       expect(localStorage.getItem("auth_user")).toBeNull();
-      expect(localStorage.getItem("auth_token")).toBeNull();
-      expect(localStorage.getItem("token")).toBeNull();
       expect(authService._pendingUserFetch).toBeNull();
     });
 

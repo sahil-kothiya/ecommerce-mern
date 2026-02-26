@@ -36,8 +36,6 @@ class AuthService {
       );
 
       const user = response?.data?.user ?? response?.user;
-      const token = response?.data?.accessToken ?? response?.accessToken;
-      if (token) localStorage.setItem("auth_token", token);
 
       this.setUser(user);
       this._emitAuthEvent("auth:login", { user });
@@ -75,8 +73,6 @@ class AuthService {
       );
 
       const user = response?.data?.user ?? response?.user;
-      const token = response?.data?.accessToken ?? response?.accessToken;
-      if (token) localStorage.setItem("auth_token", token);
 
       this.setUser(user);
       this._emitAuthEvent("auth:login", { user });
@@ -303,13 +299,6 @@ class AuthService {
       ...customHeaders,
     };
 
-    const token =
-      localStorage.getItem("auth_token") || localStorage.getItem("token");
-
-    if (token && !headers.Authorization) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
     return headers;
   }
 
@@ -317,8 +306,6 @@ class AuthService {
     this._userCache = null;
     this._pendingUserFetch = null;
     localStorage.removeItem(this.USER_KEY);
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("token");
 
     logger.info("Auth state cleared");
   }

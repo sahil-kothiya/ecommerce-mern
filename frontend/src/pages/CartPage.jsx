@@ -11,6 +11,7 @@ const CartPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isBusy, setIsBusy] = useState(false);
     const [couponCode, setCouponCode] = useState('');
+    const [couponError, setCouponError] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState(null);
     const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
@@ -29,7 +30,7 @@ const CartPage = () => {
     const applyCoupon = async (forcedCode = null, options = {}) => {
         const code = String(forcedCode ?? couponCode ?? '').trim().toUpperCase();
         if (!code) {
-            if (!options.silent) notify.error('Please enter coupon code');
+            if (!options.silent) setCouponError('Please enter a coupon code');
             return false;
         }
 
@@ -52,10 +53,11 @@ const CartPage = () => {
 
             setAppliedCoupon(validatedCoupon);
             setCouponCode(code);
+            setCouponError('');
             if (!options.silent) notify.success(`Coupon ${code} applied`);
             return true;
         } catch (error) {
-            if (!options.silent) notify.error(error.message || 'Failed to apply coupon');
+            if (!options.silent) setCouponError(error.message || 'Failed to apply coupon');
             return false;
         } finally {
             setIsApplyingCoupon(false);
@@ -158,7 +160,7 @@ const CartPage = () => {
                                             src={resolveImageUrl(getPrimaryCartItemImage(item))}
                                             alt={item.product?.title || 'Product'}
                                             className="h-full w-full object-cover"
-                                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/images/placeholder.webp'; }}
+                                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = resolveImageUrl(null); }}
                                         />
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -199,7 +201,7 @@ const CartPage = () => {
                                 <input
                                     type="text"
                                     value={couponCode}
-                                    onChange={(e) => setCouponCode(e.target.value.trim().toUpperCase())}
+                                    onChange={(e) => { setCouponCode(e.target.value.trim().toUpperCase()); setCouponError(''); }}
                                     placeholder="Enter coupon code"
                                     className="store-input h-10 flex-1 rounded-lg px-3 text-sm"
                                     disabled={isApplyingCoupon}
@@ -223,7 +225,10 @@ const CartPage = () => {
                                     </button>
                                 )}
                             </div>
-                            {appliedCoupon && (
+                            {couponError && (
+                                <p className="mt-1.5 text-xs font-medium text-red-600">{couponError}</p>
+                            )}
+                            {appliedCoupon && !couponError && (
                                 <p className="mt-2 text-xs font-medium text-[#388e3c]">
                                     {appliedCoupon.code} applied • You save {fmt(couponDiscount)}
                                 </p>
@@ -234,7 +239,9 @@ const CartPage = () => {
                             <div className="flex justify-between text-[#555]"><span>MRP Total</span><span className="font-semibold">{fmt(cart.summary.mrpTotal)}</span></div>
                             <div className="flex justify-between text-[#388e3c]"><span>Discount</span><span className="font-semibold">- {fmt(cart.summary.discountTotal)}</span></div>
                             <div className="flex justify-between text-[#555]"><span>Subtotal</span><span className="font-semibold">{fmt(cart.summary.subTotal)}</span></div>
-                            <div className="flex justify-between text-[#388e3c]"><span>Coupon Discount</span><span className="font-semibold">- {fmt(couponDiscount)}</span></div>
+                            {appliedCoupon && couponDiscount > 0 && (
+                                <div className="flex justify-between text-[#388e3c]"><span>Coupon Discount</span><span className="font-semibold">- {fmt(couponDiscount)}</span></div>
+                            )}
                             <div className="flex justify-between text-[#555]"><span>Shipping</span><span className="font-semibold">{fmt(cart.summary.shippingCost)}</span></div>
                             <div className="flex justify-between border-t border-[rgba(165,187,252,0.25)] pt-3 text-base font-bold text-[#131313]"><span>Total</span><span>{fmt(payableTotal)}</span></div>
                         </div>

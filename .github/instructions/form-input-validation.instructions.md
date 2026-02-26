@@ -5,6 +5,11 @@ applyTo: "**/*.{jsx,js}"
 
 # Form Input Validation & Sanitization Best Practices
 
+## 🔄 Latest Code Policy
+
+- Do not use legacy code or legacy implementation patterns.
+- Always use latest stable, supported code patterns and dependencies that are compatible with this repository.
+
 ## Input Trimming (CRITICAL)
 
 **Always trim whitespace from text inputs** to prevent accidental spaces:

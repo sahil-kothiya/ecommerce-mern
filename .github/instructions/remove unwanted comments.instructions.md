@@ -5,6 +5,11 @@ applyTo: "**"
 
 # Code Style & Comments Policy
 
+## 🔄 Latest Code Policy
+
+- Do not use legacy code or legacy implementation patterns.
+- Always use latest stable, supported code patterns and dependencies that are compatible with this repository.
+
 ## Comments
 
 - Add only short, essential comments explaining "why", not "what"

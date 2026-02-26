@@ -103,7 +103,7 @@ const pickOrderItemImage = (item) => {
     return null;
 };
 
-const ItemRow = ({ item }) => {
+const ItemRow = ({ item, orderId, canReview }) => {
     const imgSrc      = resolveImageUrl(pickOrderItemImage(item));
     const title       = item.title || item.name || item.productName || 'Product';
     const price       = Number(item.price    || 0);
@@ -118,7 +118,7 @@ const ItemRow = ({ item }) => {
                     src={imgSrc}
                     alt={title}
                     className="h-full w-full object-cover"
-                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/images/placeholder.webp'; }}
+                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = resolveImageUrl(null); }}
                 />
             ) : (
                 <div className="flex h-full w-full items-center justify-center">
@@ -153,6 +153,14 @@ const ItemRow = ({ item }) => {
             </div>
             <div className="flex-shrink-0 text-right">
                 <p className="text-base font-bold text-slate-800">${amount.toFixed(2)}</p>
+                {canReview && productLink && (
+                    <Link
+                        to={`${productLink}?orderId=${orderId}`}
+                        className="mt-2 inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                    >
+                        Rate & Review
+                    </Link>
+                )}
             </div>
         </div>
     );
@@ -479,7 +487,7 @@ const AccountOrders = () => {
                                                 <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">Items Ordered</p>
                                                 <div className="divide-y divide-slate-100 rounded-2xl px-4 ring-1 ring-slate-100">
                                                     {order.items.map((item, idx) => (
-                                                        <ItemRow key={item._id || idx} item={item} />
+                                                        <ItemRow key={item._id || idx} item={item} orderId={order._id} canReview={order.status === 'delivered'} />
                                                     ))}
                                                 </div>
                                             </div>

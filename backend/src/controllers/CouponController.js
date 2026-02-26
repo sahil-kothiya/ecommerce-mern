@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { Coupon } from "../models/Coupon.js";
 import { AppError } from "../middleware/errorHandler.js";
+import { logger } from "../utils/logger.js";
 
 export class CouponController {
   normalizeCouponPayload(rawCoupon = {}) {
@@ -8,11 +9,15 @@ export class CouponController {
       rawCoupon.minPurchase,
       this.parseNumber(rawCoupon.minOrderAmount, 0),
     );
-    const startDate = rawCoupon.startDate || rawCoupon.validFrom || null;
-    const expiryDate = rawCoupon.expiryDate || rawCoupon.validUntil || null;
+    const startDate = rawCoupon.startDate ?? rawCoupon.validFrom ?? null;
+    const expiryDate = rawCoupon.expiryDate ?? rawCoupon.validUntil ?? null;
     const usedCount = this.parseNumber(
       rawCoupon.usedCount,
       this.parseNumber(rawCoupon.usageCount, 0),
+    );
+    const userUsageLimit = this.parseNumber(
+      rawCoupon.userUsageLimit,
+      this.parseNumber(rawCoupon.perUserLimit, null),
     );
 
     return {
@@ -21,6 +26,7 @@ export class CouponController {
       startDate,
       expiryDate,
       usedCount,
+      userUsageLimit,
     };
   }
 
@@ -44,21 +50,14 @@ export class CouponController {
     return { field, message };
   }
 
-  parseBoolean(value, fallback = false) {
-    if (typeof value === "boolean") return value;
-    if (typeof value === "string") {
-      const normalized = value.trim().toLowerCase();
-      if (["true", "1", "yes", "on"].includes(normalized)) return true;
-      if (["false", "0", "no", "off", ""].includes(normalized)) return false;
-    }
-    if (typeof value === "number") return value === 1;
-    return fallback;
-  }
-
   parseNumber(value, fallback = null) {
     if (value === undefined || value === null || value === "") return fallback;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  escapeRegex(value = "") {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
   parseDate(value, fallback = null) {
@@ -192,7 +191,7 @@ export class CouponController {
 
       const query = {};
       if (req.query.search) {
-        const search = String(req.query.search).trim();
+        const search = this.escapeRegex(String(req.query.search).trim());
         query.$or = [
           { code: { $regex: search, $options: "i" } },
           { description: { $regex: search, $options: "i" } },
@@ -340,6 +339,10 @@ export class CouponController {
         return next(new AppError("Invalid coupon ID", 400));
       }
 
+      logger.debug(
+        `[Coupon:update] id=${id} incoming minPurchase=${req.body?.minPurchase} minOrderAmount=${req.body?.minOrderAmount}`,
+      );
+
       const coupon = await Coupon.findById(id);
       if (!coupon) {
         return next(new AppError("Coupon not found", 404));
@@ -364,6 +367,10 @@ export class CouponController {
         req.body.expiryDate !== undefined || req.body.validUntil !== undefined
           ? this.parseDate(req.body.expiryDate ?? req.body.validUntil, null)
           : coupon.expiryDate || coupon.validUntil;
+
+      logger.debug(
+        `[Coupon:update] id=${id} resolved minPurchase=${minPurchaseValue} current minPurchase=${coupon.minPurchase} current minOrderAmount=${coupon.minOrderAmount}`,
+      );
 
       const payload = {
         code:
@@ -392,6 +399,28 @@ export class CouponController {
           req.body.usageLimit !== undefined
             ? this.parseNumber(req.body.usageLimit, null)
             : coupon.usageLimit,
+        userUsageLimit:
+          req.body.userUsageLimit !== undefined ||
+          req.body.perUserLimit !== undefined
+            ? this.parseNumber(
+                req.body.userUsageLimit ?? req.body.perUserLimit,
+                null,
+              )
+            : this.parseNumber(
+                coupon.userUsageLimit ?? coupon.perUserLimit,
+                null,
+              ),
+        perUserLimit:
+          req.body.userUsageLimit !== undefined ||
+          req.body.perUserLimit !== undefined
+            ? this.parseNumber(
+                req.body.userUsageLimit ?? req.body.perUserLimit,
+                null,
+              )
+            : this.parseNumber(
+                coupon.userUsageLimit ?? coupon.perUserLimit,
+                null,
+              ),
         startDate: startDateValue,
         validFrom: startDateValue,
         expiryDate: expiryDateValue,
@@ -415,6 +444,10 @@ export class CouponController {
 
       Object.assign(coupon, payload);
       await coupon.save();
+
+      logger.info(
+        `[Coupon:update] id=${id} saved minPurchase=${coupon.minPurchase} minOrderAmount=${coupon.minOrderAmount}`,
+      );
 
       return res.json({
         success: true,

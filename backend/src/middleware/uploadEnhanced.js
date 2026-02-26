@@ -2,6 +2,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { config } from "../config/index.js";
+import { logger } from "../utils/logger.js";
 
 const ensureUploadDir = (dir) => {
   if (!fs.existsSync(dir)) {
@@ -179,7 +180,7 @@ export const deleteUploadedFile = async (filePath) => {
     const fileDir = path.resolve(absolutePath);
 
     if (!fileDir.startsWith(uploadsDir)) {
-      console.error(
+      logger.error(
         "Security: Attempted to delete file outside uploads directory",
       );
       return false;
@@ -190,7 +191,7 @@ export const deleteUploadedFile = async (filePath) => {
     await fs.promises.unlink(absolutePath);
     return true;
   } catch (error) {
-    console.error(`Error deleting file ${filePath}:`, error);
+    logger.error(`Error deleting file ${filePath}`, { error: error.message });
     return false;
   }
 };

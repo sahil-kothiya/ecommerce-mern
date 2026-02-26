@@ -326,7 +326,7 @@ const CategoryEditorPage = () => {
 
                             <div className="space-y-5">
                                 {imagePreview ? (
-                                    <img src={imagePreview} alt="preview" className="h-32 w-full rounded-xl border-2 border-slate-200 object-cover md:h-36" />
+                                    <img src={imagePreview} alt="preview" loading="lazy" decoding="async" className="h-32 w-full rounded-xl border-2 border-slate-200 object-cover md:h-36" />
                                 ) : (
                                     <div className="media-preview-empty md:h-36">No category image selected</div>
                                 )}

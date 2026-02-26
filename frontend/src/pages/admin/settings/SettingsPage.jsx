@@ -5,6 +5,7 @@ import * as yup from 'yup';
 import notify from '../../../utils/notify';
 import settingsService from '../../../services/settingsService';
 import { API_CONFIG } from '../../../constants';
+import { resolveImageUrl } from '../../../utils/imageUrl';
 
 const urlTest = (msg) => (v) => !v || /^https?:\/\/.+/i.test(v) || msg;
 const emailTest = (msg) => (v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || msg;
@@ -90,9 +91,7 @@ const SettingsPage = () => {
     };
 
     const toAssetUrl = (path) => {
-        if (!path) return '';
-        if (/^https?:\/\//i.test(path)) return path;
-        return `${API_CONFIG.BASE_URL}/uploads/${path}`;
+        return resolveImageUrl(path);
     };
 
     const stats = useMemo(() => ({
@@ -220,12 +219,12 @@ const SettingsPage = () => {
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Website Logo</label>
-                            {watchLogo && <img src={toAssetUrl(String(watchLogo))} alt="Logo" className="mb-3 h-16 rounded border border-slate-200 bg-slate-50 object-contain p-1" />}
+                            {watchLogo && <img src={toAssetUrl(String(watchLogo))} alt="Logo" loading="lazy" decoding="async" className="mb-3 h-16 rounded border border-slate-200 bg-slate-50 object-contain p-1" />}
                             <input type="file" accept="image/*" onChange={(e) => setLogoFile(e.target.files?.[0] || null)} className="w-full rounded-xl border border-slate-300 px-3 py-2" />
                         </div>
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Website Favicon</label>
-                            {watchFavicon && <img src={toAssetUrl(String(watchFavicon))} alt="Favicon" className="mb-3 h-12 w-12 rounded border border-slate-200 bg-slate-50 object-contain p-1" />}
+                            {watchFavicon && <img src={toAssetUrl(String(watchFavicon))} alt="Favicon" loading="lazy" decoding="async" className="mb-3 h-12 w-12 rounded border border-slate-200 bg-slate-50 object-contain p-1" />}
                             <input type="file" accept="image/*" onChange={(e) => setFaviconFile(e.target.files?.[0] || null)} className="w-full rounded-xl border border-slate-300 px-3 py-2" />
                         </div>
                     </div>

@@ -97,6 +97,7 @@ const StoreHeader = () => {
     };
 
     const userInitial = currentUser?.name?.charAt(0)?.toUpperCase() || 'U';
+    const activeSort = new URLSearchParams(location.search).get('sort');
 
     return (
         <header className="store-header fixed left-0 right-0 top-0 z-50">
@@ -238,10 +239,10 @@ const StoreHeader = () => {
                 </div>
 
                 {/* Category nav */}
-                <nav className="hidden md:flex items-center gap-1 pb-3 overflow-x-auto scrollbar-hide">
+                <nav className="hidden md:flex items-center gap-1 pb-2 overflow-x-auto scrollbar-hide">
                     <Link
                         to="/products"
-                        className={`store-nav-link whitespace-nowrap text-sm ${location.pathname === '/products' && !location.search.includes('category') ? 'active' : ''}`}
+                        className={`store-nav-link whitespace-nowrap px-2.5 py-1 text-sm lg:text-xs ${location.pathname === '/products' && !location.search.includes('category') ? 'active' : ''}`}
                     >
                         All Products
                     </Link>
@@ -249,12 +250,15 @@ const StoreHeader = () => {
                         <Link
                             key={cat._id || cat.slug}
                             to={`/products?category=${cat.slug}`}
-                            className={`store-nav-link whitespace-nowrap text-sm ${location.search.includes(`category=${cat.slug}`) ? 'active' : ''}`}
+                            className={`store-nav-link whitespace-nowrap px-2.5 py-1 text-sm lg:text-xs ${location.search.includes(`category=${cat.slug}`) ? 'active' : ''}`}
                         >
                             {cat.title}
                         </Link>
                     ))}
-                    <Link to="/products?sort=popular" className="store-nav-link whitespace-nowrap text-sm text-[#f9730c] border-[rgba(249,115,12,0.25)]">
+                    <Link
+                        to="/products?sort=popular"
+                        className={`store-nav-link whitespace-nowrap px-2.5 py-1 text-sm lg:text-xs text-[#f9730c] border-[rgba(249,115,12,0.25)] ${activeSort === 'popular' ? 'active' : ''}`}
+                    >
                         🔥 Featured
                     </Link>
                 </nav>

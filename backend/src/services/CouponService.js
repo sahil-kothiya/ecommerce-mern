@@ -19,6 +19,7 @@ export class CouponService extends BaseService {
     const usedCount = Number(coupon.usedCount ?? coupon.usageCount ?? 0);
     const startDate = coupon.startDate ?? coupon.validFrom ?? null;
     const expiryDate = coupon.expiryDate ?? coupon.validUntil ?? null;
+    const userUsageLimit = coupon.userUsageLimit ?? coupon.perUserLimit ?? null;
 
     return {
       ...coupon,
@@ -29,6 +30,7 @@ export class CouponService extends BaseService {
       usedCount,
       startDate,
       expiryDate,
+      userUsageLimit,
     };
   }
 
@@ -70,11 +72,11 @@ export class CouponService extends BaseService {
       })
       .lean();
 
-    const coupon = this.normalizeCoupon(rawCoupon);
-
-    if (!coupon) {
+    if (!rawCoupon) {
       throw new AppError("Invalid coupon code", 400);
     }
+
+    const coupon = this.normalizeCoupon(rawCoupon);
 
     const now = new Date();
 
@@ -128,6 +130,7 @@ export class CouponService extends BaseService {
       discount = coupon.value;
     }
 
+    discount = Math.min(discount, orderAmount);
     discount = Math.round(discount * 100) / 100;
 
     return {

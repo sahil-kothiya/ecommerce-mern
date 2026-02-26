@@ -63,6 +63,8 @@ const LazyImage = ({
                 <img
                     src={src}
                     alt={alt}
+                    loading="lazy"
+                    fetchPriority="low"
                     decoding="async"
                     className={`${className} img-reveal ${loaded ? 'img-reveal--loaded' : ''}`}
                     onLoad={() => setLoaded(true)}

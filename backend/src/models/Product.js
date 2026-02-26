@@ -1,532 +1,562 @@
-import mongoose from 'mongoose';
-import slugify from 'slugify';
+import mongoose from "mongoose";
+import slugify from "slugify";
 
 const { Schema } = mongoose;
 
-const VariantOptionSchema = new Schema({
+const VariantOptionSchema = new Schema(
+  {
     typeId: {
-        type: Schema.Types.ObjectId,
-        ref: 'VariantType',
-        required: true
+      type: Schema.Types.ObjectId,
+      ref: "VariantType",
+      required: true,
     },
     typeName: {
-        type: String,
-        required: true,
-        trim: true
+      type: String,
+      required: true,
+      trim: true,
     },
     typeDisplayName: {
-        type: String,
-        required: true
+      type: String,
+      required: true,
     },
     optionId: {
-        type: Schema.Types.ObjectId,
-        ref: 'VariantOption',
-        required: true
+      type: Schema.Types.ObjectId,
+      ref: "VariantOption",
+      required: true,
     },
     value: {
-        type: String,
-        required: true,
-        lowercase: true,
-        trim: true
+      type: String,
+      required: true,
+      lowercase: true,
+      trim: true,
     },
     displayValue: {
-        type: String,
-        required: true
+      type: String,
+      required: true,
     },
     hexColor: {
-        type: String,
-        validate: {
-            validator: (v) => !v || /^#[0-9A-F]{6}$/i.test(v),
-            message: 'Invalid hex color format'
-        }
-    }
-}, { _id: false });
+      type: String,
+      validate: {
+        validator: (v) => !v || /^#[0-9A-F]{6}$/i.test(v),
+        message: "Invalid hex color format",
+      },
+    },
+  },
+  { _id: false },
+);
 
-const ImageSchema = new Schema({
+const ImageSchema = new Schema(
+  {
     path: {
-        type: String,
-        required: true,
-        trim: true
+      type: String,
+      required: true,
+      trim: true,
     },
     isPrimary: {
-        type: Boolean,
-        default: false
+      type: Boolean,
+      default: false,
     },
     sortOrder: {
-        type: Number,
-        default: 0
+      type: Number,
+      default: 0,
     },
     altText: {
-        type: String,
-        trim: true,
-        maxlength: 200
-    }
-}, { timestamps: true });
+      type: String,
+      trim: true,
+      maxlength: 200,
+    },
+  },
+  { timestamps: true },
+);
 
-const ProductVariantSchema = new Schema({
+const ProductVariantSchema = new Schema(
+  {
     sku: {
-        type: String,
-        required: true,
-        trim: true,
-        uppercase: true
+      type: String,
+      required: true,
+      trim: true,
+      uppercase: true,
     },
     displayName: {
-        type: String,
-        required: true,
-        trim: true,
-        maxlength: 200
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 200,
     },
     price: {
-        type: Number,
-        required: true,
-        min: 0,
-        set: (v) => Math.round(v * 100) / 100
+      type: Number,
+      required: true,
+      min: 0,
+      set: (v) => Math.round(v * 100) / 100,
     },
     discount: {
-        type: Number,
-        default: 0,
-        min: 0,
-        max: 100,
-        set: (v) => Math.round(v * 100) / 100
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+      set: (v) => Math.round(v * 100) / 100,
     },
     stock: {
-        type: Number,
-        required: true,
-        default: 0,
-        min: 0
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
     },
     status: {
-        type: String,
-        enum: ['active', 'inactive'],
-        default: 'active'
+      type: String,
+      enum: ["active", "inactive"],
+      default: "active",
     },
     options: [VariantOptionSchema],
     images: [ImageSchema],
     variantValues: {
-        type: String,
-        trim: true,
-        lowercase: true
-    }
-}, { timestamps: true });
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+  },
+  { timestamps: true },
+);
 
 ProductVariantSchema.methods.isInStock = function () {
-    return this.stock > 0;
+  return this.stock > 0;
 };
 
 ProductVariantSchema.methods.hasLowStock = function (threshold = 10) {
-    return this.stock > 0 && this.stock <= threshold;
+  return this.stock > 0 && this.stock <= threshold;
 };
 
 ProductVariantSchema.methods.calculateFinalPrice = function () {
-    if (this.discount > 0) {
-        return this.price - (this.price * this.discount / 100);
-    }
-    return this.price;
+  if (this.discount > 0) {
+    return this.price - (this.price * this.discount) / 100;
+  }
+  return this.price;
 };
 
-const productSchema = new Schema({
+const productSchema = new Schema(
+  {
     title: {
-        type: String,
-        required: [true, 'Product title is required'],
-        trim: true,
-        minlength: [3, 'Title must be at least 3 characters'],
-        maxlength: [200, 'Title cannot exceed 200 characters']
+      type: String,
+      required: [true, "Product title is required"],
+      trim: true,
+      minlength: [3, "Title must be at least 3 characters"],
+      maxlength: [200, "Title cannot exceed 200 characters"],
     },
     slug: {
-        type: String,
-        trim: true,
-        lowercase: true
+      type: String,
+      trim: true,
+      lowercase: true,
     },
     summary: {
-        type: String,
-        trim: true,
-        maxlength: 500
+      type: String,
+      trim: true,
+      maxlength: 500,
     },
     description: {
-        type: String,
-        trim: true
+      type: String,
+      trim: true,
     },
     condition: {
-        type: String,
-        enum: ['default', 'new', 'hot'],
-        default: 'default'
+      type: String,
+      enum: ["default", "new", "hot"],
+      default: "default",
     },
     status: {
-        type: String,
-        enum: ['active', 'inactive', 'draft'],
-        default: 'draft'
+      type: String,
+      enum: ["active", "inactive", "draft"],
+      default: "draft",
     },
     isFeatured: {
-        type: Boolean,
-        default: false
+      type: Boolean,
+      default: false,
     },
     hasVariants: {
-        type: Boolean,
-        default: false
+      type: Boolean,
+      default: false,
     },
 
-        basePrice: {
-        type: Number,
-        min: 0,
-        set: (v) => v ? Math.round(v * 100) / 100 : null
+    basePrice: {
+      type: Number,
+      min: 0,
+      set: (v) => (v ? Math.round(v * 100) / 100 : null),
     },
     baseDiscount: {
-        type: Number,
-        default: 0,
-        min: 0,
-        max: 100,
-        set: (v) => v ? Math.round(v * 100) / 100 : 0
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+      set: (v) => (v ? Math.round(v * 100) / 100 : 0),
     },
     baseStock: {
-        type: Number,
-        min: 0,
-        default: 0
+      type: Number,
+      min: 0,
+      default: 0,
     },
     baseSku: {
-        type: String,
-        trim: true,
-        uppercase: true
+      type: String,
+      trim: true,
+      uppercase: true,
     },
     size: [String],
 
-        variants: [ProductVariantSchema],
+    variants: [ProductVariantSchema],
     images: [ImageSchema],
 
-        category: {
-        id: {
-            type: Schema.Types.ObjectId,
-            ref: 'Category'
-        },
-        title: String,
-        slug: String,
-        path: String
+    category: {
+      id: {
+        type: Schema.Types.ObjectId,
+        ref: "Category",
+      },
+      title: String,
+      slug: String,
+      path: String,
     },
 
     childCategory: {
-        id: {
-            type: Schema.Types.ObjectId,
-            ref: 'Category'
-        },
-        title: String,
-        slug: String
+      id: {
+        type: Schema.Types.ObjectId,
+        ref: "Category",
+      },
+      title: String,
+      slug: String,
     },
 
-        brand: {
-        id: {
-            type: Schema.Types.ObjectId,
-            ref: 'Brand'
-        },
-        title: String,
-        slug: String
+    brand: {
+      id: {
+        type: Schema.Types.ObjectId,
+        ref: "Brand",
+      },
+      title: String,
+      slug: String,
     },
 
-        ratings: {
-        average: {
-            type: Number,
-            default: 0,
-            min: 0,
-            max: 5
-        },
-        count: {
-            type: Number,
-            default: 0,
-            min: 0
-        },
-        distribution: {
-            1: { type: Number, default: 0 },
-            2: { type: Number, default: 0 },
-            3: { type: Number, default: 0 },
-            4: { type: Number, default: 0 },
-            5: { type: Number, default: 0 }
-        }
+    ratings: {
+      average: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 5,
+      },
+      count: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      distribution: {
+        1: { type: Number, default: 0 },
+        2: { type: Number, default: 0 },
+        3: { type: Number, default: 0 },
+        4: { type: Number, default: 0 },
+        5: { type: Number, default: 0 },
+      },
     },
 
-        activeDiscount: {
-        id: {
-            type: Schema.Types.ObjectId,
-            ref: 'Discount'
-        },
-        type: {
-            type: String,
-            enum: ['percentage', 'fixed', 'amount']
-        },
-        value: Number,
-        endsAt: Date
+    activeDiscount: {
+      id: {
+        type: Schema.Types.ObjectId,
+        ref: "Discount",
+      },
+      type: {
+        type: String,
+        enum: ["percentage", "fixed", "amount"],
+      },
+      value: Number,
+      endsAt: Date,
     },
 
-        searchTerms: String,
+    searchTerms: String,
     tags: [String],
 
-        viewCount: {
-        type: Number,
-        default: 0,
-        min: 0
+    viewCount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     salesCount: {
-        type: Number,
-        default: 0,
-        min: 0
-    }
-}, {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+  },
+  {
     timestamps: true,
     toJSON: { virtuals: true },
-    toObject: { virtuals: true }
-});
+    toObject: { virtuals: true },
+  },
+);
 
 productSchema.index({ slug: 1 }, { unique: true });
 productSchema.index({ baseSku: 1 }, { unique: true, sparse: true });
-productSchema.index({ 'variants.sku': 1 }, { sparse: true });
+productSchema.index({ "variants.sku": 1 }, { sparse: true });
 
 productSchema.index({ status: 1, isFeatured: -1, createdAt: -1 });
-productSchema.index({ status: 1, 'category.id': 1, basePrice: 1, createdAt: -1 });
-productSchema.index({ status: 1, 'brand.id': 1, createdAt: -1 });
+productSchema.index({
+  status: 1,
+  "category.id": 1,
+  basePrice: 1,
+  createdAt: -1,
+});
+productSchema.index({ status: 1, "brand.id": 1, createdAt: -1 });
 productSchema.index({ status: 1, condition: 1, createdAt: -1 });
-productSchema.index({ status: 1, 'ratings.average': -1, salesCount: -1 });
+productSchema.index({ status: 1, "ratings.average": -1, salesCount: -1 });
+productSchema.index({ status: 1, salesCount: -1, createdAt: -1 });
 
 productSchema.index(
-    {
-        title: 'text',
-        tags: 'text',
-        'brand.title': 'text',
-        summary: 'text'
+  {
+    title: "text",
+    tags: "text",
+    "brand.title": "text",
+    summary: "text",
+  },
+  {
+    weights: {
+      title: 10,
+      tags: 5,
+      "brand.title": 3,
+      summary: 1,
     },
-    {
-        weights: {
-            title: 10,
-            tags: 5,
-            'brand.title': 3,
-            summary: 1
-        },
-        name: 'product_text_search'
-    }
+    name: "product_text_search",
+  },
 );
 
 productSchema.index({ status: 1, basePrice: 1, createdAt: -1 });
 
 productSchema.index(
-    { isFeatured: 1, 'ratings.average': -1, salesCount: -1 },
-    {
-        partialFilterExpression: { status: 'active', isFeatured: true },
-        name: 'idx_featured_products'
-    }
+  { isFeatured: 1, "ratings.average": -1, salesCount: -1 },
+  {
+    partialFilterExpression: { status: "active", isFeatured: true },
+    name: "idx_featured_products",
+  },
 );
 
 productSchema.index(
-    { baseStock: 1 },
-    {
-        partialFilterExpression: { status: 'active', baseStock: { $lte: 10, $gt: 0 } },
-        name: 'idx_low_stock'
-    }
+  { baseStock: 1 },
+  {
+    partialFilterExpression: {
+      status: "active",
+      baseStock: { $lte: 10, $gt: 0 },
+    },
+    name: "idx_low_stock",
+  },
 );
 
 productSchema.index({ _id: 1, createdAt: -1 });
 
-productSchema.virtual('finalPrice').get(function () {
-    if (this.hasVariants) return null;
-    if (this.baseDiscount > 0) {
-        return this.basePrice - (this.basePrice * this.baseDiscount / 100);
-    }
-    return this.basePrice;
+productSchema.virtual("finalPrice").get(function () {
+  if (this.hasVariants) return null;
+  if (this.baseDiscount > 0) {
+    return this.basePrice - (this.basePrice * this.baseDiscount) / 100;
+  }
+  return this.basePrice;
 });
 
-productSchema.virtual('primaryImage').get(function () {
-    if (this.images && this.images.length > 0) {
-        const primary = this.images.find(img => img.isPrimary);
-        return primary || this.images[0];
-    }
-    return null;
+productSchema.virtual("primaryImage").get(function () {
+  if (this.images && this.images.length > 0) {
+    const primary = this.images.find((img) => img.isPrimary);
+    return primary || this.images[0];
+  }
+  return null;
 });
 
-productSchema.virtual('inStock').get(function () {
-    if (this.hasVariants) {
-        return this.variants.some(v => v.stock > 0 && v.status === 'active');
-    }
-    return this.baseStock > 0;
+productSchema.virtual("inStock").get(function () {
+  if (this.hasVariants) {
+    return this.variants.some((v) => v.stock > 0 && v.status === "active");
+  }
+  return this.baseStock > 0;
 });
 
-productSchema.pre('save', function (next) {
-    if (!this.slug && this.title) {
-        this.slug = slugify(this.title, { lower: true, strict: true });
-    }
+productSchema.pre("save", function (next) {
+  if (!this.slug && this.title) {
+    this.slug = slugify(this.title, { lower: true, strict: true });
+  }
 
-        const terms = [
-        this.title,
-        this.summary,
-        this.brand?.title,
-        this.category?.title,
-        ...(this.tags || [])
-    ].filter(Boolean).join(' ').toLowerCase();
-    this.searchTerms = terms;
+  const terms = [
+    this.title,
+    this.summary,
+    this.brand?.title,
+    this.category?.title,
+    ...(this.tags || []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  this.searchTerms = terms;
 
-        if (this.hasVariants && this.variants.length === 0) {
-        return next(new Error('Products with hasVariants=true must have variants'));
-    }
+  if (this.hasVariants && this.variants.length === 0) {
+    return next(new Error("Products with hasVariants=true must have variants"));
+  }
 
-    if (!this.hasVariants && !this.baseSku) {
-        return next(new Error('Non-variant products must have baseSku'));
-    }
+  if (!this.hasVariants && !this.baseSku) {
+    return next(new Error("Non-variant products must have baseSku"));
+  }
 
-    next();
+  next();
 });
 
 productSchema.methods.isAvailable = function () {
-    return this.status === 'active' && this.inStock;
+  return this.status === "active" && this.inStock;
 };
 
 productSchema.methods.incrementViewCount = async function () {
-    this.viewCount += 1;
-    return this.save({ timestamps: false });
+  this.viewCount += 1;
+  return this.save({ timestamps: false });
 };
 
 productSchema.methods.incrementSalesCount = async function (quantity = 1) {
-    this.salesCount += quantity;
-    return this.save({ timestamps: false });
+  this.salesCount += quantity;
+  return this.save({ timestamps: false });
 };
 
 productSchema.methods.updateRatings = async function (ratingsData) {
-    if (ratingsData) {
-        this.ratings = ratingsData;
-        return this.save({ timestamps: false, validateBeforeSave: false });
-    }
-    
-    const Review = mongoose.model('Review');
-    const count = await Review.countDocuments({ productId: this._id, status: 'active' });
-    
-    if (count === 0) {
-        this.ratings = {
-            average: 0,
-            count: 0,
-            distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-        };
-        return this.save({ timestamps: false, validateBeforeSave: false });
-    }
-    
-    return this;
+  if (ratingsData) {
+    this.ratings = ratingsData;
+    return this.save({ timestamps: false, validateBeforeSave: false });
+  }
+
+  const Review = mongoose.model("Review");
+  const count = await Review.countDocuments({
+    productId: this._id,
+    status: "active",
+  });
+
+  if (count === 0) {
+    this.ratings = {
+      average: 0,
+      count: 0,
+      distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+    };
+    return this.save({ timestamps: false, validateBeforeSave: false });
+  }
+
+  return this;
 };
 
 productSchema.methods.updateStock = async function (variantId, quantity) {
-    if (this.hasVariants && variantId) {
-        const variant = this.variants.id(variantId);
-        if (!variant) throw new Error('Variant not found');
-        if (variant.stock < quantity) throw new Error('Insufficient stock');
-        variant.stock -= quantity;
-    } else {
-        if (this.baseStock < quantity) throw new Error('Insufficient stock');
-        this.baseStock -= quantity;
-    }
-    return this.save();
+  if (this.hasVariants && variantId) {
+    const variant = this.variants.id(variantId);
+    if (!variant) throw new Error("Variant not found");
+    if (variant.stock < quantity) throw new Error("Insufficient stock");
+    variant.stock -= quantity;
+  } else {
+    if (this.baseStock < quantity) throw new Error("Insufficient stock");
+    this.baseStock -= quantity;
+  }
+  return this.save();
 };
 
 productSchema.methods.getVariantBySku = function (sku) {
-    return this.variants.find(v => v.sku === sku);
+  return this.variants.find((v) => v.sku === sku);
 };
 
 productSchema.statics.findBySlug = function (slug) {
-    return this.findOne({ slug, status: 'active' });
+  return this.findOne({ slug, status: "active" });
 };
 
 productSchema.statics.findFeatured = function (limit = 10) {
-    return this.find({ status: 'active', isFeatured: true })
-        .sort({ createdAt: -1 })
-        .limit(limit);
+  return this.find({ status: "active", isFeatured: true })
+    .sort({ createdAt: -1 })
+    .limit(limit);
 };
 
 productSchema.statics.findByCategory = function (categoryId, options = {}) {
-    const { page = 1, limit = 20, sort = '-createdAt' } = options;
-    const skip = (page - 1) * limit;
+  const { page = 1, limit = 20, sort = "-createdAt" } = options;
+  const skip = (page - 1) * limit;
 
-    return this.find({ 'category.id': categoryId, status: 'active' })
-        .sort(sort)
-        .skip(skip)
-        .limit(limit);
+  return this.find({ "category.id": categoryId, status: "active" })
+    .sort(sort)
+    .skip(skip)
+    .limit(limit);
 };
 
 productSchema.statics.searchProducts = async function (query, filters = {}) {
-    const {
-        minPrice,
-        maxPrice,
-        categoryId,
-        brandId,
-        condition,
-        sort = '-createdAt',
-        page = 1,
-        limit = 20,
-        cursor
-    } = filters;
+  const {
+    minPrice,
+    maxPrice,
+    categoryId,
+    brandId,
+    condition,
+    sort = "-createdAt",
+    page = 1,
+    limit = 20,
+    cursor,
+  } = filters;
 
-    const matchQuery = {
-        status: 'active',
-        $text: { $search: query }
-    };
+  const matchQuery = {
+    status: "active",
+    $text: { $search: query },
+  };
 
-    if (minPrice || maxPrice) {
-        matchQuery.basePrice = {};
-        if (minPrice) matchQuery.basePrice.$gte = Number(minPrice);
-        if (maxPrice) matchQuery.basePrice.$lte = Number(maxPrice);
-    }
+  if (minPrice || maxPrice) {
+    matchQuery.basePrice = {};
+    if (minPrice) matchQuery.basePrice.$gte = Number(minPrice);
+    if (maxPrice) matchQuery.basePrice.$lte = Number(maxPrice);
+  }
 
-    if (categoryId) matchQuery['category.id'] = categoryId;
-    if (brandId) matchQuery['brand.id'] = brandId;
-    if (condition) matchQuery.condition = condition;
+  if (categoryId) matchQuery["category.id"] = categoryId;
+  if (brandId) matchQuery["brand.id"] = brandId;
+  if (condition) matchQuery.condition = condition;
 
-        if (cursor) {
-        matchQuery._id = { $lt: cursor };
-    }
+  if (cursor) {
+    matchQuery._id = { $lt: cursor };
+  }
 
-        const products = await this.find(matchQuery, {
-        score: { $meta: 'textScore' },
-        title: 1,
-        slug: 1,
-        basePrice: 1,
-        baseDiscount: 1,
-        images: { $slice: 1 },
-        'ratings.average': 1,
-        'ratings.count': 1,
-        'category.title': 1,
-        'brand.title': 1,
-        condition: 1,
-        isFeatured: 1
-    })
-        .sort({ score: { $meta: 'textScore' }, ...JSON.parse(`{"${sort}": -1}`) })
-        .limit(limit + 1)
-        .lean();
+  const products = await this.find(matchQuery, {
+    score: { $meta: "textScore" },
+    title: 1,
+    slug: 1,
+    basePrice: 1,
+    baseDiscount: 1,
+    images: { $slice: 1 },
+    "ratings.average": 1,
+    "ratings.count": 1,
+    "category.title": 1,
+    "brand.title": 1,
+    condition: 1,
+    isFeatured: 1,
+  })
+    .sort({ score: { $meta: "textScore" }, ...JSON.parse(`{"${sort}": -1}`) })
+    .limit(limit + 1)
+    .lean();
 
-    const hasMore = products.length > limit;
-    const results = hasMore ? products.slice(0, limit) : products;
-    const nextCursor = hasMore ? results[results.length - 1]._id : null;
+  const hasMore = products.length > limit;
+  const results = hasMore ? products.slice(0, limit) : products;
+  const nextCursor = hasMore ? results[results.length - 1]._id : null;
 
-            return {
-        products: results,
-        hasMore,
-        nextCursor,
-        page,
-        limit
-    };
+  return {
+    products: results,
+    hasMore,
+    nextCursor,
+    page,
+    limit,
+  };
 };
 
-productSchema.statics.updateCategoryInfo = async function (categoryId, categoryData) {
-    return this.updateMany(
-        { 'category.id': categoryId },
-        {
-            $set: {
-                'category.title': categoryData.title,
-                'category.slug': categoryData.slug,
-                'category.path': categoryData.pathNames
-            }
-        }
-    );
+productSchema.statics.updateCategoryInfo = async function (
+  categoryId,
+  categoryData,
+) {
+  return this.updateMany(
+    { "category.id": categoryId },
+    {
+      $set: {
+        "category.title": categoryData.title,
+        "category.slug": categoryData.slug,
+        "category.path": categoryData.pathNames,
+      },
+    },
+  );
 };
 
 productSchema.statics.updateBrandInfo = async function (brandId, brandData) {
-    return this.updateMany(
-        { 'brand.id': brandId },
-        {
-            $set: {
-                'brand.title': brandData.title,
-                'brand.slug': brandData.slug
-            }
-        }
-    );
+  return this.updateMany(
+    { "brand.id": brandId },
+    {
+      $set: {
+        "brand.title": brandData.title,
+        "brand.slug": brandData.slug,
+      },
+    },
+  );
 };
 
-export const Product = mongoose.model('Product', productSchema);
+export const Product = mongoose.model("Product", productSchema);

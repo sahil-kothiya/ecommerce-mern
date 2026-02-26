@@ -1,11 +1,15 @@
 ﻿import { logger } from '../utils/logger.js';
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { getRandomProductImage } from '../services/imageService';
 import { resolveImageUrl } from '../utils/imageUrl';
 import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
 import { API_CONFIG, PRODUCT_CONDITIONS, CURRENCY_CONFIG } from '../constants';
 import authService from '../services/authService';
+import reviewService from '../services/reviewService';
 import notify from '../utils/notify';
 
 // ============================================================================
@@ -13,6 +17,26 @@ import notify from '../utils/notify';
 // ============================================================================
 
 const fmt = (price) => formatPrice(price || 0, CURRENCY_CONFIG.DEFAULT, CURRENCY_CONFIG.LOCALE);
+
+const reviewSchema = yup.object().shape({
+    rating: yup
+        .number()
+        .typeError('Rating is required')
+        .required('Rating is required')
+        .min(1, 'Minimum rating is 1')
+        .max(5, 'Maximum rating is 5'),
+    title: yup
+        .string()
+        .trim()
+        .max(100, 'Title cannot exceed 100 characters')
+        .optional(),
+    comment: yup
+        .string()
+        .trim()
+        .required('Comment is required')
+        .min(10, 'Comment must be at least 10 characters')
+        .max(1000, 'Comment cannot exceed 1000 characters'),
+});
 
 // ============================================================================
 // VARIANT SELECTION LOGIC
@@ -110,6 +134,7 @@ const PillOption = ({ option, selected, available, onClick }) => (
 const ProductDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [product, setProduct] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -117,6 +142,38 @@ const ProductDetailPage = () => {
     const [quantity, setQuantity] = useState(1);
     // { [typeId]: optionId }
     const [selectedOpts, setSelectedOpts] = useState({});
+    const [reviews, setReviews] = useState([]);
+    const [reviewsLoading, setReviewsLoading] = useState(false);
+    const [editingReviewId, setEditingReviewId] = useState(null);
+
+    const {
+        register,
+        handleSubmit,
+        reset,
+        setValue,
+        watch,
+        formState: { errors, isSubmitting },
+    } = useForm({
+        resolver: yupResolver(reviewSchema),
+        mode: 'onBlur',
+        defaultValues: {
+            rating: 5,
+            title: '',
+            comment: '',
+        },
+    });
+
+    const selectedReviewRating = watch('rating');
+    const reviewOrderId = useMemo(() => new URLSearchParams(location.search).get('orderId') || '', [location.search]);
+    const currentUserId = authService.getUser()?._id;
+    const myReview = useMemo(() => {
+        if (!currentUserId) return null;
+        return reviews.find((review) => {
+            const reviewUserId = typeof review?.userId === 'object' ? review.userId?._id : review?.userId;
+            return reviewUserId && String(reviewUserId) === String(currentUserId);
+        }) || null;
+    }, [reviews, currentUserId]);
+    const isEditingReview = Boolean(editingReviewId);
 
     useEffect(() => { loadProductDetail(); }, [id]);
 
@@ -142,6 +199,101 @@ const ProductDetailPage = () => {
             logger.error('Error loading product:', error);
             setProduct(null);
         } finally { setIsLoading(false); }
+    };
+
+    const loadReviews = async (productId) => {
+        if (!productId) return;
+        try {
+            setReviewsLoading(true);
+            const response = await reviewService.getProductReviews(productId);
+            const list = Array.isArray(response?.data) ? response.data : [];
+            setReviews(list);
+        } catch (error) {
+            logger.error('Failed to load reviews', { error: error.message, productId });
+            setReviews([]);
+        } finally {
+            setReviewsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (product?._id) {
+            loadReviews(product._id);
+        }
+    }, [product?._id]);
+
+    const handleReviewSubmit = async (formValues) => {
+        if (!authService.isAuthenticated()) {
+            navigate('/login');
+            return;
+        }
+
+        if (!product?._id) {
+            notify.error('Product not loaded yet');
+            return;
+        }
+
+        if (!reviewOrderId) {
+            notify.error('Please submit review from your delivered order page');
+            return;
+        }
+
+        try {
+            const payload = {
+                rating: formValues.rating,
+                title: formValues.title?.trim() || '',
+                comment: formValues.comment?.trim() || '',
+                orderId: reviewOrderId,
+            };
+
+            if (editingReviewId) {
+                await reviewService.updateReview(editingReviewId, payload);
+            } else {
+                await reviewService.createReview({ productId: product._id, ...payload });
+            }
+
+            notify.success(editingReviewId ? 'Review updated successfully' : 'Review submitted successfully');
+            setEditingReviewId(null);
+            reset({ rating: 5, title: '', comment: '' });
+            await Promise.all([loadReviews(product._id), loadProductDetail()]);
+        } catch (error) {
+            notify.error(error, editingReviewId ? 'Failed to update review' : 'Failed to submit review');
+        }
+    };
+
+    const startEditingReview = (review) => {
+        if (!review?._id) return;
+        setEditingReviewId(review._id);
+        setValue('rating', Number(review.rating) || 5, { shouldValidate: true, shouldDirty: true });
+        setValue('title', review.title || '', { shouldValidate: true, shouldDirty: true });
+        setValue('comment', review.comment || '', { shouldValidate: true, shouldDirty: true });
+    };
+
+    const cancelEditingReview = () => {
+        setEditingReviewId(null);
+        reset({ rating: 5, title: '', comment: '' });
+    };
+
+    const handleDeleteReview = async (reviewId) => {
+        if (!authService.isAuthenticated()) {
+            navigate('/login');
+            return;
+        }
+
+        if (!reviewId || !product?._id) return;
+        const confirmed = window.confirm('Delete your review?');
+        if (!confirmed) return;
+
+        try {
+            await reviewService.deleteReview(reviewId);
+            notify.success('Review deleted successfully');
+            if (editingReviewId === reviewId) {
+                cancelEditingReview();
+            }
+            await Promise.all([loadReviews(product._id), loadProductDetail()]);
+        } catch (error) {
+            notify.error(error, 'Failed to delete review');
+        }
     };
 
     const activeVariants = useMemo(() =>
@@ -392,6 +544,158 @@ const ProductDetailPage = () => {
                 <p className="text-[#444] leading-relaxed whitespace-pre-line">
                     {product.description || `Experience the premium quality of ${product.title}. This exceptional product from ${product.brand?.title || 'our trusted brand'} combines innovative design with superior functionality.`}
                 </p>
+            </div>
+
+            <div className="store-surface mb-6 p-7">
+                <div className="mb-5 flex items-center justify-between gap-3">
+                    <h2 className="store-display text-xl text-[#131313]">Customer Reviews</h2>
+                    <span className="text-sm text-[#666]">{reviews.length} review{reviews.length === 1 ? '' : 's'}</span>
+                </div>
+
+                {!reviewOrderId ? (
+                    <div className="mb-7 rounded-xl border border-[rgba(165,187,252,0.3)] bg-[rgba(66,80,213,0.03)] p-4 sm:p-5">
+                        <p className="text-sm text-[#444]">To add a review, open this product from <span className="font-semibold">My Orders</span> and use <span className="font-semibold">Rate & Review</span>.</p>
+                        <Link
+                            to="/account/orders"
+                            className="store-btn-secondary tap-bounce mt-3 inline-flex rounded-xl px-5 py-2.5 text-sm font-bold"
+                        >
+                            Go to My Orders
+                        </Link>
+                    </div>
+                ) : myReview && !isEditingReview ? (
+                    <div className="mb-7 rounded-xl border border-[rgba(165,187,252,0.3)] bg-[rgba(66,80,213,0.03)] p-4 sm:p-5">
+                        <p className="text-sm text-[#444]">You already reviewed this product. You can edit or delete your review below.</p>
+                        <button
+                            type="button"
+                            onClick={() => startEditingReview(myReview)}
+                            className="store-btn-secondary tap-bounce mt-3 rounded-xl px-5 py-2.5 text-sm font-bold"
+                        >
+                            Edit My Review
+                        </button>
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit(handleReviewSubmit)} className="mb-7 rounded-xl border border-[rgba(165,187,252,0.3)] bg-[rgba(66,80,213,0.03)] p-4 sm:p-5">
+                        <input type="hidden" {...register('rating')} />
+                        <p className="mb-2 text-sm font-semibold text-[#212121]">Your Rating</p>
+                        <div className="mb-2 flex items-center gap-1.5">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => setValue('rating', star, { shouldDirty: true, shouldValidate: true })}
+                                    className={`text-2xl leading-none transition ${star <= Number(selectedReviewRating || 0) ? 'text-[#ffa336]' : 'text-[#d1d5db] hover:text-[#fbbf24]'}`}
+                                    aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                                >
+                                    ★
+                                </button>
+                            ))}
+                        </div>
+                        {errors.rating && <p className="mb-3 text-xs text-red-600">{errors.rating.message}</p>}
+
+                        <div className="mb-3">
+                            <input
+                                type="text"
+                                placeholder="Review title (optional)"
+                                className="store-input w-full rounded-xl px-3 py-2.5 text-sm"
+                                maxLength={100}
+                                {...register('title')}
+                            />
+                            {errors.title && <p className="mt-1 text-xs text-red-600">{errors.title.message}</p>}
+                        </div>
+
+                        <div className="mb-4">
+                            <textarea
+                                rows={4}
+                                placeholder="Write your review"
+                                className="store-input w-full rounded-xl px-3 py-2.5 text-sm"
+                                maxLength={1000}
+                                {...register('comment')}
+                            />
+                            {errors.comment && <p className="mt-1 text-xs text-red-600">{errors.comment.message}</p>}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="store-btn-primary tap-bounce rounded-xl px-5 py-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {isSubmitting ? (isEditingReview ? 'Updating...' : 'Submitting...') : (isEditingReview ? 'Update Review' : 'Submit Review')}
+                            </button>
+                            {isEditingReview && (
+                                <button
+                                    type="button"
+                                    onClick={cancelEditingReview}
+                                    className="store-btn-secondary tap-bounce rounded-xl px-5 py-2.5 text-sm font-bold"
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                        </div>
+                    </form>
+                )}
+
+                {reviewsLoading ? (
+                    <p className="text-sm text-[#666]">Loading reviews...</p>
+                ) : reviews.length === 0 ? (
+                    <p className="text-sm text-[#666]">No reviews yet. Be the first to review this product.</p>
+                ) : (
+                    <div className="space-y-4">
+                        {reviews.map((review) => {
+                            const name = review?.userId?.name || 'Customer';
+                            const createdLabel = review?.createdAt ? new Date(review.createdAt).toLocaleDateString() : 'Recently';
+                            const rating = Math.max(1, Math.min(5, Number(review?.rating || 0)));
+                            const reviewUserId = typeof review?.userId === 'object' ? review.userId?._id : review?.userId;
+                            const isOwnReview = currentUserId && reviewUserId && String(currentUserId) === String(reviewUserId);
+                            const canManageOwnReview = Boolean(reviewOrderId) && isOwnReview;
+
+                            return (
+                                <article key={review._id} className="rounded-xl border border-[rgba(165,187,252,0.25)] p-4">
+                                    <div className="mb-1 flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-sm font-semibold text-[#1f1f1f]">{name}</p>
+                                            <p className="text-xs text-[#878787]">{createdLabel}</p>
+                                        </div>
+                                        <span className="rounded bg-[#388e3c] px-2 py-0.5 text-xs font-bold text-white">{rating.toFixed(1)}</span>
+                                    </div>
+
+                                    <div className="mb-2 text-sm text-[#ffa336]">
+                                        {'★'.repeat(Math.floor(rating))}
+                                        <span className="text-[#d1d5db]">{'★'.repeat(5 - Math.floor(rating))}</span>
+                                    </div>
+
+                                    {review?.verifiedPurchase && (
+                                        <span className="mb-2 inline-flex items-center gap-1 rounded-full border border-[rgba(56,142,60,0.35)] bg-[rgba(56,142,60,0.1)] px-2.5 py-1 text-[11px] font-semibold text-[#2f7d32]">
+                                            ✓ Verified Purchase
+                                        </span>
+                                    )}
+
+                                    {review?.title && <p className="mb-1 text-sm font-semibold text-[#212121]">{review.title}</p>}
+                                    <p className="text-sm leading-relaxed text-[#444]">{review.comment}</p>
+
+                                    {canManageOwnReview && (
+                                        <div className="mt-3 flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => startEditingReview(review)}
+                                                className="rounded-lg border border-[rgba(66,80,213,0.3)] px-3 py-1.5 text-xs font-semibold text-[#4250d5] hover:bg-[rgba(66,80,213,0.06)]"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDeleteReview(review._id)}
+                                                className="rounded-lg border border-[rgba(239,68,68,0.35)] px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    )}
+                                </article>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
             {/* Specifications */}

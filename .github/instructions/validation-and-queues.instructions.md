@@ -5,6 +5,11 @@ applyTo: "**/*.{js,jsx}"
 
 ## Input Validation Rules
 
+## 🔄 Latest Code Policy
+
+- Do not use legacy code or legacy implementation patterns.
+- Always use latest stable, supported code patterns and dependencies that are compatible with this repository.
+
 **ALWAYS use validators** on routes accepting user input.
 
 ### Available Validators

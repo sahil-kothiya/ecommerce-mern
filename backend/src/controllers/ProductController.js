@@ -4,6 +4,12 @@ import { Brand } from "../models/Brand.js";
 import { VariantType, VariantOption } from "../models/Supporting.models.js";
 import mongoose from "mongoose";
 import slugify from "slugify";
+import { logger } from "../utils/logger.js";
+import {
+  getCachedResponse,
+  setCachedResponse,
+  invalidateCacheByPrefix,
+} from "../utils/requestCache.js";
 
 // Generate a slug that doesn't already exist in the DB
 async function generateUniqueSlug(title, excludeId = null) {
@@ -20,6 +26,7 @@ async function generateUniqueSlug(title, excludeId = null) {
 }
 
 const MAX_PAGE_SIZE = 100;
+const PRODUCT_INDEX_CACHE_TTL_MS = 15000;
 const PRODUCT_LIST_SELECT = [
   "title",
   "slug",
@@ -32,10 +39,6 @@ const PRODUCT_LIST_SELECT = [
   "baseDiscount",
   "baseStock",
   "images",
-  "variants.images",
-  "variants.price",
-  "variants.discount",
-  "variants.status",
   "category",
   "brand",
   "ratings",
@@ -79,6 +82,18 @@ const parseSort = (sort = "-createdAt") => {
 export class ProductController {
   async index(req, res) {
     try {
+      const shouldBypassCache =
+        String(req.query.noCache || "")
+          .trim()
+          .toLowerCase() === "true";
+      const cacheKey = `products:index:${req.originalUrl}`;
+      const cached = shouldBypassCache ? null : getCachedResponse(cacheKey);
+
+      if (cached) {
+        res.set("X-Cache", "HIT");
+        return res.json(cached);
+      }
+
       const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
       const limit = Math.min(
         MAX_PAGE_SIZE,
@@ -97,6 +112,7 @@ export class ProductController {
         condition,
         isFeatured,
         status,
+        includeCount = "true",
         sort = "-createdAt",
       } = req.query;
 
@@ -145,19 +161,33 @@ export class ProductController {
         query.isFeatured = isFeatured === "true";
       }
 
-      const [products, total] = await Promise.all([
-        Product.find(query)
-          .select(PRODUCT_LIST_SELECT)
-          .sort(parseSort(sort))
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        Product.countDocuments(query),
+      const shouldIncludeCount =
+        String(includeCount).trim().toLowerCase() !== "false";
+
+      const productsPromise = Product.find(query)
+        .select(PRODUCT_LIST_SELECT)
+        .sort(parseSort(sort))
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      const countPromise = shouldIncludeCount
+        ? Product.countDocuments(query)
+        : Promise.resolve(null);
+
+      const [products, totalCount] = await Promise.all([
+        productsPromise,
+        countPromise,
       ]);
+
+      const total =
+        typeof totalCount === "number"
+          ? totalCount
+          : skip + products.length + (products.length === limit ? 1 : 0);
 
       const pages = Math.ceil(total / limit);
 
-      res.json({
+      const payload = {
         success: true,
         data: {
           products,
@@ -170,9 +200,17 @@ export class ProductController {
             hasPrev: page > 1,
           },
         },
-      });
+      };
+
+      if (!shouldBypassCache) {
+        setCachedResponse(cacheKey, payload, PRODUCT_INDEX_CACHE_TTL_MS);
+      }
+
+      res.set("X-Cache", shouldBypassCache ? "BYPASS" : "MISS");
+
+      res.json(payload);
     } catch (error) {
-      console.error("Product index error:", error);
+      logger.error("Product index error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch products",
@@ -199,7 +237,7 @@ export class ProductController {
         data: products,
       });
     } catch (error) {
-      console.error("Featured products error:", error);
+      logger.error("Featured products error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch featured products",
@@ -225,7 +263,7 @@ export class ProductController {
         data: result,
       });
     } catch (error) {
-      console.error("Product search error:", error);
+      logger.error("Product search error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Search failed",
@@ -259,7 +297,7 @@ export class ProductController {
         data: product,
       });
     } catch (error) {
-      console.error("Product show error:", error);
+      logger.error("Product show error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch product",
@@ -289,7 +327,7 @@ export class ProductController {
         data: product,
       });
     } catch (error) {
-      console.error("Product show by slug error:", error);
+      logger.error("Product show by slug error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch product",
@@ -466,6 +504,7 @@ export class ProductController {
       });
 
       await product.save();
+      invalidateCacheByPrefix("products:index:");
 
       res.status(201).json({
         success: true,
@@ -473,7 +512,7 @@ export class ProductController {
         data: product,
       });
     } catch (error) {
-      console.error("Product store error:", error);
+      logger.error("Product store error", { error: error.message });
 
       if (error.name === "ValidationError") {
         const errors = Object.keys(error.errors).reduce((acc, key) => {
@@ -548,7 +587,7 @@ export class ProductController {
               : existingImages;
           images = Array.isArray(parsedExisting) ? parsedExisting : [];
         } catch (e) {
-          console.error("Error parsing existing images:", e);
+          logger.error("Error parsing existing images", { error: e.message });
           images = [];
         }
       }
@@ -711,13 +750,15 @@ export class ProductController {
         product.baseSku = undefined;
       }
 
+      invalidateCacheByPrefix("products:index:");
+
       res.json({
         success: true,
         message: "Product updated successfully",
         data: product,
       });
     } catch (error) {
-      console.error("Product update error:", error);
+      logger.error("Product update error", { error: error.message });
 
       if (error.name === "ValidationError") {
         const errors = Object.keys(error.errors).reduce((acc, key) => {
@@ -754,13 +795,14 @@ export class ProductController {
       }
 
       await product.deleteOne();
+      invalidateCacheByPrefix("products:index:");
 
       res.json({
         success: true,
         message: "Product deleted successfully",
       });
     } catch (error) {
-      console.error("Product delete error:", error);
+      logger.error("Product delete error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to delete product",
@@ -799,7 +841,7 @@ export class ProductController {
         },
       });
     } catch (error) {
-      console.error("Products by category error:", error);
+      logger.error("Products by category error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch products by category",
@@ -838,7 +880,7 @@ export class ProductController {
         },
       });
     } catch (error) {
-      console.error("Products by brand error:", error);
+      logger.error("Products by brand error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch products by brand",
@@ -868,7 +910,7 @@ export class ProductController {
         data: product,
       });
     } catch (error) {
-      console.error("Update stock error:", error);
+      logger.error("Update stock error", { error: error.message });
       res.status(400).json({
         success: false,
         message: error.message || "Failed to update stock",
@@ -887,7 +929,7 @@ export class ProductController {
         data: products,
       });
     } catch (error) {
-      console.error("Low stock error:", error);
+      logger.error("Low stock error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch low stock products",
@@ -942,7 +984,7 @@ export class ProductController {
         data: relatedProducts,
       });
     } catch (error) {
-      console.error("Related products error:", error);
+      logger.error("Related products error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch related products",
@@ -967,7 +1009,7 @@ export class ProductController {
       }
       res.json({ success: true, data: product });
     } catch (error) {
-      console.error("adminShow error:", error);
+      logger.error("adminShow error", { error: error.message });
       res
         .status(500)
         .json({ success: false, message: "Failed to fetch product" });

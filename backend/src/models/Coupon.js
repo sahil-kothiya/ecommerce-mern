@@ -83,19 +83,44 @@ couponSchema.index({ expiryDate: 1 });
 couponSchema.index({ validUntil: 1 });
 
 couponSchema.pre("validate", function (next) {
-  const normalizedMinPurchase = this.minPurchase ?? this.minOrderAmount ?? 0;
+  // Sync dual fields: prefer the one that was explicitly modified
+  const minPurchaseModified = this.isModified("minPurchase");
+  const minOrderModified = this.isModified("minOrderAmount");
+  const normalizedMinPurchase = minPurchaseModified
+    ? (this.minPurchase ?? 0)
+    : minOrderModified
+      ? (this.minOrderAmount ?? 0)
+      : (this.minPurchase ?? this.minOrderAmount ?? 0);
   this.minPurchase = normalizedMinPurchase;
   this.minOrderAmount = normalizedMinPurchase;
 
-  const normalizedUsedCount = this.usedCount ?? this.usageCount ?? 0;
+  const usedCountModified = this.isModified("usedCount");
+  const usageCountModified = this.isModified("usageCount");
+  const normalizedUsedCount = usedCountModified
+    ? (this.usedCount ?? 0)
+    : usageCountModified
+      ? (this.usageCount ?? 0)
+      : (this.usedCount ?? this.usageCount ?? 0);
   this.usedCount = normalizedUsedCount;
   this.usageCount = normalizedUsedCount;
 
-  const normalizedStartDate = this.startDate ?? this.validFrom ?? null;
+  const startModified = this.isModified("startDate");
+  const validFromModified = this.isModified("validFrom");
+  const normalizedStartDate = startModified
+    ? (this.startDate ?? null)
+    : validFromModified
+      ? (this.validFrom ?? null)
+      : (this.startDate ?? this.validFrom ?? null);
   this.startDate = normalizedStartDate;
   this.validFrom = normalizedStartDate;
 
-  const normalizedExpiryDate = this.expiryDate ?? this.validUntil ?? null;
+  const expiryModified = this.isModified("expiryDate");
+  const validUntilModified = this.isModified("validUntil");
+  const normalizedExpiryDate = expiryModified
+    ? (this.expiryDate ?? null)
+    : validUntilModified
+      ? (this.validUntil ?? null)
+      : (this.expiryDate ?? this.validUntil ?? null);
   this.expiryDate = normalizedExpiryDate;
   this.validUntil = normalizedExpiryDate;
 

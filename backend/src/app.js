@@ -32,6 +32,10 @@ import paymentRoutes, { handleStripeWebhook } from "./routes/payment.routes.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectImagesPath = path.resolve(__dirname, "../../images");
+const frontendPublicImagesPath = path.resolve(
+  __dirname,
+  "../../frontend/public/images",
+);
 
 const app = express();
 
@@ -196,6 +200,7 @@ app.use(
     res.setHeader("Cache-Control", "public, max-age=604800, immutable");
     next();
   },
+  express.static(frontendPublicImagesPath, { maxAge: "7d" }),
   express.static(projectImagesPath, { maxAge: "7d" }),
 );
 

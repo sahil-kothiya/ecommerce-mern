@@ -5,6 +5,11 @@ applyTo: "**/*.{js,jsx}"
 
 # Validation Best Practices - Client & Server
 
+## 🔄 Latest Code Policy
+
+- Do not use legacy code or legacy implementation patterns.
+- Always use latest stable, supported code patterns and dependencies that are compatible with this repository.
+
 ## Core Principles
 
 **ALWAYS validate on BOTH client and server sides:**

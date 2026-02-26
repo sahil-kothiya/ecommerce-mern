@@ -113,7 +113,7 @@ const AccountWishlist = () => {
                                         src={resolveImageUrl(img)}
                                         alt={product.title}
                                         className="h-52 w-full object-cover transition group-hover:scale-105"
-                                        onError={(e) => { e.target.src = '/images/placeholder.webp'; }}
+                                        onError={(e) => { e.target.src = resolveImageUrl(null); }}
                                     />
                                 </Link>
                                 <div className="flex flex-1 flex-col p-4">

@@ -11,12 +11,7 @@ import './index.css';
 
 const originalFetch = window.fetch.bind(window);
 window.fetch = (input, init = {}) => {
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
     const mergedHeaders = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
-
-    if (token && !mergedHeaders.has('Authorization')) {
-        mergedHeaders.set('Authorization', `Bearer ${token}`);
-    }
 
     const nextInit = {
         ...init,

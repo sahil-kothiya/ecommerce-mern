@@ -99,7 +99,7 @@ const WishlistPage = () => {
                             <div key={item._id} className="store-surface p-4">
                                 <div className="flex items-center gap-4">
                                     <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 to-blue-50">
-                                        <img src={imgUrl} alt={product.title} className="h-full w-full object-cover" />
+                                        <img src={imgUrl} alt={product.title} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <Link to={`/products/${product.slug || product._id}`} className="font-semibold text-[#1f1f1f] hover:text-[#212191] line-clamp-1 transition">{product.title}</Link>

@@ -120,12 +120,9 @@ const ProductsList = () => {
         if (!productToDelete?._id) return;
         try {
             setIsDeleting(true);
-            const authToken = localStorage.getItem('auth_token') || localStorage.getItem('token');
-            const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/${productToDelete._id}`, {
                 method: 'DELETE',
                 credentials: 'include',
-                headers,
             });
 
             if (response.ok) {

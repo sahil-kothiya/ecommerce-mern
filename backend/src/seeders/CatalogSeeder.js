@@ -6,10 +6,12 @@ import { Category } from "../models/Category.js";
 import { Brand } from "../models/Brand.js";
 import { Banner } from "../models/Banner.js";
 import { Product } from "../models/Product.js";
+import { VariantType, VariantOption } from "../models/Supporting.models.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const sourceImagesRoot = path.resolve(__dirname, "../../../images");
+const FALLBACK_SEED_IMAGE = "/images/404-error-cyberpunk-5120x2880-18226.jpg";
 
 const DEFAULT_CONFIG = {
   clearExisting: true,
@@ -34,6 +36,11 @@ const DEFAULT_CONFIG = {
     count: 10,
     activeRatio: 0.8,
     featuredRatio: 0.2,
+    variantProductRatio: 0.95,
+    minVariantsPerProduct: 3,
+    maxVariantsPerProduct: 6,
+    minProductsPerCategory: 0,
+    imagesPerVariant: 3,
   },
 };
 
@@ -99,6 +106,7 @@ export class CatalogSeeder {
     this.brandImages = [];
     this.bannerImages = [];
     this.productImages = [];
+    this.variantTypesWithOptions = [];
   }
 
   async run(options = {}) {
@@ -126,6 +134,7 @@ export class CatalogSeeder {
     }
 
     if (this.config.products.enabled) {
+      await this.loadVariantPools();
       await this.seedProducts(categories, brands);
     }
 
@@ -173,6 +182,47 @@ export class CatalogSeeder {
     ]);
   }
 
+  async loadVariantPools() {
+    const activeVariantTypes = await VariantType.find({ status: "active" })
+      .sort({ sortOrder: 1, createdAt: 1 })
+      .lean();
+
+    if (!activeVariantTypes.length) {
+      throw new Error(
+        "Cannot seed variant products without active variant types. Seed variant types/options first.",
+      );
+    }
+
+    const options = await VariantOption.find({
+      status: "active",
+      variantTypeId: { $in: activeVariantTypes.map((type) => type._id) },
+    })
+      .sort({ sortOrder: 1, createdAt: 1 })
+      .lean();
+
+    const optionsByTypeId = new Map();
+    options.forEach((option) => {
+      const key = String(option.variantTypeId);
+      if (!optionsByTypeId.has(key)) {
+        optionsByTypeId.set(key, []);
+      }
+      optionsByTypeId.get(key).push(option);
+    });
+
+    this.variantTypesWithOptions = activeVariantTypes
+      .map((type) => ({
+        ...type,
+        options: optionsByTypeId.get(String(type._id)) || [],
+      }))
+      .filter((type) => type.options.length >= 2);
+
+    if (!this.variantTypesWithOptions.length) {
+      throw new Error(
+        "Cannot seed variant products: no active variant options found for active variant types.",
+      );
+    }
+  }
+
   getStatusByRatio(index, count, activeRatio) {
     const activeCount = Math.max(0, Math.floor(count * activeRatio));
     return index < activeCount ? "active" : "inactive";
@@ -182,6 +232,36 @@ export class CatalogSeeder {
     if (!files.length) return null;
     const fileName = files[index % files.length];
     return `/images/${fileName}`;
+  }
+
+  buildImageSet(startIndex, count, altPrefix) {
+    const items = [];
+
+    for (let i = 0; i < count; i += 1) {
+      const fallbackPath = FALLBACK_SEED_IMAGE;
+      const imagePath =
+        this.pickImagePath(this.productImages, startIndex + i) || fallbackPath;
+
+      items.push({
+        path: imagePath,
+        isPrimary: i === 0,
+        sortOrder: i,
+        altText: `${altPrefix} image ${i + 1}`,
+      });
+    }
+
+    return items;
+  }
+
+  validateCategoryMinimum(totalProducts, categoriesCount, minPerCategory) {
+    const sanitizedMin = Math.max(0, Math.floor(minPerCategory));
+    const minRequired = categoriesCount * sanitizedMin;
+
+    if (sanitizedMin > 0 && totalProducts < minRequired) {
+      throw new Error(
+        `Cannot satisfy minProductsPerCategory=${sanitizedMin}. Required at least ${minRequired} products for ${categoriesCount} categories, received ${totalProducts}.`,
+      );
+    }
   }
 
   async seedCategories() {
@@ -271,82 +351,218 @@ export class CatalogSeeder {
   }
 
   async seedProducts(categories, brands) {
-    const { count, activeRatio, featuredRatio } = this.config.products;
+    const {
+      count,
+      activeRatio,
+      featuredRatio,
+      variantProductRatio,
+      minVariantsPerProduct,
+      maxVariantsPerProduct,
+      minProductsPerCategory,
+      imagesPerVariant,
+    } = this.config.products;
 
     if (!categories.length || !brands.length) {
       throw new Error("Cannot seed products without categories and brands");
     }
 
-    const docs = Array.from({ length: count }).map((_, index) => {
-      const category = categories[index % categories.length];
-      const brand = brands[index % brands.length];
-      const status = this.getStatusByRatio(index, count, activeRatio);
-      const isFeatured = index < Math.max(1, Math.floor(count * featuredRatio));
-      const basePrice = 49 + index * 7;
-      const baseDiscount = index % 3 === 0 ? 10 : index % 5 === 0 ? 15 : 0;
+    const variantTarget = Math.floor(count * variantProductRatio);
+    const batchSize = 500;
+    this.validateCategoryMinimum(
+      count,
+      categories.length,
+      minProductsPerCategory,
+    );
 
-      const img1 = this.pickImagePath(this.productImages, index);
-      const img2 = this.pickImagePath(this.productImages, index + 1);
-      const img3 = this.pickImagePath(this.productImages, index + 2);
+    let createdCount = 0;
 
-      const images = [img1, img2, img3]
-        .filter(Boolean)
-        .map((imgPath, imageIndex) => ({
-          path: imgPath,
-          isPrimary: imageIndex === 0,
-          sortOrder: imageIndex,
-          altText: `Product ${index + 1} image ${imageIndex + 1}`,
-        }));
+    for (let start = 0; start < count; start += batchSize) {
+      const end = Math.min(start + batchSize, count);
+      const docs = [];
+
+      for (let index = start; index < end; index += 1) {
+        const category = categories[index % categories.length];
+        const brand = brands[index % brands.length];
+        const status = this.getStatusByRatio(index, count, activeRatio);
+        const isFeatured =
+          index < Math.max(1, Math.floor(count * featuredRatio));
+        const basePrice = 49 + index * 7;
+        const baseDiscount = index % 3 === 0 ? 10 : index % 5 === 0 ? 15 : 0;
+        const hasVariants = index < variantTarget;
+        const images = this.buildImageSet(
+          index,
+          Math.max(3, imagesPerVariant),
+          `Product ${index + 1}`,
+        );
+
+        const productDoc = {
+          title: PRODUCT_TITLES[index % PRODUCT_TITLES.length],
+          slug: `${toSlug(PRODUCT_TITLES[index % PRODUCT_TITLES.length])}-${index + 1}`,
+          summary: "Temporary seeded product for storefront and admin testing",
+          description: `Demo product ${index + 1} linked with ${brand.title} in ${category.title}`,
+          condition:
+            index % 3 === 0 ? "new" : index % 4 === 0 ? "hot" : "default",
+          status,
+          isFeatured,
+          hasVariants,
+          images,
+          category: {
+            id: category._id,
+            title: category.title,
+            slug: category.slug,
+            path: category.path || category.title,
+          },
+          brand: {
+            id: brand._id,
+            title: brand.title,
+            slug: brand.slug,
+          },
+          ratings: {
+            average: 3.8 + (index % 5) * 0.2,
+            count: 10 + index * 3,
+            distribution: {
+              1: 1,
+              2: 1,
+              3: 2,
+              4: 3,
+              5: 3,
+            },
+          },
+          tags: [
+            category.title.toLowerCase(),
+            brand.title.toLowerCase(),
+            "temp-seed",
+          ],
+        };
+
+        if (hasVariants) {
+          const variantTypes = this.pickVariantTypesForProduct(index);
+          const variants = this.generateProductVariants({
+            productIndex: index,
+            title: productDoc.title,
+            imagePool: images,
+            variantTypes,
+            minVariants: minVariantsPerProduct,
+            maxVariants: maxVariantsPerProduct,
+            basePrice,
+            imagesPerVariant,
+          });
+
+          const variantPrices = variants.map((variant) => variant.price);
+          const variantStocks = variants.map((variant) => variant.stock);
+
+          productDoc.variants = variants;
+          productDoc.basePrice = Math.min(...variantPrices);
+          productDoc.baseDiscount = 0;
+          productDoc.baseStock = variantStocks.reduce(
+            (sum, stock) => sum + stock,
+            0,
+          );
+        } else {
+          productDoc.basePrice = basePrice;
+          productDoc.baseDiscount = baseDiscount;
+          productDoc.baseStock = 20 + index * 3;
+          productDoc.baseSku = `TMP-${String(index + 1).padStart(5, "0")}`;
+        }
+
+        docs.push(productDoc);
+      }
+
+      const inserted = await Product.insertMany(docs);
+      createdCount += inserted.length;
+    }
+
+    logger.info(`Seeded products: ${createdCount}`);
+    return { count: createdCount };
+  }
+
+  pickVariantTypesForProduct(index) {
+    if (this.variantTypesWithOptions.length === 1) {
+      return [this.variantTypesWithOptions[0]];
+    }
+
+    const first =
+      this.variantTypesWithOptions[index % this.variantTypesWithOptions.length];
+    const second =
+      this.variantTypesWithOptions[
+        (index + 1) % this.variantTypesWithOptions.length
+      ];
+
+    if (String(first._id) === String(second._id)) {
+      return [first];
+    }
+
+    return [first, second];
+  }
+
+  generateProductVariants({
+    productIndex,
+    title,
+    imagePool,
+    variantTypes,
+    minVariants,
+    maxVariants,
+    basePrice,
+    imagesPerVariant,
+  }) {
+    const targetCount = Math.max(
+      minVariants,
+      Math.min(
+        maxVariants,
+        minVariants +
+          (productIndex % Math.max(1, maxVariants - minVariants + 1)),
+      ),
+    );
+
+    const combinations = [];
+    if (variantTypes.length === 1) {
+      const [type] = variantTypes;
+      type.options.slice(0, targetCount).forEach((option) => {
+        combinations.push([{ type, option }]);
+      });
+    } else {
+      const [typeA, typeB] = variantTypes;
+      for (const optionA of typeA.options) {
+        for (const optionB of typeB.options) {
+          combinations.push([
+            { type: typeA, option: optionA },
+            { type: typeB, option: optionB },
+          ]);
+          if (combinations.length >= targetCount) break;
+        }
+        if (combinations.length >= targetCount) break;
+      }
+    }
+
+    return combinations.map((combo, comboIndex) => {
+      const optionValues = combo.map(({ option }) => option.displayValue);
+      const optionSlug = combo
+        .map(({ option }) => option.value.toUpperCase())
+        .join("-");
+      const priceDelta = (comboIndex % 5) * 3;
 
       return {
-        title: PRODUCT_TITLES[index % PRODUCT_TITLES.length],
-        slug: `${toSlug(PRODUCT_TITLES[index % PRODUCT_TITLES.length])}-${index + 1}`,
-        summary: "Temporary seeded product for storefront and admin testing",
-        description: `Demo product ${index + 1} linked with ${brand.title} in ${category.title}`,
-        condition:
-          index % 3 === 0 ? "new" : index % 4 === 0 ? "hot" : "default",
-        status,
-        isFeatured,
-        hasVariants: false,
-        basePrice,
-        baseDiscount,
-        baseStock: 20 + index * 3,
-        baseSku: `TMP-${String(index + 1).padStart(4, "0")}`,
-        size: ["S", "M", "L"],
-        images,
-        category: {
-          id: category._id,
-          title: category.title,
-          slug: category.slug,
-          path: category.path || category.title,
-        },
-        brand: {
-          id: brand._id,
-          title: brand.title,
-          slug: brand.slug,
-        },
-        ratings: {
-          average: 3.8 + (index % 5) * 0.2,
-          count: 10 + index * 3,
-          distribution: {
-            1: 1,
-            2: 1,
-            3: 2,
-            4: 3,
-            5: 3,
-          },
-        },
-        tags: [
-          category.title.toLowerCase(),
-          brand.title.toLowerCase(),
-          "temp-seed",
-        ],
+        sku: `VR-${String(productIndex + 1).padStart(5, "0")}-${optionSlug}`,
+        displayName: `${title} - ${optionValues.join(" / ")}`,
+        price: Math.round((basePrice + priceDelta) * 100) / 100,
+        discount: comboIndex % 4 === 0 ? 8 : 0,
+        stock: 10 + ((productIndex + comboIndex) % 60),
+        status: "active",
+        options: combo.map(({ type, option }) => ({
+          typeId: type._id,
+          typeName: type.name,
+          typeDisplayName: type.displayName,
+          optionId: option._id,
+          value: option.value,
+          displayValue: option.displayValue,
+          hexColor: option.hexColor || null,
+        })),
+        images: imagePool
+          .slice(0, Math.max(3, imagesPerVariant))
+          .map((image) => ({ ...image })),
+        variantValues: combo.map(({ option }) => option.value).join("|"),
       };
     });
-
-    const created = await Product.insertMany(docs);
-    logger.info(`Seeded products: ${created.length}`);
-    return created;
   }
 }
 

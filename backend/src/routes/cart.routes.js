@@ -182,11 +182,18 @@ router.post("/", async (req, res, next) => {
         .json({ success: false, message: "Quantity must be at least 1" });
     }
 
-    const product = await Product.findOne({ _id: productId, status: "active" });
+    const product = await Product.findById(productId);
     if (!product) {
       return res
         .status(404)
         .json({ success: false, message: "Product not found" });
+    }
+
+    if (product.status !== "active") {
+      return res.status(400).json({
+        success: false,
+        message: "Product is inactive and cannot be added to cart",
+      });
     }
 
     const pricing = resolvePriceAndStock(product, variantId);

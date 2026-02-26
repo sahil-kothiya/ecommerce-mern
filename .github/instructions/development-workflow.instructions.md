@@ -5,6 +5,11 @@ applyTo: "**"
 
 # Development Workflow & Project Setup Instructions
 
+## 🔄 Latest Code Policy
+
+- Do not use legacy code or legacy implementation patterns.
+- Always use latest stable, supported code patterns and dependencies that are compatible with this repository.
+
 ## 🚀 Project Overview
 
 **Enterprise E-Commerce Platform** is a production-ready MERN stack application optimized for handling 10M+ products. The project follows a monorepo structure with separate frontend and backend folders.

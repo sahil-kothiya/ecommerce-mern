@@ -24,20 +24,20 @@ export class UserSeeder {
     try {
       await this.loadUserImages();
 
-            await this.clearExistingUsers();
+      await this.clearExistingUsers();
 
-            await this.createAdminUser();
+      await this.createAdminUser();
 
-            await this.createDemoUser();
+      await this.createDemoUser();
 
-            await this.createUsersBatch(totalUsers - 2);
+      await this.createUsersBatch(totalUsers - 2);
 
       logger.info("\nâœ… User Seeding completed!");
       logger.info(
         `ðŸ“Š Summary: ${this.userCount.toLocaleString()} users created\n`,
       );
     } catch (error) {
-      console.error("âŒ User seeding failed:", error);
+      logger.error("User seeding failed", { error: error.message });
       throw error;
     }
   }
@@ -182,7 +182,7 @@ export class UserSeeder {
         users.push(user);
       }
 
-            await User.insertMany(users);
+      await User.insertMany(users);
       this.userCount += batchSize;
 
       logger.info(

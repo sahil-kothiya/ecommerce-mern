@@ -8,6 +8,13 @@ import mongoose from "mongoose";
 import path from "path";
 import fs from "fs";
 import { config } from "../config/index.js";
+import {
+  getCachedResponse,
+  setCachedResponse,
+  invalidateCacheByPrefix,
+} from "../utils/requestCache.js";
+
+const CATEGORY_INDEX_CACHE_TTL_MS = 15000;
 
 export class CategoryController {
   parseBoolean(value, fallback = false) {
@@ -105,11 +112,25 @@ export class CategoryController {
 
   async index(req, res) {
     try {
+      const shouldBypassCache =
+        String(req.query.noCache || "")
+          .trim()
+          .toLowerCase() === "true";
+      const cacheKey = `categories:index:${req.originalUrl}`;
+      const cached = shouldBypassCache ? null : getCachedResponse(cacheKey);
+
+      if (cached) {
+        res.set("X-Cache", "HIT");
+        return res.json(cached);
+      }
+
       const {
         parent,
         includeChildren = "false",
         status,
         sort = "sortOrder",
+        page,
+        limit,
       } = req.query;
 
       const query = {};
@@ -130,20 +151,42 @@ export class CategoryController {
           .lean();
 
         const categoryTree = this.buildCategoryTree(categories);
+        res.set("X-Cache", shouldBypassCache ? "BYPASS" : "MISS");
         return res.json({
           success: true,
           data: categoryTree,
         });
       }
 
-      const categories = await Category.find(query).sort(sort).lean();
+      const parsedPage = Math.max(1, Number.parseInt(page, 10) || 1);
+      const parsedLimitRaw = Number.parseInt(limit, 10);
+      const parsedLimit = Number.isFinite(parsedLimitRaw)
+        ? Math.min(200, Math.max(1, parsedLimitRaw))
+        : null;
 
-      res.json({
+      let categoriesQuery = Category.find(query).sort(sort);
+
+      if (parsedLimit) {
+        const skip = (parsedPage - 1) * parsedLimit;
+        categoriesQuery = categoriesQuery.skip(skip).limit(parsedLimit);
+      }
+
+      const categories = await categoriesQuery.lean();
+
+      const payload = {
         success: true,
         data: categories,
-      });
+      };
+
+      if (!shouldBypassCache) {
+        setCachedResponse(cacheKey, payload, CATEGORY_INDEX_CACHE_TTL_MS);
+      }
+
+      res.set("X-Cache", shouldBypassCache ? "BYPASS" : "MISS");
+
+      res.json(payload);
     } catch (error) {
-      console.error("Category index error:", error);
+      logger.error("Category index error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch categories",
@@ -182,7 +225,7 @@ export class CategoryController {
         data: tree,
       });
     } catch (error) {
-      console.error("Category tree error:", error);
+      logger.error("Category tree error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch category tree",
@@ -202,7 +245,7 @@ export class CategoryController {
         data: categories,
       });
     } catch (error) {
-      console.error("Flat categories error:", error);
+      logger.error("Flat categories error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch flat categories",
@@ -272,7 +315,7 @@ export class CategoryController {
         data: filters,
       });
     } catch (error) {
-      console.error("Category filters error:", error);
+      logger.error("Category filters error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch filters",
@@ -299,7 +342,7 @@ export class CategoryController {
         data: navigation,
       });
     } catch (error) {
-      console.error("Navigation categories error:", error);
+      logger.error("Navigation categories error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch navigation categories",
@@ -343,7 +386,7 @@ export class CategoryController {
         data: breadcrumb,
       });
     } catch (error) {
-      console.error("Category breadcrumb error:", error);
+      logger.error("Category breadcrumb error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch category breadcrumb",
@@ -383,7 +426,7 @@ export class CategoryController {
         data: result,
       });
     } catch (error) {
-      console.error("Category show error:", error);
+      logger.error("Category show error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch category",
@@ -426,7 +469,7 @@ export class CategoryController {
         data: result,
       });
     } catch (error) {
-      console.error("Category show by slug error:", error);
+      logger.error("Category show by slug error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch category",
@@ -530,6 +573,8 @@ export class CategoryController {
       });
 
       await category.save();
+      invalidateCacheByPrefix("categories:index:");
+      invalidateCacheByPrefix("products:index:");
 
       res.status(201).json({
         success: true,
@@ -537,7 +582,7 @@ export class CategoryController {
         data: category,
       });
     } catch (error) {
-      console.error("Category store error:", error);
+      logger.error("Category store error", { error: error.message });
 
       if (error.name === "ValidationError") {
         const errors = Object.keys(error.errors).reduce((acc, key) => {
@@ -634,7 +679,9 @@ export class CategoryController {
             try {
               fs.unlinkSync(oldImagePath);
             } catch (error) {
-              console.error("Error deleting old image:", error);
+              logger.error("Error deleting old image", {
+                error: error.message,
+              });
             }
           }
         }
@@ -750,6 +797,8 @@ export class CategoryController {
       }
 
       await category.save();
+      invalidateCacheByPrefix("categories:index:");
+      invalidateCacheByPrefix("products:index:");
 
       res.json({
         success: true,
@@ -757,7 +806,7 @@ export class CategoryController {
         data: category,
       });
     } catch (error) {
-      console.error("Category update error:", error);
+      logger.error("Category update error", { error: error.message });
 
       if (error.name === "ValidationError") {
         const errors = Object.keys(error.errors).reduce((acc, key) => {
@@ -808,13 +857,15 @@ export class CategoryController {
       }
 
       await category.deleteOne();
+      invalidateCacheByPrefix("categories:index:");
+      invalidateCacheByPrefix("products:index:");
 
       res.json({
         success: true,
         message: "Category deleted successfully",
       });
     } catch (error) {
-      console.error("Category delete error:", error);
+      logger.error("Category delete error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to delete category",
@@ -847,13 +898,15 @@ export class CategoryController {
       }));
 
       await Category.bulkWrite(bulkOps);
+      invalidateCacheByPrefix("categories:index:");
+      invalidateCacheByPrefix("products:index:");
 
       res.json({
         success: true,
         message: "Categories reordered successfully",
       });
     } catch (error) {
-      console.error("Bulk reorder error:", error);
+      logger.error("Bulk reorder error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to reorder categories",
@@ -884,13 +937,14 @@ export class CategoryController {
 
       category.sortOrder = newPosition;
       await category.save();
+      invalidateCacheByPrefix("categories:index:");
 
       res.json({
         success: true,
         message: "Category position updated successfully",
       });
     } catch (error) {
-      console.error("Category reorder error:", error);
+      logger.error("Category reorder error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to reorder category",
@@ -949,7 +1003,7 @@ export class CategoryController {
         },
       });
     } catch (error) {
-      console.error("Category products error:", error);
+      logger.error("Category products error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch category products",
@@ -998,7 +1052,7 @@ export class CategoryController {
         data: brands,
       });
     } catch (error) {
-      console.error("Category brands error:", error);
+      logger.error("Category brands error", { error: error.message });
       res.status(500).json({
         success: false,
         message: "Failed to fetch category brands",

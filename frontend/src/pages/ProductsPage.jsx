@@ -25,20 +25,22 @@ const defaultFilters = {
 
 const parseCategoryList = (payload) => {
     if (Array.isArray(payload?.data?.categories)) return payload.data.categories;
+    if (Array.isArray(payload?.data?.items)) return payload.data.items;
     if (Array.isArray(payload?.data)) return payload.data;
     return [];
 };
 
 const parseBrandList = (payload) => {
     if (Array.isArray(payload?.data?.brands)) return payload.data.brands;
+    if (Array.isArray(payload?.data?.items)) return payload.data.items;
     if (Array.isArray(payload?.data)) return payload.data;
     return [];
 };
 
 const SkeletonCard = () => (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="img-shimmer h-44 w-full" />
-        <div className="space-y-2 p-3.5">
+        <div className="img-shimmer h-56 w-full" />
+        <div className="space-y-2 p-4">
             <div className="img-shimmer h-3 w-1/3 rounded" />
             <div className="img-shimmer h-4 w-3/4 rounded" />
             <div className="img-shimmer h-4 w-1/2 rounded" />
@@ -50,29 +52,56 @@ const SkeletonCard = () => (
 const HeroBanner = ({ banners }) => {
     const [idx, setIdx] = useState(0);
     const timerRef = useRef(null);
+    const slides = banners.length
+        ? banners
+        : [{
+            title: 'Featured Deals',
+            description: 'Discover top products, curated offers, and fresh arrivals.',
+            image: null,
+        }];
+
+    useEffect(() => {
+        if (idx >= slides.length) setIdx(0);
+    }, [idx, slides.length]);
 
     useEffect(() => {
         clearInterval(timerRef.current);
-        if (banners.length > 1) {
-            timerRef.current = setInterval(() => setIdx((p) => (p + 1) % banners.length), 4500);
+        if (slides.length > 1) {
+            timerRef.current = setInterval(() => setIdx((p) => (p + 1) % slides.length), 4500);
         }
         return () => clearInterval(timerRef.current);
-    }, [banners.length]);
+    }, [slides.length]);
 
-    if (!banners.length) return null;
-    const b = banners[idx];
-    const imgUrl = resolveImageUrl(b.image);
+    const b = slides[idx];
 
     return (
         <div className="relative mb-8 overflow-hidden rounded-2xl shadow-lg" style={{ minHeight: 220 }}>
-            <LazyImage
-                src={imgUrl}
-                alt={b.title}
-                wrapperClassName="h-56 w-full"
-                className="h-56 w-full object-cover"
-                rootMargin="0px"
-                fallback={<div className="h-56 w-full bg-gradient-to-r from-[#0a2156] via-[#212191] to-[#4250d5]" />}
-            />
+            <div className="absolute inset-0">
+                <div
+                    className="flex h-full transition-transform duration-700 ease-out"
+                    style={{ width: `${slides.length * 100}%`, transform: `translateX(-${idx * (100 / slides.length)}%)` }}
+                >
+                    {slides.map((slide, slideIndex) => {
+                        const imgUrl = resolveImageUrl(slide.image || slide.photo, { placeholder: null });
+                        return (
+                            <div key={slide._id || slide.slug || slideIndex} className="relative h-full" style={{ width: `${100 / slides.length}%` }}>
+                                {imgUrl ? (
+                                    <LazyImage
+                                        src={imgUrl}
+                                        alt={slide.title || `Banner ${slideIndex + 1}`}
+                                        wrapperClassName="h-56 w-full"
+                                        className="h-56 w-full object-cover"
+                                        rootMargin="0px"
+                                        fallback={<div className="h-56 w-full bg-gradient-to-r from-[#0a2156] via-[#212191] to-[#4250d5]" />}
+                                    />
+                                ) : (
+                                    <div className="h-56 w-full bg-gradient-to-r from-[#0a2156] via-[#212191] to-[#4250d5]" />
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
             <div className="absolute bottom-0 left-0 p-6">
                 <h2 className="text-2xl font-bold text-white drop-shadow">{b.title}</h2>
@@ -88,9 +117,9 @@ const HeroBanner = ({ banners }) => {
                     </Link>
                 )}
             </div>
-            {banners.length > 1 && (
+            {slides.length > 1 && (
                 <div className="absolute bottom-4 right-5 flex items-center gap-2">
-                    {banners.map((_, i) => (
+                    {slides.map((_, i) => (
                         <button
                             key={i}
                             onClick={() => setIdx(i)}
@@ -369,7 +398,7 @@ const ProductsPage = () => {
     }
 
     return (
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[90rem] px-4 py-8 sm:px-6 lg:px-8">
             <HeroBanner banners={banners} />
             <div className="mb-6 flex flex-col gap-3">
                 <h1 className="text-2xl font-bold text-slate-900">Products Discovery</h1>
@@ -384,13 +413,13 @@ const ProductsPage = () => {
                 )}
             </div>
 
-            <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-6">
+            <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <input
                     type="text"
                     value={filters.search}
                     onChange={(event) => onFilterChange('search', event.target.value)}
                     placeholder="Search products..."
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-500 focus:ring lg:col-span-2"
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-500 focus:ring"
                 />
                 <select
                     value={filters.category}
@@ -525,7 +554,7 @@ const ProductsPage = () => {
             </div>
 
             {isLoading ? (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                     {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
                 </div>
             ) : products.length === 0 ? (
@@ -581,14 +610,14 @@ const ProductsPage = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                         {products.map((product) => {
                             const pricing = getProductDisplayPricing(product);
                             const hasDiscount = pricing.hasDiscount;
                             const finalPriceLabel = pricing.isRange
                                 ? `${formatPrice(pricing.minPrice)} - ${formatPrice(pricing.maxPrice)}`
                                 : formatPrice(pricing.finalPrice);
-                            const imgUrl = resolveImageUrl(getProductPrimaryImage(product));
+                            const imgUrl = resolveImageUrl(getPrimaryProductImage(product));
                             return (
                                 <Link
                                     key={product._id}
@@ -598,10 +627,10 @@ const ProductsPage = () => {
                                     <LazyImage
                                         src={imgUrl}
                                         alt={product.title}
-                                        wrapperClassName="h-44 w-full bg-gradient-to-br from-slate-50 to-blue-50"
-                                        className="h-44 w-full object-cover group-hover:scale-105"
+                                        wrapperClassName="h-56 w-full bg-gradient-to-br from-slate-50 to-blue-50"
+                                        className="h-56 w-full object-cover group-hover:scale-105"
                                         fallback={
-                                            <div className="flex h-44 w-full items-center justify-center bg-gradient-to-br from-slate-100 to-blue-100">
+                                            <div className="flex h-56 w-full items-center justify-center bg-gradient-to-br from-slate-100 to-blue-100">
                                                 <svg className="h-12 w-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                 </svg>
@@ -613,7 +642,7 @@ const ProductsPage = () => {
                                             -{Math.round(pricing.discount)}%
                                         </span>
                                     )}
-                                    <div className="p-3.5">
+                                    <div className="p-4">
                                         <p className="text-[11px] font-semibold text-[#4250d5]">{product.brand?.title || 'Brand'}</p>
                                         <h2 className="mt-1 line-clamp-2 text-sm font-semibold text-slate-900 group-hover:text-[#212191]">{product.title}</h2>
                                         <div className="mt-2 flex items-center gap-2">

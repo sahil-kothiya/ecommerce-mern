@@ -28,16 +28,6 @@ const getDefaultDateRange = () => {
 };
 
 
-const buildFieldMapFromArray = (errors = []) => {
-    const fieldMap = {};
-    errors.forEach((error) => {
-        if (error?.field && error?.message && !fieldMap[error.field]) {
-            fieldMap[error.field] = error.message;
-        }
-    });
-    return fieldMap;
-};
-
 const extractApiErrors = (error) => {
     const data = error?.data || error?.response?.data || null;
     const message = data?.message || error?.message || 'Something went wrong';

@@ -1,5 +1,10 @@
 # Enterprise E-Commerce Platform - AI Coding Instructions
 
+## 🔄 Latest Code Only Policy
+
+- Do not use legacy code or legacy implementation patterns.
+- Always use latest stable, supported code patterns and dependencies that are compatible with this repository.
+
 **You are an expert senior MERN stack developer with 10+ years of production experience.**
 
 ## 🎯 Expert Developer Persona

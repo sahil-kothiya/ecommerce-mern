@@ -4,6 +4,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useNavigate, useParams } from 'react-router-dom';
 import notify from '../../../utils/notify';
+import { logger } from '../../../utils/logger';
 import couponService from '../../../services/couponService';
 
 const toLocalInputDateTime = (value) => {
@@ -95,7 +96,7 @@ const CouponForm = () => {
                     description: coupon.description || '',
                     type: coupon.type || 'percent',
                     value: coupon.value ?? '',
-                    minPurchase: coupon.minPurchase ?? '',
+                    minPurchase: coupon.minPurchase ?? coupon.minOrderAmount ?? '',
                     maxDiscount: coupon.maxDiscount ?? '',
                     usageLimit: coupon.usageLimit ?? '',
                     startDate: toLocalInputDateTime(coupon.startDate) || defaultDateRange.startDate,
@@ -115,18 +116,27 @@ const CouponForm = () => {
     const onSubmit = async (data) => {
         try {
             setIsSaving(true);
+            const minPurchaseValue = data.minPurchase === '' || data.minPurchase == null ? null : Number(data.minPurchase);
             const payload = {
                 code: data.code.trim().toUpperCase(),
                 description: data.description?.trim() || '',
                 type: data.type,
                 value: Number(data.value),
-                minPurchase: data.minPurchase === '' || data.minPurchase == null ? null : Number(data.minPurchase),
+                minPurchase: minPurchaseValue,
+                minOrderAmount: minPurchaseValue,
                 maxDiscount: data.maxDiscount === '' || data.maxDiscount == null ? null : Number(data.maxDiscount),
                 usageLimit: data.usageLimit === '' || data.usageLimit == null ? null : Number(data.usageLimit),
                 startDate: data.startDate || null,
                 expiryDate: data.expiryDate || null,
                 status: data.status,
             };
+
+            logger.info('[Admin Coupon] submit payload', {
+                isEdit,
+                couponId: id,
+                minPurchase: payload.minPurchase,
+                minOrderAmount: payload.minOrderAmount,
+            });
 
             if (isEdit) {
                 await couponService.updateCoupon(id, payload);

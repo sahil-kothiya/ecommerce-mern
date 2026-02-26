@@ -5,6 +5,11 @@ applyTo: "**/*.{js,jsx,ts,tsx}"
 
 # Inline Comments & Documentation Standards
 
+## 🔄 Latest Code Policy
+
+- Do not use legacy code or legacy implementation patterns.
+- Always use latest stable, supported code patterns and dependencies that are compatible with this repository.
+
 ## General Principles
 
 **Use minimal inline comments** and add them only when they explain non-obvious reasoning.

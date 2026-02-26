@@ -6,6 +6,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import notify from '../../../utils/notify';
 import authFetch from '../../../utils/authFetch.js';
+import { resolveImageUrl } from '../../../utils/imageUrl';
 
 const schema = yup.object({
     title: yup.string().trim().required('Title is required'),
@@ -157,14 +158,8 @@ const ProductForm = () => {
     }, [id]);
 
     const getImageUrl = (img) => {
-        if (!img) return '';
-        const path = typeof img === 'string' ? img : img.path;
-        if (!path) return '';
-        if (/^https?:\/\//i.test(path)) return path;
-        if (path.startsWith('/')) return `${API_CONFIG.BASE_URL}${path}`;
-        if (path.startsWith('uploads/')) return `${API_CONFIG.BASE_URL}/${path}`;
-        const normalized = path.startsWith('/') ? path.slice(1) : path;
-        return `${API_CONFIG.BASE_URL}/uploads/${normalized}`;
+        const path = typeof img === 'string' ? img : img?.path;
+        return resolveImageUrl(path);
     };
 
     const loadSelectOptions = async () => {
@@ -324,7 +319,7 @@ reset({
 
                     await Promise.allSettled(
                         randomImageNames.map(async (imageName) => {
-                            const response = await fetch(`/images/${encodeURIComponent(imageName)}`);
+                            const response = await fetch(`${API_CONFIG.BASE_URL}/images/${encodeURIComponent(imageName)}`);
                             if (!response.ok) return;
 
                             const blob = await response.blob();
@@ -633,13 +628,8 @@ reset({
                 ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/${id}`
                 : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}`;
 
-            const authToken = localStorage.getItem('auth_token') || localStorage.getItem('token');
-            const authHeaders = {};
-            if (authToken) authHeaders['Authorization'] = `Bearer ${authToken}`;
-
             const response = await authFetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
-                headers: authHeaders,
                 body: formDataToSend,
             });
 
@@ -995,7 +985,7 @@ reset({
                                     <div className="media-grid">
                                         {existingImages.map((img, index) => (
                                             <div key={index} className="group media-thumb">
-                                                <img src={getImageUrl(img)} alt={`Product ${index + 1}`} className="h-full w-full object-cover" />
+                                                <img src={getImageUrl(img)} alt={`Product ${index + 1}`} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                                                 <button
                                                     type="button"
                                                     onClick={() => removeExistingImage(index)}
@@ -1017,7 +1007,7 @@ reset({
                                     <div className="media-grid">
                                         {imagePreviews.map((preview, index) => (
                                             <div key={index} className="group media-thumb">
-                                                <img src={preview.url} alt={preview.name} className="h-full w-full object-cover" />
+                                                <img src={preview.url} alt={preview.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                                                 <button
                                                     type="button"
                                                     onClick={() => removeImage(index)}
@@ -1217,7 +1207,7 @@ reset({
                                                         <div className="flex flex-wrap items-center gap-1.5">
                                                             {(Array.isArray(variant.images) ? variant.images : []).map((img, ii) => (
                                                                 <div key={ii} className="group relative h-12 w-12 flex-shrink-0 overflow-hidden rounded border border-slate-200 bg-slate-100">
-                                                                    <img src={typeof img === 'string' ? img : (img.path?.startsWith('http') ? img.path : `${API_CONFIG.BASE_URL}/uploads/${img.path}`)} alt="" className="h-full w-full object-cover"
+                                                                    <img src={typeof img === 'string' ? img : (img.path?.startsWith('http') ? img.path : `${API_CONFIG.BASE_URL}/uploads/${img.path}`)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover"
                                                                         onError={e => { e.target.src = '/placeholder.png'; }} />
                                                                     <button type="button" onClick={() => removeVariantImage(vi, ii, true)}
                                                                         className="absolute inset-0 flex items-center justify-center bg-red-500/0 text-sm font-bold text-white opacity-0 transition-all hover:bg-red-500/70 group-hover:opacity-100">×</button>
@@ -1225,7 +1215,7 @@ reset({
                                                             ))}
                                                             {(variantImages[vi]?.previews || []).map((src, ii) => (
                                                                 <div key={`new-${ii}`} className="group relative h-12 w-12 flex-shrink-0 overflow-hidden rounded border-2 border-cyan-400 bg-slate-100">
-                                                                    <img src={src} alt="" className="h-full w-full object-cover" />
+                                                                    <img src={src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                                                                     <button type="button" onClick={() => removeVariantImage(vi, ii, false)}
                                                                         className="absolute inset-0 flex items-center justify-center bg-red-500/0 text-sm font-bold text-white opacity-0 transition-all hover:bg-red-500/70 group-hover:opacity-100">×</button>
                                                                 </div>

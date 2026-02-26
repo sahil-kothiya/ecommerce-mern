@@ -50,7 +50,6 @@ class ApiClient {
     const wasAuthenticated = localStorage.getItem("auth_user");
 
     localStorage.removeItem("auth_user");
-    localStorage.removeItem("auth_token");
     window.dispatchEvent(new Event("auth:logout"));
 
     if (wasAuthenticated) {
@@ -101,13 +100,6 @@ class ApiClient {
           finalConfig.withCredentials === false ? "same-origin" : "include",
         ...(finalConfig.signal && { signal: finalConfig.signal }),
       };
-
-      // Auto-attach Authorization header from localStorage token
-      const storedToken =
-        localStorage.getItem("auth_token") || localStorage.getItem("token");
-      if (storedToken && !fetchOptions.headers["Authorization"]) {
-        fetchOptions.headers["Authorization"] = `Bearer ${storedToken}`;
-      }
 
       if (finalConfig.body !== undefined) {
         if (finalConfig.body instanceof FormData) {
