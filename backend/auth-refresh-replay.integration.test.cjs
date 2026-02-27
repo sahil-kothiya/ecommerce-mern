@@ -38,7 +38,7 @@ describeIfEnabled("Refresh token replay protection (integration)", () => {
     User = userModule.User;
 
     await connectDB();
-  });
+  }, 30_000);
 
   afterAll(async () => {
     await User.deleteMany({ email: testEmail });

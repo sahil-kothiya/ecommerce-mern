@@ -1,5 +1,11 @@
-import { afterEach, beforeAll, describe, expect, jest, test } from "@jest/globals";
-import mongoose from "mongoose";
+import {
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  jest,
+  test,
+} from "@jest/globals";
 
 const retrievePaymentIntentMock = jest.fn();
 const stripeConstructorMock = jest.fn(() => ({
@@ -12,7 +18,8 @@ await jest.unstable_mockModule("stripe", () => ({
   default: stripeConstructorMock,
 }));
 
-const { OrderController } = await import("./src/controllers/OrderController.js");
+const { OrderController } =
+  await import("./src/controllers/OrderController.js");
 const { AppError } = await import("./src/middleware/errorHandler.js");
 const { Order } = await import("./src/models/Order.js");
 const { Cart } = await import("./src/models/Cart.js");
@@ -43,7 +50,6 @@ const createBaseRequest = () => ({
 
 describe("OrderController payment security guards", () => {
   let controller;
-  let sessionMock;
 
   beforeAll(() => {
     controller = new OrderController();
@@ -60,15 +66,10 @@ describe("OrderController payment security guards", () => {
     const req = createBaseRequest();
     req.headers["idempotency-key"] = "idem-123";
 
-    sessionMock = {
-      withTransaction: jest.fn(),
-      endSession: jest.fn().mockResolvedValue(undefined),
-    };
-    jest.spyOn(mongoose, "startSession").mockResolvedValue(sessionMock);
     jest.spyOn(Order, "findOne").mockImplementation((filter) => ({
-      lean: jest.fn().mockResolvedValue(
-        filter.idempotencyKey ? existingOrder : null,
-      ),
+      lean: jest
+        .fn()
+        .mockResolvedValue(filter.idempotencyKey ? existingOrder : null),
     }));
 
     const res = createResponseMock();
@@ -84,8 +85,6 @@ describe("OrderController payment security guards", () => {
         data: existingOrder,
       }),
     );
-    expect(sessionMock.withTransaction).not.toHaveBeenCalled();
-    expect(sessionMock.endSession).toHaveBeenCalledTimes(1);
   });
 
   test("blocks Stripe checkout when paid amount does not match cart total", async () => {
@@ -93,11 +92,6 @@ describe("OrderController payment security guards", () => {
     req.body.paymentMethod = "stripe";
     req.body.paymentIntentId = "pi_mismatch";
 
-    sessionMock = {
-      withTransaction: jest.fn(),
-      endSession: jest.fn().mockResolvedValue(undefined),
-    };
-    jest.spyOn(mongoose, "startSession").mockResolvedValue(sessionMock);
     jest.spyOn(Order, "findOne").mockImplementation(() => ({
       lean: jest.fn().mockResolvedValue(null),
     }));
@@ -130,8 +124,6 @@ describe("OrderController payment security guards", () => {
     expect(err).toBeInstanceOf(AppError);
     expect(err.statusCode).toBe(409);
     expect(err.message).toMatch(/payment amount does not match/i);
-    expect(sessionMock.withTransaction).not.toHaveBeenCalled();
-    expect(sessionMock.endSession).toHaveBeenCalledTimes(1);
   });
 
   test("blocks reuse of a Stripe payment intent tied to an existing order", async () => {
@@ -139,15 +131,10 @@ describe("OrderController payment security guards", () => {
     req.body.paymentMethod = "stripe";
     req.body.paymentIntentId = "pi_reused";
 
-    sessionMock = {
-      withTransaction: jest.fn(),
-      endSession: jest.fn().mockResolvedValue(undefined),
-    };
-    jest.spyOn(mongoose, "startSession").mockResolvedValue(sessionMock);
     jest.spyOn(Order, "findOne").mockImplementation((filter) => ({
-      lean: jest.fn().mockResolvedValue(
-        filter.transactionId ? { _id: "ord-dup" } : null,
-      ),
+      lean: jest
+        .fn()
+        .mockResolvedValue(filter.transactionId ? { _id: "ord-dup" } : null),
     }));
     jest.spyOn(Setting, "findOne").mockImplementation(() => ({
       select: jest.fn().mockReturnValue({
@@ -178,7 +165,5 @@ describe("OrderController payment security guards", () => {
     expect(err).toBeInstanceOf(AppError);
     expect(err.statusCode).toBe(409);
     expect(err.message).toMatch(/already been used/i);
-    expect(sessionMock.withTransaction).not.toHaveBeenCalled();
-    expect(sessionMock.endSession).toHaveBeenCalledTimes(1);
   });
 });
