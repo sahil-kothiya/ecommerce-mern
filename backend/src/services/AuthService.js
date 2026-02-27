@@ -398,7 +398,7 @@ export class AuthService extends BaseService {
   }
 
   async getAddresses(userId) {
-    const user = await User.findById(userId).select("addresses");
+    const user = await User.findById(userId).select("addresses").lean();
     if (!user) {
       throw new AppError("User not found", 404);
     }

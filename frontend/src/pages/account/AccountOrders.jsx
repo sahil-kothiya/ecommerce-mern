@@ -1,14 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import apiClient from '../../services/apiClient';
+import authService from '../../services/authService';
 import { API_CONFIG } from '../../constants';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import { useSiteSettings } from '../../context/useSiteSettings';
 import { formatCurrency } from '../../utils/currency';
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
 const STATUS_CONFIG = {
     new:       { label: 'Order Placed',  badge: 'bg-blue-100 text-blue-700 ring-blue-200',      dot: 'bg-blue-500',   step: 1 },
     process:   { label: 'Processing',    badge: 'bg-yellow-100 text-yellow-700 ring-yellow-200', dot: 'bg-yellow-500', step: 2 },
@@ -36,9 +34,6 @@ const TRACKING_STEPS = [
     { step: 4, label: 'Delivered' },
 ];
 
-// ============================================================================
-// SUB-COMPONENTS
-// ============================================================================
 const Badge = ({ className, children }) => (
     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${className}`}>
         {children}
@@ -261,9 +256,6 @@ const PaymentInfo = ({ order }) => (
     </div>
 );
 
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
 const AccountOrders = () => {
     const { settings } = useSiteSettings();
     const [orders, setOrders]             = useState([]);
@@ -477,7 +469,7 @@ const AccountOrders = () => {
                                                 <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">Items Ordered</p>
                                                 <div className="divide-y divide-slate-100 rounded-2xl px-4 ring-1 ring-slate-100">
                                                     {order.items.map((item, idx) => (
-                                                        <ItemRow key={item._id || idx} item={item} orderId={order._id} canReview={order.status === 'delivered'} settings={settings} />
+                                                        <ItemRow key={item._id || idx} item={item} orderId={order._id} canReview={order.status === 'delivered' && authService.getUser()?.role !== 'admin'} settings={settings} />
                                                     ))}
                                                 </div>
                                             </div>

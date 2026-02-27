@@ -100,7 +100,7 @@ const CategoryTreeManager = () => {
             
             setHasChanges(false);
         } catch (error) {
-            console.error('Error loading categories:', error);
+            logger.error('Error loading categories:', error);
             showToast(`Failed to load categories: ${error.message}`, 'error');
         } finally {
             setIsLoading(false);
@@ -354,7 +354,7 @@ const CategoryTreeManager = () => {
                 showToast('Failed to save category order', 'error');
             }
         } catch (error) {
-            console.error('Error saving order:', error);
+            logger.error('Error saving order:', error);
             showToast('Failed to save changes', 'error');
         }
     };
@@ -406,7 +406,7 @@ const CategoryTreeManager = () => {
                 showToast(errorData.message || 'Failed to delete category', 'error');
             }
         } catch (error) {
-            console.error('Error deleting category:', error);
+            logger.error('Error deleting category:', error);
             showToast('Failed to delete category', 'error');
         } finally {
             setIsDeleting(false);
@@ -428,7 +428,7 @@ const toggleStatus = async (categoryId, currentStatus) => {
                 loadCategories();
             }
         } catch (error) {
-            console.error('Error toggling status:', error);
+            logger.error('Error toggling status:', error);
             showToast('Failed to update status', 'error');
         }
     };
@@ -460,7 +460,7 @@ const toggleStatus = async (categoryId, currentStatus) => {
             const errorData = await response.json();
             showToast(errorData.message || 'Failed to update featured flag', 'error');
         } catch (error) {
-            console.error('Error toggling featured:', error);
+            logger.error('Error toggling featured:', error);
             showToast('Failed to update featured flag', 'error');
         }
     };

@@ -4,6 +4,7 @@ import { API_CONFIG } from '../../../constants';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import notify from '../../../utils/notify';
 import authFetch from '../../../utils/authFetch.js';
+import { logger } from '../../../utils/logger.js';
 
 const BrandsList = () => {
     const navigate = useNavigate();
@@ -38,7 +39,7 @@ const BrandsList = () => {
                 setBrands([]);
             }
         } catch (error) {
-            console.error('Error loading brands:', error);
+            logger.error('Error loading brands:', error);
             notify.error(error, 'Failed to load brands');
             setBrands([]);
         } finally {
@@ -64,7 +65,7 @@ const BrandsList = () => {
                 notify.error(data, 'Failed to delete brand');
             }
         } catch (error) {
-            console.error('Error deleting brand:', error);
+            logger.error('Error deleting brand:', error);
             notify.error(error, 'Failed to delete brand');
         } finally {
             setIsDeleting(false);

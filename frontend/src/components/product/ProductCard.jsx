@@ -3,31 +3,8 @@ import { Link } from 'react-router-dom';
 import LazyImage from '../common/LazyImage';
 import { formatPrice, getProductDisplayPricing } from '../../utils/productUtils';
 
-/**
- * @typedef {Object} ProductCardProps
- * @property {Object} product - Product data object
- * @property {string} currentImage - Current image URL to display
- * @property {boolean} isHovered - Whether card is hovered
- * @property {boolean} inWishlist - Whether product is in wishlist
- * @property {Function} onHover - Hover handler
- * @property {Function} onLeave - Leave handler
- * @property {Function} onAddToCart - Add to cart handler
- * @property {Function} onWishlistToggle - Wishlist toggle handler
- * @property {Function} [onImageError] - Image error callback with failed src
- * @property {Function} formatCurrency - Currency formatter function
- * @property {number} [animDelay=0] - Animation delay in ms
- */
-
-/**
- * Flipkart-style Product Card Component
- * - Always shows "Add to Cart" button (never "Select Options")
- * - For variant products: redirects to PDP on click
- * - For non-variant products: adds directly to cart
- * - Shows "From ₹X" for variant products, "₹X" for non-variant
- * - Never displays variant selectors on card
- * 
- * @param {ProductCardProps} props
- */
+// Variant products: redirect to PDP on click. Non-variant: add directly to cart.
+// Always shows "Add to Cart", never variant selectors on card.
 const ProductCard = ({ 
     product, 
     currentImage, 

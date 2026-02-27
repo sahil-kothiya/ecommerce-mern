@@ -96,7 +96,6 @@ const StoreHeader = () => {
         return () => document.removeEventListener('mousedown', handleOutsideClick);
     }, []);
 
-    // Close mobile menu on route change
     useEffect(() => { setIsMobileMenuOpen(false); setIsUserMenuOpen(false); }, [location.pathname]);
 
     const handleSearch = (e) => {

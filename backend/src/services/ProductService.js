@@ -190,7 +190,7 @@ export class ProductService extends BaseService {
       }
 
       if (productData.categoryId) {
-        const category = await Category.findById(productData.categoryId);
+        const category = await Category.findById(productData.categoryId).lean();
         if (!category) {
           throw new AppError("Category not found", 404);
         }
@@ -202,7 +202,7 @@ export class ProductService extends BaseService {
       }
 
       if (productData.brandId) {
-        const brand = await Brand.findById(productData.brandId);
+        const brand = await Brand.findById(productData.brandId).lean();
         if (!brand) {
           throw new AppError("Brand not found", 404);
         }
@@ -235,7 +235,7 @@ export class ProductService extends BaseService {
       }
 
       if (updateData.categoryId) {
-        const category = await Category.findById(updateData.categoryId);
+        const category = await Category.findById(updateData.categoryId).lean();
         if (!category) {
           throw new AppError("Category not found", 404);
         }
@@ -248,7 +248,7 @@ export class ProductService extends BaseService {
       }
 
       if (updateData.brandId) {
-        const brand = await Brand.findById(updateData.brandId);
+        const brand = await Brand.findById(updateData.brandId).lean();
         if (!brand) {
           throw new AppError("Brand not found", 404);
         }

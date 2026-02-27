@@ -1,4 +1,4 @@
-import { BaseController } from "../core/BaseController.js";
+﻿import { BaseController } from "../core/BaseController.js";
 import { BannerService } from "../services/BannerService.js";
 import { deleteUploadedFile } from "../middleware/uploadEnhanced.js";
 import mongoose from "mongoose";
@@ -78,7 +78,7 @@ export class BannerController extends BaseController {
           .sort(sort)
           .skip(skip)
           .limit(parseInt(limit))
-          .populate("discountIds")
+          .populate("discountIds", "title type value startsAt endsAt isActive")
           .lean(),
         Banner.countDocuments(query),
       ]);
@@ -104,7 +104,6 @@ export class BannerController extends BaseController {
       res.status(500).json({
         success: false,
         message: "Failed to fetch banners",
-        error: error.message,
       });
     }
   }
@@ -130,7 +129,6 @@ export class BannerController extends BaseController {
       res.status(500).json({
         success: false,
         message: "Failed to fetch discount options",
-        error: error.message,
       });
     }
   }
@@ -146,7 +144,9 @@ export class BannerController extends BaseController {
         });
       }
 
-      const banner = await Banner.findById(id).populate("discountIds");
+      const banner = await Banner.findById(id)
+        .populate("discountIds", "title type value startsAt endsAt isActive")
+        .lean();
 
       if (!banner) {
         return res.status(404).json({
@@ -164,7 +164,6 @@ export class BannerController extends BaseController {
       res.status(500).json({
         success: false,
         message: "Failed to fetch banner",
-        error: error.message,
       });
     }
   }
@@ -273,7 +272,6 @@ export class BannerController extends BaseController {
       res.status(500).json({
         success: false,
         message: "Failed to create banner",
-        error: error.message,
       });
     }
   }
@@ -405,7 +403,6 @@ export class BannerController extends BaseController {
       res.status(500).json({
         success: false,
         message: "Failed to update banner",
-        error: error.message,
       });
     }
   }
@@ -445,7 +442,6 @@ export class BannerController extends BaseController {
       res.status(500).json({
         success: false,
         message: "Failed to delete banner",
-        error: error.message,
       });
     }
   }
@@ -481,7 +477,6 @@ export class BannerController extends BaseController {
       res.status(500).json({
         success: false,
         message: "Failed to track view",
-        error: error.message,
       });
     }
   }
@@ -517,7 +512,6 @@ export class BannerController extends BaseController {
       res.status(500).json({
         success: false,
         message: "Failed to track click",
-        error: error.message,
       });
     }
   }
@@ -542,7 +536,6 @@ export class BannerController extends BaseController {
       res.status(500).json({
         success: false,
         message: "Failed to fetch analytics",
-        error: error.message,
       });
     }
   }

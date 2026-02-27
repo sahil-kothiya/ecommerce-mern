@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/common/ProtectedRoute.jsx';
+import GuestRoute from './components/common/GuestRoute.jsx';
 import { API_CONFIG } from './constants';
 import { SiteSettingsProvider } from './context/SiteSettingsContext.jsx';
 import authService from './services/authService';
@@ -20,7 +21,6 @@ const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage.js
 const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 
-// User account panel
 const UserLayout = lazy(() => import('./layouts/UserLayout.jsx'));
 const AccountDashboard = lazy(() => import('./pages/account/AccountDashboard.jsx'));
 const AccountOrders = lazy(() => import('./pages/account/AccountOrders.jsx'));
@@ -135,11 +135,12 @@ function App() {
             } />
             {/* Legacy /dashboard redirect → new user account panel */}
             <Route path="/dashboard" element={<Navigate to="/account" replace />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
             </Route>
+
+            <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
+            <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
+            <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />
+            <Route path="/reset-password" element={<GuestRoute><ResetPasswordPage /></GuestRoute>} />
 
             <Route path="/admin" element={
                 <ProtectedRoute requireAdmin={true}>

@@ -56,7 +56,6 @@ const StoreFooter = () => {
                 const cats = Array.isArray(data?.data) ? data.data : (data?.data?.categories || []);
                 setCategories(cats.slice(0, 6));
             } catch {
-                // silent
             }
         };
         fetchCategories();

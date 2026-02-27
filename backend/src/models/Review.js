@@ -35,6 +35,18 @@ const reviewSchema = new Schema(
       minlength: [10, "Comment must be at least 10 characters"],
       maxlength: [1000, "Comment cannot exceed 1000 characters"],
     },
+    images: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (v) => Array.isArray(v) && v.length <= 5,
+        message: "Maximum 5 review images allowed",
+      },
+    },
+    isVerifiedPurchase: {
+      type: Boolean,
+      default: true,
+    },
     status: {
       type: String,
       enum: ["active", "inactive"],
@@ -44,6 +56,10 @@ const reviewSchema = new Schema(
       type: Number,
       default: 0,
       min: 0,
+    },
+    helpfulVoters: {
+      type: [Schema.Types.ObjectId],
+      default: [],
     },
   },
   {
@@ -91,22 +107,34 @@ reviewSchema.post("findOneAndDelete", async function (doc) {
 });
 
 async function updateProductRating(productId) {
-  const stats = await mongoose.models.Review.aggregate([
-    { $match: { productId, status: "active" } },
-    {
-      $group: {
-        _id: "$productId",
-        avgRating: { $avg: "$rating" },
-        count: { $sum: 1 },
+  const [stats, distRaw] = await Promise.all([
+    mongoose.models.Review.aggregate([
+      { $match: { productId, status: "active" } },
+      {
+        $group: {
+          _id: "$productId",
+          avgRating: { $avg: "$rating" },
+          count: { $sum: 1 },
+        },
       },
-    },
+    ]),
+    mongoose.models.Review.aggregate([
+      { $match: { productId, status: "active" } },
+      { $group: { _id: "$rating", count: { $sum: 1 } } },
+    ]),
   ]);
+
+  const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  distRaw.forEach((d) => {
+    if (d._id >= 1 && d._id <= 5) distribution[d._id] = d.count;
+  });
 
   if (stats.length > 0) {
     await mongoose.models.Product.findByIdAndUpdate(productId, {
       $set: {
         "ratings.average": Math.round(stats[0].avgRating * 10) / 10,
         "ratings.count": stats[0].count,
+        "ratings.distribution": distribution,
       },
     });
   } else {
@@ -114,6 +142,7 @@ async function updateProductRating(productId) {
       $set: {
         "ratings.average": 0,
         "ratings.count": 0,
+        "ratings.distribution": distribution,
       },
     });
   }

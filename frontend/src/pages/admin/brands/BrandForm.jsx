@@ -6,6 +6,7 @@ import * as yup from 'yup';
 import notify from '../../../utils/notify';
 import { API_CONFIG } from '../../../constants';
 import { brandService } from '../../../services/brandService';
+import { logger } from '../../../utils/logger.js';
 
 const schema = yup.object({
     title: yup.string().trim().required('Title is required')
@@ -72,7 +73,7 @@ const BrandForm = () => {
                 setExistingBanners(brand.banners);
             }
         } catch (error) {
-            console.error('Error loading brand:', error);
+            logger.error('Error loading brand:', error);
             toast.error(error.message || 'Failed to load brand');
         } finally {
             setIsLoading(false);

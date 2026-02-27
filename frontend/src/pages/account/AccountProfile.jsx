@@ -7,7 +7,6 @@ import apiClient from '../../services/apiClient';
 import { API_CONFIG } from '../../constants';
 import notify from '../../utils/notify';
 
-// ── Yup schemas ──────────────────────────────────────────────────────────────
 const profileSchema = yup.object({
     name: yup.string().trim().required('Full name is required.').min(2, 'Name must be at least 2 characters.'),
     email: yup.string().trim().required('Email address is required.').email('Please enter a valid email address.'),
@@ -27,7 +26,6 @@ const passwordSchema = yup.object({
         .oneOf([yup.ref('newPassword')], 'Passwords do not match.'),
 });
 
-// Inline field error helper
 const FieldError = ({ msg }) => msg ? <p className="mt-1 text-xs text-red-600">{msg}</p> : null;
 
 const inputClass = (hasError) =>
@@ -43,7 +41,6 @@ const AccountProfile = () => {
     const [isSavingPassword, setIsSavingPassword] = useState(false);
     const [activeSection, setActiveSection] = useState('info');
 
-    // ── Profile form ─────────────────────────────────────────────────────────
     const {
         register: regProfile,
         handleSubmit: handleProfileSubmit,
@@ -52,7 +49,6 @@ const AccountProfile = () => {
         setError: setProfileError,
     } = useForm({ resolver: yupResolver(profileSchema), mode: 'onBlur' });
 
-    // ── Password form ────────────────────────────────────────────────────────
     const {
         register: regPassword,
         handleSubmit: handlePasswordSubmit,

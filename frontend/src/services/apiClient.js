@@ -10,6 +10,8 @@ class ApiClient {
     this.requestInterceptors = [];
     this.responseInterceptors = [];
     this.errorInterceptors = [];
+    this._isRefreshing = false;
+    this._refreshQueue = [];
 
     this.setupDefaultInterceptors();
   }
@@ -33,17 +35,65 @@ class ApiClient {
 
     this.addErrorInterceptor(async (error) => {
       if (error.response?.status === 401) {
-        // Skip session-expired handling for auth endpoints (login/register failures)
         const url = error.response?.config?.url || error.config?.url || "";
         const isAuthEndpoint =
-          url.includes("/auth/login") || url.includes("/auth/register");
+          url.includes("/auth/login") ||
+          url.includes("/auth/register") ||
+          url.includes("/auth/refresh-token");
         if (!isAuthEndpoint) {
+          const refreshed = await this.attemptTokenRefresh();
+          if (refreshed && error.response?.config) {
+            return this.retryOriginalRequest(error.response.config);
+          }
           this.handleUnauthorizedRedirect();
         }
       }
 
       return Promise.reject(error);
     });
+  }
+
+  async attemptTokenRefresh() {
+    if (this._isRefreshing) {
+      return new Promise((resolve) => {
+        this._refreshQueue.push(resolve);
+      });
+    }
+
+    this._isRefreshing = true;
+    try {
+      const response = await fetch(`${this.baseURL}/auth/refresh-token`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        this._refreshQueue.forEach((cb) => cb(false));
+        this._refreshQueue = [];
+        return false;
+      }
+
+      const data = await response.json();
+      if (data?.data?.user) {
+        localStorage.setItem("auth_user", JSON.stringify(data.data.user));
+      }
+
+      this._refreshQueue.forEach((cb) => cb(true));
+      this._refreshQueue = [];
+      return true;
+    } catch {
+      this._refreshQueue.forEach((cb) => cb(false));
+      this._refreshQueue = [];
+      return false;
+    } finally {
+      this._isRefreshing = false;
+    }
+  }
+
+  async retryOriginalRequest(config) {
+    const retryConfig = { ...config, _retry: true };
+    return this.executeRequest(retryConfig);
   }
 
   handleUnauthorizedRedirect() {
@@ -256,7 +306,9 @@ class ApiClient {
           }
         } else {
           if (xhr.status === 401) {
-            this.handleUnauthorizedRedirect();
+            this.attemptTokenRefresh().then((refreshed) => {
+              if (!refreshed) this.handleUnauthorizedRedirect();
+            });
           }
           try {
             const errorData = JSON.parse(xhr.responseText);

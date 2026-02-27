@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock apiClient before importing authService
 vi.mock("./apiClient", () => ({
   default: {
     post: vi.fn(),
@@ -12,26 +11,12 @@ vi.mock("./apiClient", () => ({
 import apiClient from "./apiClient";
 import authService from "./authService";
 
-// ============================================================================
-// TEST HELPERS
-// ============================================================================
-
-/**
- * Create a typed Error matching normalizeError output
- * @param {string} message - Error message
- * @param {number} status - HTTP status code
- * @returns {Error} Error object with status and type
- */
 function apiError(message, status) {
   const err = new Error(message);
   err.status = status;
   err.type = "API_ERROR";
   return err;
 }
-
-// ============================================================================
-// AUTHSERVICE TEST SUITE
-// ============================================================================
 
 describe("authService", () => {
   beforeEach(() => {
@@ -47,10 +32,6 @@ describe("authService", () => {
     vi.restoreAllMocks();
   });
 
-  // ============================================================================
-  // LOGIN TESTS
-  // ============================================================================
-
   describe("login()", () => {
     it("stores sanitized user data on successful login", async () => {
       const fullUser = {
@@ -58,7 +39,7 @@ describe("authService", () => {
         role: "customer",
         email: "user@example.com",
         name: "John Doe",
-        phone: "1234567890", // Should not be stored
+        phone: "1234567890",
       };
       apiClient.post.mockResolvedValue({
         user: fullUser,
@@ -79,7 +60,6 @@ describe("authService", () => {
         role: "customer",
         name: "John Doe",
       });
-      // Verify PII not stored
       expect(storedUser).not.toHaveProperty("email");
       expect(storedUser).not.toHaveProperty("phone");
     });
@@ -111,7 +91,6 @@ describe("authService", () => {
         "Email and password are required",
       );
 
-      // Should not call API for invalid input
       expect(apiClient.post).not.toHaveBeenCalled();
     });
 
@@ -124,10 +103,6 @@ describe("authService", () => {
       ).rejects.toMatchObject({ message: "Invalid credentials", status: 401 });
     });
   });
-
-  // ============================================================================
-  // REGISTER TESTS
-  // ============================================================================
 
   describe("register()", () => {
     it("stores sanitized user data on successful registration", async () => {
@@ -206,12 +181,6 @@ describe("authService", () => {
     });
   });
 
-  // ─── logout ──────────────────────────────────────────────────────────────────
-
-  // ============================================================================
-  // LOGOUT TESTS
-  // ============================================================================
-
   describe("logout()", () => {
     it("clears all auth data even when logout API call fails", async () => {
       apiClient.post.mockRejectedValue(new Error("Network error"));
@@ -233,10 +202,6 @@ describe("authService", () => {
     });
   });
 
-  // ============================================================================
-  // GET CURRENT USER TESTS
-  // ============================================================================
-
   describe("getCurrentUser()", () => {
     it("updates stored user on success with sanitized data", async () => {
       const fullUser = {
@@ -249,7 +214,6 @@ describe("authService", () => {
 
       const result = await authService.getCurrentUser();
 
-      // Verify sanitized data stored (no email)
       expect(result).toEqual({
         _id: "u1",
         role: "admin",
@@ -262,18 +226,15 @@ describe("authService", () => {
       const user = { _id: "u1", role: "customer", name: "Test" };
       apiClient.get.mockResolvedValue({ user });
 
-      // Call getCurrentUser 3 times simultaneously
       const [result1, result2, result3] = await Promise.all([
         authService.getCurrentUser(),
         authService.getCurrentUser(),
         authService.getCurrentUser(),
       ]);
 
-      // All should return same result
       expect(result1).toEqual(result2);
       expect(result2).toEqual(result3);
 
-      // But API should only be called once
       expect(apiClient.get).toHaveBeenCalledTimes(1);
     });
 
@@ -297,14 +258,9 @@ describe("authService", () => {
         status: 503,
       });
 
-      // User should still be authenticated
       expect(authService.getUser()).toEqual(user);
     });
   });
-
-  // ============================================================================
-  // PROFILE MANAGEMENT TESTS
-  // ============================================================================
 
   describe("updateProfile()", () => {
     it("updates stored user with sanitized data", async () => {
@@ -393,10 +349,6 @@ describe("authService", () => {
     });
   });
 
-  // ============================================================================
-  // UNAUTHORIZED HANDLING TESTS
-  // ============================================================================
-
   describe("handleUnauthorizedResponse()", () => {
     it("handles 401 responses, clears auth and sets sessionExpired flag", () => {
       authService.setUser({ _id: "u1", role: "customer", name: "Test" });
@@ -418,10 +370,6 @@ describe("authService", () => {
       expect(authService.getUser()).toEqual(user);
     });
   });
-
-  // ============================================================================
-  // ROLE & AUTHENTICATION CHECKS
-  // ============================================================================
 
   describe("role helpers", () => {
     it("isAuthenticated() returns true when user is stored", () => {
@@ -449,8 +397,6 @@ describe("authService", () => {
       expect(authService.hasRole("admin")).toBe(false);
     });
   });
-
-  // ─── forgotPassword / resetPassword ─────────────────────────────────────────
 
   describe("forgotPassword() / resetPassword()", () => {
     it("calls correct endpoint for forgotPassword", async () => {
@@ -496,19 +442,13 @@ describe("authService", () => {
     });
   });
 
-  // ============================================================================
-  // LOCALSTORAGE & CACHE TESTS
-  // ============================================================================
-
   describe("in-memory cache", () => {
     it("getUser() reads from cache without hitting localStorage again", () => {
       const user = { _id: "u1", role: "customer", name: "Test" };
       authService.setUser(user);
       authService._resetForTesting(); // Reset cache only (tests internal behavior)
 
-      // First call hydrates cache from localStorage
       authService.getUser();
-      // Remove from localStorage — subsequent reads must come from cache
       localStorage.clear();
 
       expect(authService.getUser()).toEqual(user);
@@ -523,7 +463,6 @@ describe("authService", () => {
       };
       authService.setUser(fullUser);
 
-      // Should only store sanitized fields
       const expectedUser = { _id: "u2", role: "admin", name: "Admin" };
       expect(authService._userCache).toEqual(expectedUser);
       expect(JSON.parse(localStorage.getItem("auth_user"))).toEqual(
@@ -545,12 +484,10 @@ describe("authService", () => {
       authService._resetForTesting();
 
       expect(authService.getUser()).toBeNull();
-      // Should have cleared the corrupted data
       expect(localStorage.getItem("auth_user")).toBeNull();
     });
 
     it("getUser() validates user object structure and rejects tampered data", () => {
-      // Missing required _id
       localStorage.setItem(
         "auth_user",
         JSON.stringify({ role: "admin", name: "Test" }),
@@ -558,7 +495,6 @@ describe("authService", () => {
       authService._resetForTesting();
       expect(authService.getUser()).toBeNull();
 
-      // Invalid role
       localStorage.setItem(
         "auth_user",
         JSON.stringify({ _id: "u1", role: "hacker", name: "Bad" }),
@@ -566,7 +502,6 @@ describe("authService", () => {
       authService._resetForTesting();
       expect(authService.getUser()).toBeNull();
 
-      // Valid data should work
       localStorage.setItem(
         "auth_user",
         JSON.stringify({ _id: "u1", role: "customer", name: "Good" }),
@@ -597,10 +532,6 @@ describe("authService", () => {
       expect(authService.getUser()).toBeNull();
     });
   });
-
-  // ============================================================================
-  // EVENT HANDLING TESTS
-  // ============================================================================
 
   describe("auth:logout event", () => {
     it("clears cache and storage when apiClient dispatches auth:logout", () => {

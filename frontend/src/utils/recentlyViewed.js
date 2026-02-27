@@ -24,10 +24,6 @@ const getViewerScope = () => {
 
 const getStorageKey = () => `${STORAGE_KEY_PREFIX}:${getViewerScope()}`;
 
-/**
- * Add product to recently viewed list
- * @param {Object} product - Product object with at least _id and basic info
- */
 export const addRecentlyViewed = (product) => {
   try {
     if (!product?._id) {
@@ -70,11 +66,6 @@ export const addRecentlyViewed = (product) => {
   }
 };
 
-/**
- * Get recently viewed products
- * @param {number} limit - Maximum number of products to return
- * @returns {Array} Array of recently viewed products
- */
 export const getRecentlyViewed = (limit = MAX_RECENT_PRODUCTS) => {
   try {
     const storageKey = getStorageKey();
@@ -93,9 +84,6 @@ export const getRecentlyViewed = (limit = MAX_RECENT_PRODUCTS) => {
   }
 };
 
-/**
- * Clear all recently viewed products
- */
 export const clearRecentlyViewed = () => {
   try {
     localStorage.removeItem(getStorageKey());
@@ -107,10 +95,6 @@ export const clearRecentlyViewed = () => {
   }
 };
 
-/**
- * Remove specific product from recently viewed
- * @param {string} productId - Product ID to remove
- */
 export const removeRecentlyViewed = (productId) => {
   try {
     const recent = getRecentlyViewed();

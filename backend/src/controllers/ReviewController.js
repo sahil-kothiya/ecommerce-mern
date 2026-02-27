@@ -4,6 +4,14 @@ import { Product } from "../models/Product.js";
 import { Order } from "../models/Order.js";
 import { AppError } from "../middleware/errorHandler.js";
 
+const SORT_OPTIONS = {
+  recent: { createdAt: -1 },
+  oldest: { createdAt: 1 },
+  highest: { rating: -1, createdAt: -1 },
+  lowest: { rating: 1, createdAt: -1 },
+  helpful: { helpful: -1, createdAt: -1 },
+};
+
 export class ReviewController {
   async getMine(req, res, next) {
     try {
@@ -13,7 +21,7 @@ export class ReviewController {
 
       const [reviews, total] = await Promise.all([
         Review.find({ userId: req.user._id })
-          .populate("productId", "_id title slug status")
+          .populate("productId", "_id title slug status images")
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(limit)
@@ -40,7 +48,7 @@ export class ReviewController {
           },
         },
       });
-    } catch (error) {
+    } catch {
       next(new AppError("Failed to fetch your reviews", 500));
     }
   }
@@ -92,7 +100,7 @@ export class ReviewController {
           },
         },
       });
-    } catch (error) {
+    } catch {
       next(new AppError("Failed to fetch reviews", 500));
     }
   }
@@ -104,59 +112,112 @@ export class ReviewController {
         return next(new AppError("Invalid product ID", 400));
       }
 
-      const reviews = await Review.find({ productId, status: "active" })
-        .populate("userId", "_id name")
-        .sort({ createdAt: -1 })
-        .lean();
+      const page = Math.max(1, Number(req.query.page) || 1);
+      const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
+      const skip = (page - 1) * limit;
+      const sortKey = req.query.sort || "recent";
+      const sortOrder = SORT_OPTIONS[sortKey] || SORT_OPTIONS.recent;
 
-      const reviewerIds = reviews
-        .map((review) => {
-          const userId =
-            typeof review?.userId === "object"
-              ? review.userId?._id
-              : review?.userId;
-          return userId ? String(userId) : null;
-        })
-        .filter(Boolean);
+      const filter = { productId, status: "active" };
 
-      let verifiedUserIdSet = new Set();
-      if (reviewerIds.length > 0) {
-        const verifiedOrders = await Order.find({
-          userId: { $in: reviewerIds },
-          status: "delivered",
-          "items.productId": new mongoose.Types.ObjectId(productId),
-        })
-          .select("userId")
-          .lean();
+      const [reviews, total] = await Promise.all([
+        Review.find(filter)
+          .populate("userId", "_id name")
+          .sort(sortOrder)
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        Review.countDocuments(filter),
+      ]);
 
-        verifiedUserIdSet = new Set(
-          verifiedOrders
-            .map((order) => (order?.userId ? String(order.userId) : null))
-            .filter(Boolean),
-        );
+      const enrichedReviews = reviews.map((review) => ({
+        ...review,
+        verifiedPurchase: review.isVerifiedPurchase ?? true,
+      }));
+
+      res.json({
+        success: true,
+        data: enrichedReviews,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+          hasPrev: page > 1,
+          hasNext: page * limit < total,
+        },
+      });
+    } catch {
+      next(new AppError("Failed to fetch product reviews", 500));
+    }
+  }
+
+  async canReview(req, res, next) {
+    try {
+      const { productId } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(productId)) {
+        return next(new AppError("Invalid product ID", 400));
       }
 
-      const enrichedReviews = reviews.map((review) => {
-        const userId =
-          typeof review?.userId === "object"
-            ? review.userId?._id
-            : review?.userId;
-        const reviewerId = userId ? String(userId) : "";
+      if (req.user?.role === "admin") {
+        return res.json({
+          success: true,
+          data: { canReview: false, reason: "Admins cannot submit reviews" },
+        });
+      }
 
-        return {
-          ...review,
-          verifiedPurchase: verifiedUserIdSet.has(reviewerId),
-        };
+      const existingReview = await Review.findOne({
+        productId,
+        userId: req.user._id,
+      }).lean();
+
+      if (existingReview) {
+        return res.json({
+          success: true,
+          data: {
+            canReview: false,
+            reason: "You have already reviewed this product",
+            existingReviewId: existingReview._id,
+          },
+        });
+      }
+
+      const eligibleOrder = await Order.findOne({
+        userId: req.user._id,
+        status: "delivered",
+        "items.productId": new mongoose.Types.ObjectId(productId),
+      })
+        .select("_id orderNumber")
+        .lean();
+
+      if (!eligibleOrder) {
+        return res.json({
+          success: true,
+          data: {
+            canReview: false,
+            reason: "You can only review products from your delivered orders",
+          },
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          canReview: true,
+          eligibleOrderId: eligibleOrder._id,
+        },
       });
-
-      res.json({ success: true, data: enrichedReviews });
-    } catch (error) {
-      next(new AppError("Failed to fetch product reviews", 500));
+    } catch {
+      next(new AppError("Failed to check review eligibility", 500));
     }
   }
 
   async create(req, res, next) {
     try {
+      if (req.user?.role === "admin") {
+        return next(new AppError("Admins cannot submit product reviews", 403));
+      }
+
       const { productId, orderId, rating, title = "", comment } = req.body;
 
       if (!mongoose.Types.ObjectId.isValid(productId)) {
@@ -222,12 +283,14 @@ export class ReviewController {
         rating: numericRating,
         title: String(title || "").trim(),
         comment: String(comment || "").trim(),
+        isVerifiedPurchase: true,
         status: "active",
       });
 
       const populated = await Review.findById(review._id)
         .populate("productId", "_id title slug status")
-        .populate("userId", "_id name email");
+        .populate("userId", "_id name email")
+        .lean();
 
       res.status(201).json({
         success: true,
@@ -257,9 +320,8 @@ export class ReviewController {
       }
 
       const isOwner = String(review.userId) === String(req.user._id);
-      const isAdmin = req.user?.role === "admin";
-      if (!isOwner && !isAdmin) {
-        return next(new AppError("Not authorized to update this review", 403));
+      if (!isOwner) {
+        return next(new AppError("You can only edit your own review", 403));
       }
 
       const nextRating =
@@ -286,14 +348,15 @@ export class ReviewController {
 
       const updated = await Review.findById(id)
         .populate("productId", "_id title slug status")
-        .populate("userId", "_id name email");
+        .populate("userId", "_id name email")
+        .lean();
 
       res.json({
         success: true,
         message: "Review updated successfully",
         data: updated,
       });
-    } catch (error) {
+    } catch {
       next(new AppError("Failed to update review", 500));
     }
   }
@@ -318,8 +381,61 @@ export class ReviewController {
 
       await review.deleteOne();
       res.json({ success: true, message: "Review deleted successfully" });
-    } catch (error) {
+    } catch {
       next(new AppError("Failed to delete review", 500));
+    }
+  }
+
+  async markHelpful(req, res, next) {
+    try {
+      const { id } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return next(new AppError("Invalid review ID", 400));
+      }
+
+      if (req.user?.role === "admin") {
+        return next(new AppError("Admins cannot vote on reviews", 403));
+      }
+
+      const review = await Review.findById(id);
+      if (!review) {
+        return next(new AppError("Review not found", 404));
+      }
+
+      if (String(review.userId) === String(req.user._id)) {
+        return next(
+          new AppError("You cannot mark your own review as helpful", 400),
+        );
+      }
+
+      const alreadyVoted = review.helpfulVoters.some(
+        (voterId) => String(voterId) === String(req.user._id),
+      );
+
+      if (alreadyVoted) {
+        review.helpfulVoters = review.helpfulVoters.filter(
+          (voterId) => String(voterId) !== String(req.user._id),
+        );
+        review.helpful = Math.max(0, review.helpful - 1);
+        await review.save({ timestamps: false });
+        return res.json({
+          success: true,
+          message: "Helpful vote removed",
+          data: { helpful: review.helpful, voted: false },
+        });
+      }
+
+      review.helpfulVoters.push(req.user._id);
+      review.helpful += 1;
+      await review.save({ timestamps: false });
+
+      res.json({
+        success: true,
+        message: "Review marked as helpful",
+        data: { helpful: review.helpful, voted: true },
+      });
+    } catch {
+      next(new AppError("Failed to update helpful vote", 500));
     }
   }
 
@@ -346,14 +462,15 @@ export class ReviewController {
 
       const updated = await Review.findById(id)
         .populate("productId", "_id title slug status")
-        .populate("userId", "_id name email");
+        .populate("userId", "_id name email")
+        .lean();
 
       res.json({
         success: true,
         message: "Review status updated successfully",
         data: updated,
       });
-    } catch (error) {
+    } catch {
       next(new AppError("Failed to update review status", 500));
     }
   }

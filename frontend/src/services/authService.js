@@ -62,7 +62,7 @@ class AuthService {
 
     try {
       // Strip fields that must not be sent to the server
-      const { confirmPassword: _cp, role: _role, ...rest } = userData;
+      const { role: _role, ...rest } = userData;
       const sanitizedData = {
         ...rest,
         email: trimmedEmail,

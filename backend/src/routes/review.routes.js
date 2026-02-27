@@ -9,6 +9,8 @@ import {
   reviewStatusValidator,
   productReviewQueryValidator,
   reviewAdminQueryValidator,
+  canReviewValidator,
+  markHelpfulValidator,
 } from "../validators/index.js";
 
 const router = Router();
@@ -20,26 +22,12 @@ router.get(
   reviewController.getProductReviews.bind(reviewController),
 );
 
-router.post(
-  "/",
+router.get(
+  "/can-review/:productId",
   protect,
-  createReviewValidator,
+  canReviewValidator,
   validate,
-  reviewController.create.bind(reviewController),
-);
-router.put(
-  "/:id",
-  protect,
-  updateReviewValidator,
-  validate,
-  reviewController.update.bind(reviewController),
-);
-router.delete(
-  "/:id",
-  protect,
-  reviewIdValidator,
-  validate,
-  reviewController.destroy.bind(reviewController),
+  reviewController.canReview.bind(reviewController),
 );
 
 router.get(
@@ -58,6 +46,22 @@ router.get(
   validate,
   reviewController.index.bind(reviewController),
 );
+
+router.post(
+  "/",
+  protect,
+  createReviewValidator,
+  validate,
+  reviewController.create.bind(reviewController),
+);
+
+router.put(
+  "/:id/helpful",
+  protect,
+  markHelpfulValidator,
+  validate,
+  reviewController.markHelpful.bind(reviewController),
+);
 router.put(
   "/:id/status",
   protect,
@@ -65,6 +69,21 @@ router.put(
   reviewStatusValidator,
   validate,
   reviewController.updateStatus.bind(reviewController),
+);
+router.put(
+  "/:id",
+  protect,
+  updateReviewValidator,
+  validate,
+  reviewController.update.bind(reviewController),
+);
+
+router.delete(
+  "/:id",
+  protect,
+  reviewIdValidator,
+  validate,
+  reviewController.destroy.bind(reviewController),
 );
 
 export default router;

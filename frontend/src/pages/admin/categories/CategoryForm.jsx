@@ -7,6 +7,7 @@ import * as yup from 'yup';
 import { API_CONFIG } from '../../../constants';
 import notify from '../../../utils/notify';
 import authFetch from '../../../utils/authFetch.js';
+import { logger } from '../../../utils/logger.js';
 
 const schema = yup.object({
     title: yup.string().trim().required('Title is required'),
@@ -90,7 +91,7 @@ const CategoryForm = () => {
             
             setCategories(categoriesWithHierarchy);
         } catch (error) {
-            console.error('Error loading categories:', error);
+            logger.error('Error loading categories:', error);
             notify.error('Failed to load categories');
         }
     };
@@ -126,7 +127,7 @@ const CategoryForm = () => {
                 }
             }
         } catch (error) {
-            console.error('Error loading category:', error);
+            logger.error('Error loading category:', error);
         } finally {
             setIsLoading(false);
         }
@@ -242,7 +243,7 @@ const CategoryForm = () => {
                 }
             }
         } catch (error) {
-            console.error('Error saving category:', error);
+            logger.error('Error saving category:', error);
             notify.error('Failed to save category');
         } finally {
             setIsSaving(false);

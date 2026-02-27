@@ -4,7 +4,7 @@ import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { loadStripe } from "@stripe/stripe-js";
-import { Elements, useStripe, useElements } from "@stripe/react-stripe-js";
+import { Elements, useStripe, useElements, CardElement } from "@stripe/react-stripe-js";
 import authService from "../services/authService";
 import apiClient from "../services/apiClient";
 import paymentService from "../services/paymentService";
@@ -30,9 +30,6 @@ const schema = yup.object({
     notes: yup.string().default(""),
 });
 
-// ============================================================================
-// US STATE DATA
-// ============================================================================
 const US_STATES = [
     "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
     "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",

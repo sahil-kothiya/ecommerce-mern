@@ -7,6 +7,42 @@ export const productReviewQueryValidator = [
     .withMessage("Product ID is required")
     .isMongoId()
     .withMessage("Invalid product ID"),
+
+  query("page")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Page must be a positive integer")
+    .toInt(),
+
+  query("limit")
+    .optional()
+    .isInt({ min: 1, max: 50 })
+    .withMessage("Limit must be between 1 and 50")
+    .toInt(),
+
+  query("sort")
+    .optional()
+    .trim()
+    .isIn(["recent", "oldest", "highest", "lowest", "helpful"])
+    .withMessage("Sort must be recent, oldest, highest, lowest, or helpful"),
+];
+
+export const canReviewValidator = [
+  param("productId")
+    .trim()
+    .notEmpty()
+    .withMessage("Product ID is required")
+    .isMongoId()
+    .withMessage("Invalid product ID"),
+];
+
+export const markHelpfulValidator = [
+  param("id")
+    .trim()
+    .notEmpty()
+    .withMessage("Review ID is required")
+    .isMongoId()
+    .withMessage("Invalid review ID"),
 ];
 
 export const createReviewValidator = [

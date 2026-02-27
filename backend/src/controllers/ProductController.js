@@ -12,7 +12,6 @@ import {
   invalidateCacheByPrefix,
 } from "../utils/requestCache.js";
 
-// Generate a slug that doesn't already exist in the DB
 async function generateUniqueSlug(title, excludeId = null) {
   const base = slugify(title, { lower: true, strict: true });
   let candidate = base;
@@ -412,7 +411,6 @@ export class ProductController {
           ? JSON.parse(tags)
           : [];
 
-      // Inject per-variant uploaded images into parsedVariants
       if (req.files && req.files.length > 0) {
         const variantImgFiles = req.files.filter((f) =>
           /^variantImages_\d+$/.test(f.fieldname),
@@ -466,7 +464,7 @@ export class ProductController {
       let brandInfo = null;
 
       if (categoryId) {
-        const category = await Category.findById(categoryId);
+        const category = await Category.findById(categoryId).lean();
         if (category) {
           categoryInfo = {
             id: category._id,
@@ -478,7 +476,7 @@ export class ProductController {
       }
 
       if (brandId) {
-        const brand = await Brand.findById(brandId);
+        const brand = await Brand.findById(brandId).lean();
         if (brand) {
           brandInfo = {
             id: brand._id,
@@ -646,7 +644,6 @@ export class ProductController {
         }));
         images = [...images, ...newImages];
 
-        // Per-variant image injection
         const variantImgFiles = req.files.filter((f) =>
           /^variantImages_\d+$/.test(f.fieldname),
         );
@@ -667,7 +664,7 @@ export class ProductController {
       let brandInfo = product.brand;
 
       if (categoryId && categoryId !== product.category?.id?.toString()) {
-        const category = await Category.findById(categoryId);
+        const category = await Category.findById(categoryId).lean();
         if (category) {
           categoryInfo = {
             id: category._id,
@@ -679,7 +676,7 @@ export class ProductController {
       }
 
       if (brandId && brandId !== product.brand?.id?.toString()) {
-        const brand = await Brand.findById(brandId);
+        const brand = await Brand.findById(brandId).lean();
         if (brand) {
           brandInfo = {
             id: brand._id,
@@ -971,7 +968,7 @@ export class ProductController {
         Math.max(1, Number.parseInt(req.query.limit, 10) || 8),
       );
 
-      const product = await Product.findById(id);
+      const product = await Product.findById(id).lean();
 
       if (!product) {
         return res.status(404).json({
@@ -1018,7 +1015,6 @@ export class ProductController {
     }
   }
 
-  // Admin-only: fetch any product by ID regardless of status
   async adminShow(req, res) {
     try {
       const { id } = req.params;

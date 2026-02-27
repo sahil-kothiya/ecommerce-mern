@@ -22,7 +22,6 @@ const cartSlice = createSlice({
   name: "cart",
   initialState,
   reducers: {
-    // Hydrate slice from server response after any cart API call
     setCart: (state, action) => {
       const items = action.payload?.items ?? [];
       state.items = items;

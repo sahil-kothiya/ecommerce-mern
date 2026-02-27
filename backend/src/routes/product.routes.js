@@ -9,19 +9,24 @@ import {
 const router = Router();
 const productController = new ProductController();
 
-router.get("/", optionalAuth, (req, res) => productController.index(req, res));
-
-router.get("/featured", (req, res) => productController.featured(req, res));
-
-router.get("/search", (req, res) => productController.search(req, res));
-
-// Admin: get any product by ID (no status filter, includes draft/inactive)
-router.get("/admin/:id", protect, authorize("admin"), (req, res) =>
-  productController.adminShow(req, res),
+router.get("/", optionalAuth, (req, res, next) =>
+  productController.index(req, res, next),
 );
 
-router.get("/:slug", optionalAuth, (req, res) =>
-  productController.show(req, res),
+router.get("/featured", (req, res, next) =>
+  productController.featured(req, res, next),
+);
+
+router.get("/search", (req, res, next) =>
+  productController.search(req, res, next),
+);
+
+router.get("/admin/:id", protect, authorize("admin"), (req, res, next) =>
+  productController.adminShow(req, res, next),
+);
+
+router.get("/:slug", optionalAuth, (req, res, next) =>
+  productController.show(req, res, next),
 );
 
 router.post(
@@ -30,7 +35,7 @@ router.post(
   authorize("admin"),
   uploadProductAnyField,
   handleUploadError,
-  (req, res) => productController.store(req, res),
+  (req, res, next) => productController.store(req, res, next),
 );
 
 router.put(
@@ -39,11 +44,11 @@ router.put(
   authorize("admin"),
   uploadProductAnyField,
   handleUploadError,
-  (req, res) => productController.update(req, res),
+  (req, res, next) => productController.update(req, res, next),
 );
 
-router.delete("/:id", protect, authorize("admin"), (req, res) =>
-  productController.destroy(req, res),
+router.delete("/:id", protect, authorize("admin"), (req, res, next) =>
+  productController.destroy(req, res, next),
 );
 
 export default router;

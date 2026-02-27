@@ -9,6 +9,7 @@ import authFetch from '../../../utils/authFetch.js';
 import { resolveImageUrl } from '../../../utils/imageUrl';
 import { useSiteSettings } from '../../../context/useSiteSettings';
 import { formatCurrency } from '../../../utils/currency';
+import { logger } from '../../../utils/logger.js';
 
 const schema = yup.object({
     title: yup.string().trim().required('Title is required'),
@@ -288,7 +289,7 @@ const ProductForm = () => {
             setCategories(categoriesWithHierarchy);
             setBrands(brandsList);
         } catch (error) {
-            console.error('Error loading options:', error);
+            logger.error('Error loading options:', error);
             notify.error('Failed to load categories and brands');
         }
     };
@@ -314,7 +315,7 @@ const ProductForm = () => {
                 });
             }
         } catch (err) {
-            console.error('Error loading variant types:', err);
+            logger.error('Error loading variant types:', err);
         }
     };
 
@@ -366,7 +367,7 @@ reset({
                 }
             }
         } catch (error) {
-            console.error('Error loading product:', error);
+            logger.error('Error loading product:', error);
             notify.error('Failed to load product');
         } finally {
             setIsLoading(false);
@@ -734,7 +735,7 @@ reset({
                 notify.error(resData.message || 'Failed to save product');
             }
         } catch (error) {
-            console.error('Error saving product:', error);
+            logger.error('Error saving product:', error);
             notify.error('Failed to save product. Please try again.');
         } finally {
             setIsSaving(false);

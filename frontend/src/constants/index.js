@@ -128,12 +128,6 @@ export const FILTER_CONFIG = {
   MAX_RATING: 5,
 };
 
-/**
- * Build a human-readable price range label using the current currency symbol.
- * @param {{ min: number, max: number|null }} range
- * @param {string} currencySymbol
- * @returns {string}
- */
 export const getPriceRangeLabel = (range, currencySymbol = "$") => {
   const min = Number(range?.min || 0);
   const max = range?.max == null ? null : Number(range.max);

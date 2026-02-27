@@ -5,12 +5,10 @@ import { AppError } from "./errorHandler.js";
 import { logger } from "../utils/logger.js";
 
 const extractToken = (req) => {
-  // 1. HTTP-only cookie (same-origin)
   if (req.cookies?.accessToken) {
     return req.cookies.accessToken;
   }
 
-  // 2. Authorization: Bearer <token> header (cross-origin / SPA)
   const authHeader = req.headers?.authorization;
   if (authHeader && authHeader.startsWith("Bearer ")) {
     return authHeader.slice(7);

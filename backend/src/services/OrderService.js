@@ -509,12 +509,21 @@ export class OrderService extends BaseService {
 
     await Cart.deleteMany({ userId });
 
+    const items = order.items || [];
+    const productIds = [...new Set(items.map((i) => i.productId.toString()))];
+    const products = await Product.find({
+      _id: { $in: productIds },
+      status: "active",
+    })
+      .select("_id hasVariants baseStock variants")
+      .lean();
+    const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+
     const unavailableItems = [];
-    for (const item of order.items || []) {
-      const product = await Product.findOne({
-        _id: item.productId,
-        status: "active",
-      }).lean();
+    const cartDocs = [];
+
+    for (const item of items) {
+      const product = productMap.get(item.productId?.toString());
       if (!product) {
         unavailableItems.push(item.title);
         continue;
@@ -538,7 +547,7 @@ export class OrderService extends BaseService {
         continue;
       }
 
-      await Cart.create({
+      cartDocs.push({
         userId,
         productId: item.productId,
         variantId: item.variantId || undefined,
@@ -546,7 +555,14 @@ export class OrderService extends BaseService {
       });
     }
 
-    const cart = await Cart.find({ userId }).populate("productId").lean();
+    if (cartDocs.length > 0) await Cart.insertMany(cartDocs);
+
+    const cart = await Cart.find({ userId })
+      .populate(
+        "productId",
+        "title slug images basePrice baseDiscount baseStock hasVariants variants status",
+      )
+      .lean();
     return {
       cart,
       unavailableItems,

@@ -5,11 +5,6 @@ import {
   SiteSettingsContext,
 } from "./siteSettingsContextStore";
 
-/**
- * Site settings provider for public storefront pages.
- * @param {{ children: import("react").ReactNode }} props
- * @returns {JSX.Element}
- */
 export function SiteSettingsProvider({ children }) {
   const [settings, setSettings] = useState(DEFAULT_SITE_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);

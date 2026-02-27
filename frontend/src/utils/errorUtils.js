@@ -7,46 +7,35 @@ export const processApiError = (error) => {
     generalError: "An error occurred. Please try again.",
   };
 
-  logger.info("=== PROCESSING API ERROR ===");
-  logger.info("Full error:", error);
-  logger.info("Response data:", error.response?.data);
+  logger.debug("Processing API error:", error?.message);
 
-    if (error.response?.data) {
+  if (error.response?.data) {
     const responseData = error.response.data;
 
-        if (responseData.errors && Array.isArray(responseData.errors)) {
-      logger.info("Found errors array:", responseData.errors);
-
-      responseData.errors.forEach((errorItem, index) => {
-        logger.info(`Processing error ${index}:`, errorItem);
-
-                if (errorItem.field && errorItem.message) {
+    if (responseData.errors && Array.isArray(responseData.errors)) {
+      responseData.errors.forEach((errorItem) => {
+        if (errorItem.field && errorItem.message) {
           result.fieldErrors[errorItem.field] = errorItem.message;
           result.errorMessages.push(errorItem.message);
-        }
-                else if (errorItem.msg) {
+        } else if (errorItem.msg) {
           const field = errorItem.path || errorItem.param || "unknown";
           result.fieldErrors[field] = errorItem.msg;
           result.errorMessages.push(errorItem.msg);
-        }
-                else if (typeof errorItem === "string") {
+        } else if (typeof errorItem === "string") {
           result.errorMessages.push(errorItem);
         }
       });
     }
 
-        if (responseData.message && responseData.message !== "Validation failed") {
+    if (responseData.message && responseData.message !== "Validation failed") {
       result.generalError = responseData.message;
-    }
-        else if (result.errorMessages.length > 0) {
+    } else if (result.errorMessages.length > 0) {
       result.generalError = "";
     }
-  }
-    else if (error.message && !error.message.includes("Request failed")) {
+  } else if (error.message && !error.message.includes("Request failed")) {
     result.generalError = error.message;
   }
 
-  logger.info("Processed result:", result);
   return result;
 };
 

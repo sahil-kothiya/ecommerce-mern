@@ -34,7 +34,8 @@ const parsedAuthForgotMax = parseInt(
   10,
 );
 const parsedAuthResetMax = parseInt(
-  process.env.AUTH_RATE_LIMIT_RESET_PASSWORD_MAX || (isTestEnvironment ? "4" : "10"),
+  process.env.AUTH_RATE_LIMIT_RESET_PASSWORD_MAX ||
+    (isTestEnvironment ? "4" : "10"),
   10,
 );
 const parsedSlowRouteThresholdMs = parseInt(
@@ -60,6 +61,15 @@ const parseBoolean = (value, defaultValue = false) => {
   }
 
   return value === "true" || value === true || value === "1" || value === 1;
+};
+
+const parseDurationMs = (duration) => {
+  const match = String(duration).match(/^(\d+)\s*(s|m|h|d)$/);
+  if (!match) return 7 * 24 * 60 * 60 * 1000;
+  const num = parseInt(match[1], 10);
+  const unit = match[2];
+  const multipliers = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 };
+  return num * (multipliers[unit] || 86_400_000);
 };
 
 const parseTrustProxy = (value, nodeEnv) => {
@@ -98,8 +108,10 @@ export const config = {
   jwt: {
     secret: process.env.JWT_SECRET || "default-secret-change-in-production",
     expire: process.env.JWT_EXPIRE || "7d",
+    expireMs: parseDurationMs(process.env.JWT_EXPIRE || "7d"),
     refreshSecret: process.env.JWT_REFRESH_SECRET || "default-refresh-secret",
     refreshExpire: process.env.JWT_REFRESH_EXPIRE || "30d",
+    refreshExpireMs: parseDurationMs(process.env.JWT_REFRESH_EXPIRE || "30d"),
   },
 
   email: {

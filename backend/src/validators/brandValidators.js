@@ -11,14 +11,14 @@ export const createBrandValidator = [
     .withMessage(
       "Title can only contain letters, numbers, spaces, and common punctuation",
     )
-    .escape(), // Sanitize HTML entities
+    .escape(),
 
   body("description")
-    .optional({ values: "falsy" }) // Allow empty strings
+    .optional({ values: "falsy" })
     .trim()
     .isLength({ max: 1000 })
     .withMessage("Description cannot exceed 1000 characters")
-    .escape(), // Sanitize HTML entities
+    .escape(),
 
   body("status")
     .optional({ values: "falsy" })
@@ -26,19 +26,10 @@ export const createBrandValidator = [
     .isIn(["active", "inactive"])
     .withMessage('Status must be either "active" or "inactive"'),
 
-  // Logo is optional - file validation handled by multer middleware
-  // Banners are optional - file validation handled by multer middleware
+  // File fields (logo, banners) validated by multer middleware
 ];
 
-/**
- * Validation rules for updating a brand
- * PUT /api/brands/:id
- *
- * All fields optional (partial update supported)
- * Same validation rules as create when fields are provided
- */
 export const updateBrandValidator = [
-  // Validate route parameter
   param("id")
     .trim()
     .notEmpty()
@@ -71,8 +62,7 @@ export const updateBrandValidator = [
     .trim()
     .isIn(["active", "inactive"])
     .withMessage('Status must be either "active" or "inactive"'),
-
-  ];
+];
 
 export const deleteBrandValidator = [
   param("id")

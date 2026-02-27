@@ -1,5 +1,4 @@
-﻿import { logger } from '../utils/logger.js';
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -14,10 +13,6 @@ import notify from '../utils/notify';
 import { useSiteSettings } from '../context/useSiteSettings';
 import ProductCard from '../components/product/ProductCard';
 import { addRecentlyViewed, getRecentlyViewed } from '../utils/recentlyViewed';
-
-// ============================================================================
-// HELPERS
-// ============================================================================
 
 const reviewSchema = yup.object().shape({
     rating: yup
@@ -38,10 +33,6 @@ const reviewSchema = yup.object().shape({
         .min(10, 'Comment must be at least 10 characters')
         .max(1000, 'Comment cannot exceed 1000 characters'),
 });
-
-// ============================================================================
-// VARIANT SELECTION LOGIC
-// ============================================================================
 
 const buildVariantTypes = (variants = []) => {
     const typeMap = new Map();
@@ -88,9 +79,34 @@ const isOptionAvailable = (variants = [], selectedOpts = {}, typeId, optionId) =
     );
 };
 
-// ============================================================================
-// VARIANT UI SUB-COMPONENTS
-// ============================================================================
+const maskReviewerName = (name) => {
+    if (!name || typeof name !== 'string' || !name.trim()) return 'Customer';
+    const parts = name.trim().split(/\s+/);
+    return parts.map((p) => (p.length <= 1 ? p : p[0] + '*'.repeat(Math.min(p.length - 1, 3)))).join(' ');
+};
+
+const REVIEW_SORT_OPTIONS = [
+    { value: 'recent', label: 'Most Recent' },
+    { value: 'helpful', label: 'Most Helpful' },
+    { value: 'highest', label: 'Highest Rated' },
+    { value: 'lowest', label: 'Lowest Rated' },
+];
+
+const RatingBar = ({ star, count, total }) => {
+    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+    return (
+        <div className="flex items-center gap-2 text-sm">
+            <span className="w-6 text-right font-medium text-[#444]">{star}</span>
+            <svg className="h-3.5 w-3.5 flex-shrink-0 text-[#ffa336]" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+            <div className="flex-1 h-2 overflow-hidden rounded-full bg-[#f0f0f0]">
+                <div className="h-full rounded-full bg-[#ffa336] transition-all duration-300" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="w-10 text-right text-xs text-[#878787]">{count}</span>
+        </div>
+    );
+};
 
 const ColorSwatch = ({ option, selected, available, onClick }) => (
     <button
@@ -144,11 +160,13 @@ const ProductDetailPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState(0);
     const [quantity, setQuantity] = useState(1);
-    // { [typeId]: optionId }
     const [selectedOpts, setSelectedOpts] = useState({});
     const [reviews, setReviews] = useState([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [editingReviewId, setEditingReviewId] = useState(null);
+    const [reviewSort, setReviewSort] = useState('recent');
+    const [reviewPage, setReviewPage] = useState(1);
+    const [reviewPagination, setReviewPagination] = useState(null);
     const [similarProducts, setSimilarProducts] = useState([]);
     const [similarProductsLoading, setSimilarProductsLoading] = useState(false);
     const [recentlyViewed, setRecentlyViewed] = useState([]);
@@ -174,7 +192,9 @@ const ProductDetailPage = () => {
 
     const selectedReviewRating = watch('rating');
     const reviewOrderId = useMemo(() => new URLSearchParams(location.search).get('orderId') || '', [location.search]);
-    const currentUserId = authService.getUser()?._id;
+    const currentUser = authService.getUser();
+    const currentUserId = currentUser?._id;
+    const isAdmin = currentUser?.role === 'admin';
     const myReview = useMemo(() => {
         if (!currentUserId) return null;
         return reviews.find((review) => {
@@ -184,7 +204,10 @@ const ProductDetailPage = () => {
     }, [reviews, currentUserId]);
     const isEditingReview = Boolean(editingReviewId);
 
-    useEffect(() => { loadProductDetail(); }, [id]);
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        loadProductDetail();
+    }, [id]);
 
     const loadProductDetail = async () => {
         try {
@@ -204,65 +227,43 @@ const ProductDetailPage = () => {
                 setSelectedImage(0);
                 setProduct(p);
             }
-        } catch (error) {
-            logger.error('Error loading product:', error);
+        } catch {
             setProduct(null);
         } finally { setIsLoading(false); }
     };
 
-    const loadReviews = async (productId) => {
+    const loadReviews = async (productId, sort = reviewSort, page = 1, append = false) => {
         if (!productId) return;
         try {
             setReviewsLoading(true);
-            const response = await reviewService.getProductReviews(productId);
+            const response = await reviewService.getProductReviews(productId, { sort, page, limit: 10 });
             const list = Array.isArray(response?.data) ? response.data : [];
-            setReviews(list);
-        } catch (error) {
-            logger.error('Failed to load reviews', { error: error.message, productId });
-            setReviews([]);
+            setReviews((prev) => (append ? [...prev, ...list] : list));
+            if (response?.pagination) setReviewPagination(response.pagination);
+        } catch {
+            if (!append) setReviews([]);
         } finally {
             setReviewsLoading(false);
         }
     };
 
-    const loadSimilarProducts = async (productId, categoryId, brandId) => {
-        if (!productId) {
-            logger.warn('Missing productId for similar products', { productId });
-            return;
-        }
+    const loadSimilarProducts = async (productId, categoryId) => {
+        if (!productId) return;
         try {
             setSimilarProductsLoading(true);
-            logger.info('Loading similar products', { categoryId, brandId, productId });
-            
             let url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}?limit=16&status=active`;
-            
-            if (categoryId) {
-                url += `&categoryId=${categoryId}`;
-            }
-            
-            logger.info('Fetching similar products from:', url);
-            
+            if (categoryId) url += `&categoryId=${categoryId}`;
+
             const response = await fetch(url);
             if (!response.ok) throw new Error('Failed to fetch similar products');
             const data = await response.json();
-            
-            // API returns { success: true, data: { products: [...], pagination: {...} } }
-            const products = Array.isArray(data?.data?.products) 
-                ? data.data.products 
+
+            const products = Array.isArray(data?.data?.products)
+                ? data.data.products
                 : (Array.isArray(data?.data) ? data.data : []);
-            
-            const filtered = products.filter(p => p._id !== productId).slice(0, 12);
-            
-            logger.info('Similar products loaded', { 
-                total: products.length, 
-                afterFilter: filtered.length,
-                categoryId,
-                sampleProduct: filtered[0]?.title 
-            });
-            
-            setSimilarProducts(filtered);
-        } catch (error) {
-            logger.error('Failed to load similar products', { error: error.message });
+
+            setSimilarProducts(products.filter(p => p._id !== productId).slice(0, 12));
+        } catch {
             setSimilarProducts([]);
         } finally {
             setSimilarProductsLoading(false);
@@ -272,7 +273,6 @@ const ProductDetailPage = () => {
     const loadWishlist = async () => {
         if (!authService.isAuthenticated()) { setWishlistItems([]); return; }
         try {
-            await authService.getCurrentUser();
 
             const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { 
                 headers: authService.getAuthHeaders(),
@@ -293,20 +293,11 @@ const ProductDetailPage = () => {
             addRecentlyViewed(product);
             loadReviews(product._id);
             const categoryId = product?.category?._id || product?.category?.id;
-            const brandId = product?.brand?._id || product?.brand?.id;
-            logger.info('Product loaded, fetching similar products', { 
-                productId: product._id, 
-                categoryId, 
-                brandId,
-                categoryTitle: product?.category?.title,
-                brandTitle: product?.brand?.title 
-            });
-            loadSimilarProducts(product._id, categoryId, brandId);
+            loadSimilarProducts(product._id, categoryId);
             loadWishlist();
-            
+
             const recent = getRecentlyViewed(13).filter(p => p._id !== product._id).slice(0, 12);
             setRecentlyViewed(recent);
-            logger.info('Recently viewed products loaded', { count: recent.length });
         }
     }, [product?._id]);
 
@@ -343,7 +334,9 @@ const ProductDetailPage = () => {
             notify.success(editingReviewId ? 'Review updated successfully' : 'Review submitted successfully');
             setEditingReviewId(null);
             reset({ rating: 5, title: '', comment: '' });
-            await Promise.all([loadReviews(product._id), loadProductDetail()]);
+            setReviewSort('recent');
+            setReviewPage(1);
+            await Promise.all([loadReviews(product._id, 'recent', 1), loadProductDetail()]);
         } catch (error) {
             notify.error(error, editingReviewId ? 'Failed to update review' : 'Failed to submit review');
         }
@@ -378,9 +371,51 @@ const ProductDetailPage = () => {
             if (editingReviewId === reviewId) {
                 cancelEditingReview();
             }
-            await Promise.all([loadReviews(product._id), loadProductDetail()]);
+            setReviewSort('recent');
+            setReviewPage(1);
+            await Promise.all([loadReviews(product._id, 'recent', 1), loadProductDetail()]);
         } catch (error) {
             notify.error(error, 'Failed to delete review');
+        }
+    };
+
+    const handleReviewSortChange = (sort) => {
+        setReviewSort(sort);
+        setReviewPage(1);
+        if (product?._id) loadReviews(product._id, sort, 1);
+    };
+
+    const handleLoadMoreReviews = () => {
+        const nextPage = reviewPage + 1;
+        setReviewPage(nextPage);
+        if (product?._id) loadReviews(product._id, reviewSort, nextPage, true);
+    };
+
+    const handleHelpfulVote = async (reviewId) => {
+        if (!authService.isAuthenticated()) {
+            navigate('/login');
+            return;
+        }
+        try {
+            const response = await reviewService.markHelpful(reviewId);
+            if (response?.success) {
+                setReviews((prev) =>
+                    prev.map((r) => {
+                        if (r._id !== reviewId) return r;
+                        const voted = response.data?.voted;
+                        const helpfulCount = response.data?.helpful ?? r.helpful;
+                        const voters = Array.isArray(r.helpfulVoters) ? [...r.helpfulVoters] : [];
+                        if (voted && !voters.includes(currentUserId)) voters.push(currentUserId);
+                        if (!voted) {
+                            const idx = voters.indexOf(currentUserId);
+                            if (idx !== -1) voters.splice(idx, 1);
+                        }
+                        return { ...r, helpful: helpfulCount, helpfulVoters: voters };
+                    }),
+                );
+            }
+        } catch (error) {
+            notify.error(error, 'Failed to update helpful vote');
         }
     };
 
@@ -667,6 +702,19 @@ const ProductDetailPage = () => {
                             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5-5M7 13l-2.5 5M17 13v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6" /></svg>
                             Add to Cart
                         </button>
+                        <button
+                            onClick={() => handleWishlistToggle(product._id)}
+                            className={`flex h-[56px] w-[56px] flex-shrink-0 items-center justify-center rounded-xl border-2 transition-all tap-bounce ${
+                                wishlistItems.includes(product._id)
+                                    ? 'border-red-200 bg-red-50 text-red-500 hover:bg-red-100'
+                                    : 'border-[rgba(165,187,252,0.4)] bg-white text-[#999] hover:text-red-500 hover:border-red-200'
+                            }`}
+                            aria-label={wishlistItems.includes(product._id) ? 'Remove from wishlist' : 'Add to wishlist'}
+                        >
+                            <svg className="h-6 w-6" fill={wishlistItems.includes(product._id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                            </svg>
+                        </button>
                     </div>
 
                     {/* Trust badges */}
@@ -687,12 +735,58 @@ const ProductDetailPage = () => {
             </div>
 
             <div className="store-surface mb-6 p-7">
-                <div className="mb-5 flex items-center justify-between gap-3">
-                    <h2 className="store-display text-xl text-[#131313]">Customer Reviews</h2>
-                    <span className="text-sm text-[#666]">{reviews.length} review{reviews.length === 1 ? '' : 's'}</span>
+                {/* Rating Summary + Sort Header */}
+                <div className="mb-6 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h2 className="store-display text-xl text-[#131313]">Customer Reviews</h2>
+                        <p className="mt-1 text-sm text-[#666]">{reviewPagination?.total ?? reviews.length} review{(reviewPagination?.total ?? reviews.length) === 1 ? '' : 's'}</p>
+                    </div>
+                    {reviews.length > 0 && (
+                        <select
+                            value={reviewSort}
+                            onChange={(e) => handleReviewSortChange(e.target.value)}
+                            className="store-input rounded-xl px-3 py-2 text-sm sm:w-48"
+                        >
+                            {REVIEW_SORT_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+                    )}
                 </div>
 
-                {!reviewOrderId ? (
+                {/* Rating Breakdown */}
+                {product?.ratings?.count > 0 && (
+                    <div className="mb-7 flex flex-col gap-5 rounded-xl border border-[rgba(165,187,252,0.25)] p-5 sm:flex-row sm:items-center sm:gap-8">
+                        <div className="flex flex-col items-center">
+                            <span className="text-4xl font-bold text-[#212121]">{(product.ratings.average || 0).toFixed(1)}</span>
+                            <div className="mt-1 flex items-center gap-0.5">
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                    <svg key={s} className={`h-4 w-4 ${s <= Math.round(product.ratings.average) ? 'text-[#ffa336]' : 'text-[#d1d5db]'}`} fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                    </svg>
+                                ))}
+                            </div>
+                            <span className="mt-1 text-xs text-[#878787]">{product.ratings.count} total</span>
+                        </div>
+                        <div className="flex-1 space-y-1.5">
+                            {[5, 4, 3, 2, 1].map((star) => (
+                                <RatingBar
+                                    key={star}
+                                    star={star}
+                                    count={product.ratings.distribution?.[star] || 0}
+                                    total={product.ratings.count}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Review Form Area */}
+                {isAdmin ? (
+                    <div className="mb-7 rounded-xl border border-[rgba(165,187,252,0.3)] bg-[rgba(66,80,213,0.03)] p-4 sm:p-5">
+                        <p className="text-sm text-[#666]">Admins cannot submit product reviews.</p>
+                    </div>
+                ) : !reviewOrderId ? (
                     <div className="mb-7 rounded-xl border border-[rgba(165,187,252,0.3)] bg-[rgba(66,80,213,0.03)] p-4 sm:p-5">
                         <p className="text-sm text-[#444]">To add a review, open this product from <span className="font-semibold">My Orders</span> and use <span className="font-semibold">Rate & Review</span>.</p>
                         <Link
@@ -729,6 +823,9 @@ const ProductDetailPage = () => {
                                     ★
                                 </button>
                             ))}
+                            <span className="ml-2 text-xs text-[#878787]">
+                                {['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][Number(selectedReviewRating) || 0] || ''}
+                            </span>
                         </div>
                         {errors.rating && <p className="mb-3 text-xs text-red-600">{errors.rating.message}</p>}
 
@@ -746,7 +843,7 @@ const ProductDetailPage = () => {
                         <div className="mb-4">
                             <textarea
                                 rows={4}
-                                placeholder="Write your review"
+                                placeholder="Write your review (min 10 characters)"
                                 className="store-input w-full rounded-xl px-3 py-2.5 text-sm"
                                 maxLength={1000}
                                 {...register('comment')}
@@ -775,37 +872,62 @@ const ProductDetailPage = () => {
                     </form>
                 )}
 
-                {reviewsLoading ? (
-                    <p className="text-sm text-[#666]">Loading reviews...</p>
+                {/* Review List */}
+                {reviewsLoading && reviews.length === 0 ? (
+                    <div className="space-y-4">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                            <div key={i} className="animate-pulse rounded-xl border border-[rgba(165,187,252,0.25)] p-4">
+                                <div className="mb-2 flex items-center gap-2">
+                                    <div className="h-8 w-8 rounded-full bg-slate-200" />
+                                    <div className="h-4 w-24 rounded bg-slate-200" />
+                                </div>
+                                <div className="mb-2 h-3 w-32 rounded bg-slate-200" />
+                                <div className="h-4 w-full rounded bg-slate-200" />
+                                <div className="mt-1 h-4 w-2/3 rounded bg-slate-200" />
+                            </div>
+                        ))}
+                    </div>
                 ) : reviews.length === 0 ? (
                     <p className="text-sm text-[#666]">No reviews yet. Be the first to review this product.</p>
                 ) : (
                     <div className="space-y-4">
                         {reviews.map((review) => {
-                            const name = review?.userId?.name || 'Customer';
+                            const rawName = review?.userId?.name || 'Customer';
+                            const maskedName = maskReviewerName(rawName);
                             const createdLabel = review?.createdAt ? new Date(review.createdAt).toLocaleDateString() : 'Recently';
                             const rating = Math.max(1, Math.min(5, Number(review?.rating || 0)));
                             const reviewUserId = typeof review?.userId === 'object' ? review.userId?._id : review?.userId;
                             const isOwnReview = currentUserId && reviewUserId && String(currentUserId) === String(reviewUserId);
                             const canManageOwnReview = Boolean(reviewOrderId) && isOwnReview;
+                            const helpfulCount = review?.helpful || 0;
+                            const userVoted = Array.isArray(review?.helpfulVoters) && currentUserId
+                                ? review.helpfulVoters.some((v) => String(v) === String(currentUserId))
+                                : false;
+                            const isVerified = review?.verifiedPurchase || review?.isVerifiedPurchase;
+                            const reviewImages = Array.isArray(review?.images) ? review.images.filter(Boolean) : [];
 
                             return (
                                 <article key={review._id} className="rounded-xl border border-[rgba(165,187,252,0.25)] p-4">
-                                    <div className="mb-1 flex items-start justify-between gap-3">
-                                        <div>
-                                            <p className="text-sm font-semibold text-[#1f1f1f]">{name}</p>
-                                            <p className="text-xs text-[#878787]">{createdLabel}</p>
+                                    <div className="mb-2 flex items-start justify-between gap-3">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(66,80,213,0.1)] text-xs font-bold text-[#4250d5]">
+                                                {rawName.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-semibold text-[#1f1f1f]">
+                                                    {isOwnReview ? 'You' : maskedName}
+                                                </p>
+                                                <p className="text-xs text-[#878787]">{createdLabel}</p>
+                                            </div>
                                         </div>
-                                        <span className="rounded bg-[#388e3c] px-2 py-0.5 text-xs font-bold text-white">{rating.toFixed(1)}</span>
+                                        <span className="flex items-center gap-1 rounded bg-[#388e3c] px-2 py-0.5 text-xs font-bold text-white">
+                                            {rating}
+                                            <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                                        </span>
                                     </div>
 
-                                    <div className="mb-2 text-sm text-[#ffa336]">
-                                        {'★'.repeat(Math.floor(rating))}
-                                        <span className="text-[#d1d5db]">{'★'.repeat(5 - Math.floor(rating))}</span>
-                                    </div>
-
-                                    {review?.verifiedPurchase && (
-                                        <span className="mb-2 inline-flex items-center gap-1 rounded-full border border-[rgba(56,142,60,0.35)] bg-[rgba(56,142,60,0.1)] px-2.5 py-1 text-[11px] font-semibold text-[#2f7d32]">
+                                    {isVerified && (
+                                        <span className="mb-2 inline-flex items-center gap-1 rounded-full border border-[rgba(56,142,60,0.35)] bg-[rgba(56,142,60,0.1)] px-2.5 py-0.5 text-[11px] font-semibold text-[#2f7d32]">
                                             ✓ Verified Purchase
                                         </span>
                                     )}
@@ -813,27 +935,77 @@ const ProductDetailPage = () => {
                                     {review?.title && <p className="mb-1 text-sm font-semibold text-[#212121]">{review.title}</p>}
                                     <p className="text-sm leading-relaxed text-[#444]">{review.comment}</p>
 
-                                    {canManageOwnReview && (
-                                        <div className="mt-3 flex items-center gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => startEditingReview(review)}
-                                                className="rounded-lg border border-[rgba(66,80,213,0.3)] px-3 py-1.5 text-xs font-semibold text-[#4250d5] hover:bg-[rgba(66,80,213,0.06)]"
-                                            >
-                                                Edit
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleDeleteReview(review._id)}
-                                                className="rounded-lg border border-[rgba(239,68,68,0.35)] px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
-                                            >
-                                                Delete
-                                            </button>
+                                    {reviewImages.length > 0 && (
+                                        <div className="mt-2 flex gap-2 overflow-x-auto">
+                                            {reviewImages.map((img, idx) => (
+                                                <img
+                                                    key={idx}
+                                                    src={resolveImageUrl(img)}
+                                                    alt={`Review image ${idx + 1}`}
+                                                    className="h-16 w-16 flex-shrink-0 rounded-lg border border-[rgba(165,187,252,0.3)] object-cover"
+                                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                />
+                                            ))}
                                         </div>
                                     )}
+
+                                    <div className="mt-3 flex items-center gap-3">
+                                        {!isOwnReview && currentUserId && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleHelpfulVote(review._id)}
+                                                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                                                    userVoted
+                                                        ? 'border-[#2874f0] bg-[#eff5ff] text-[#2874f0]'
+                                                        : 'border-[rgba(165,187,252,0.4)] text-[#666] hover:border-[#2874f0] hover:text-[#2874f0]'
+                                                }`}
+                                            >
+                                                <svg className="h-3.5 w-3.5" fill={userVoted ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                                                </svg>
+                                                Helpful{helpfulCount > 0 ? ` (${helpfulCount})` : ''}
+                                            </button>
+                                        )}
+                                        {isOwnReview && helpfulCount > 0 && (
+                                            <span className="text-xs text-[#878787]">{helpfulCount} found helpful</span>
+                                        )}
+
+                                        {canManageOwnReview && (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => startEditingReview(review)}
+                                                    className="rounded-lg border border-[rgba(66,80,213,0.3)] px-3 py-1.5 text-xs font-semibold text-[#4250d5] hover:bg-[rgba(66,80,213,0.06)]"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteReview(review._id)}
+                                                    className="rounded-lg border border-[rgba(239,68,68,0.35)] px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
                                 </article>
                             );
                         })}
+
+                        {/* Load More */}
+                        {reviewPagination?.hasNext && (
+                            <div className="pt-2 text-center">
+                                <button
+                                    type="button"
+                                    onClick={handleLoadMoreReviews}
+                                    disabled={reviewsLoading}
+                                    className="store-btn-secondary tap-bounce rounded-xl px-6 py-2.5 text-sm font-bold disabled:opacity-60"
+                                >
+                                    {reviewsLoading ? 'Loading...' : 'Load More Reviews'}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -980,21 +1152,8 @@ const ProductDetailPage = () => {
                     )}
                 </div>
 
-                {/* Loading Skeleton */}
-                {!product && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                        {Array.from({ length: 6 }).map((_, i) => (
-                            <div key={i} className="animate-pulse">
-                                <div className="bg-slate-200 h-48 rounded-xl mb-3"></div>
-                                <div className="bg-slate-200 h-4 rounded mb-2"></div>
-                                <div className="bg-slate-200 h-4 w-2/3 rounded"></div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
                 {/* Products Grid */}
-                {product && recentlyViewed.length > 0 && (
+                {recentlyViewed.length > 0 && (
                     <div className="relative group">
                         <div 
                             id="recently-viewed-scroll-container"
@@ -1061,7 +1220,7 @@ const ProductDetailPage = () => {
                 )}
 
                 {/* No Products Message */}
-                {product && recentlyViewed.length === 0 && (
+                {recentlyViewed.length === 0 && (
                     <div className="py-12 text-center border-2 border-dashed border-slate-200 rounded-xl">
                         <svg className="w-16 h-16 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />

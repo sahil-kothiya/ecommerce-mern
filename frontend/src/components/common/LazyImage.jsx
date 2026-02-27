@@ -1,25 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { logger } from '../../utils/logger.js';
 
-/**
- * LazyImage — lazy-load with shimmer (first load) + left-to-right slide (rotation swaps).
- *
- * Slots:
- *  shownSrc    → currently visible image (stays put until the next is ready)
- *  outgoingSrc → previous image animating out to the left (absolute, removed after ~420 ms)
- *  loadingSrc  → next src being silently pre-loaded (0×0 hidden <img>)
- *
- * First load  : shimmer → image appears (fade-in via img-reveal)
- * Swap        : outgoing slides left  +  incoming slides in from right simultaneously
- *
- * Props:
- *  src              - image url (string | null)
- *  alt              - alt text
- *  className        - applied to the visible <img> (should include object-fit / dimensions)
- *  wrapperClassName - applied to the wrapper <div> (must include height / aspect-ratio)
- *  fallback         - node shown ONLY when there is nothing to display at all
- *  rootMargin       - IntersectionObserver margin (default "250px 0px")
- *  onImageError     - callback(failedSrc) fired when a url fails to load
- */
+// Three-slot lazy loader: shownSrc (visible), outgoingSrc (sliding away), loadingSrc (preloading).
+// First load shows shimmer → fade-in. Subsequent swaps use left/right slide transitions.
 const SLIDE_DURATION_MS = 420;
 
 const LazyImage = ({
@@ -78,13 +61,13 @@ const LazyImage = ({
         }
 
         setShownSrc(incoming);
-        console.debug('[LazyImage] promoted:', incoming, shownSrc ? '(slide)' : '(first load)');
+        logger.debug('[LazyImage] promoted:', incoming, shownSrc ? '(slide)' : '(first load)');
     };
 
     /** Called when the hidden pre-loader fails to load `loadingSrc`. */
     const handlePreloadError = () => {
         const failedSrc = loadingSrc;
-        console.debug('[LazyImage] error:', failedSrc);
+        logger.debug('[LazyImage] error:', failedSrc);
         setLoadingSrc(null);
         if (typeof onImageError === 'function') onImageError(failedSrc);
         // Keep shownSrc visible — HomePage will remove failed url and serve next valid one.

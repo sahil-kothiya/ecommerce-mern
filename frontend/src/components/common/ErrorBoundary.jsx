@@ -1,4 +1,7 @@
 import React from 'react';
+import { logger } from '../../utils/logger.js';
+
+const isDev = typeof import.meta !== 'undefined' && import.meta.env?.DEV;
 
 class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -15,16 +18,12 @@ static getDerivedStateFromError(_error) {
     }
 
 componentDidCatch(error, errorInfo) {
-                console.error('ErrorBoundary caught an error:', error, errorInfo);
+                logger.error('ErrorBoundary caught an error:', error, errorInfo);
 
                 this.setState({
             error,
             errorInfo
         });
-
-                if (process.env.NODE_ENV === 'production') {
-                    // report to error tracking service
-                }
     }
 
 handleReset = () => {
@@ -69,7 +68,7 @@ handleReset = () => {
                                 We're sorry for the inconvenience. An unexpected error has occurred.
                             </p>
 
-                            {process.env.NODE_ENV === 'development' && this.state.error && (
+                            {isDev && this.state.error && (
                                 <div className="mb-6 text-left">
                                     <details className="bg-gray-100 p-4 rounded text-sm">
                                         <summary className="cursor-pointer font-semibold text-gray-700 mb-2">

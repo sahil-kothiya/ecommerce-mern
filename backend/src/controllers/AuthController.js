@@ -2,6 +2,7 @@ import { BaseController } from "../core/BaseController.js";
 import { AuthService } from "../services/AuthService.js";
 import { logger } from "../utils/logger.js";
 import { AppError } from "../middleware/errorHandler.js";
+import { config } from "../config/index.js";
 
 export class AuthController extends BaseController {
   constructor() {
@@ -21,7 +22,7 @@ export class AuthController extends BaseController {
     });
 
     this.setTokenCookie(res, "accessToken", accessToken, {
-      maxAge: 15 * 60 * 1000,
+      maxAge: config.jwt.expireMs,
     });
 
     this.logAction("User Registration", { email, userId: user._id });
@@ -53,12 +54,12 @@ export class AuthController extends BaseController {
     });
 
     this.setTokenCookie(res, "accessToken", result.accessToken, {
-      maxAge: 15 * 60 * 1000,
+      maxAge: config.jwt.expireMs,
     });
 
     if (rememberMe && result.refreshToken) {
       this.setTokenCookie(res, "refreshToken", result.refreshToken, {
-        maxAge: 30 * 24 * 60 * 60 * 1000,
+        maxAge: config.jwt.refreshExpireMs,
       });
     }
 
@@ -137,12 +138,12 @@ export class AuthController extends BaseController {
     const result = await this.service.refreshAccessToken(refreshToken);
 
     this.setTokenCookie(res, "accessToken", result.accessToken, {
-      maxAge: 15 * 60 * 1000,
+      maxAge: config.jwt.expireMs,
     });
 
     if (result.refreshToken) {
       this.setTokenCookie(res, "refreshToken", result.refreshToken, {
-        maxAge: 30 * 24 * 60 * 60 * 1000,
+        maxAge: config.jwt.refreshExpireMs,
       });
     }
 

@@ -1,3 +1,5 @@
+import { logger } from "./logger.js";
+
 export const formatPrice = (price, currency = "USD", locale = "en-US") => {
   if (typeof price !== "number" || isNaN(price)) {
     price = 0;
@@ -11,7 +13,7 @@ export const formatPrice = (price, currency = "USD", locale = "en-US") => {
       maximumFractionDigits: 2,
     }).format(price);
   } catch (error) {
-    console.warn("Intl.NumberFormat not supported, using fallback formatting");
+    logger.warn("Intl.NumberFormat not supported, using fallback formatting");
     const symbol = currency === "USD" ? "$" : currency;
     return `${symbol}${price.toFixed(2)}`;
   }

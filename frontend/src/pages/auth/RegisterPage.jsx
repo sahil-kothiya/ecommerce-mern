@@ -1,5 +1,3 @@
-import { logger } from '../../utils/logger.js';
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -16,33 +14,23 @@ const registerSchema = yup.object().shape({
         .string()
         .required('Name is required')
         .min(2, 'Name must be at least 2 characters')
-        .max(100, 'Name must not exceed 100 characters')
-        .trim(),
+        .max(100, 'Name must not exceed 100 characters'),
     
         email: yup
         .string()
         .required('Email is required')
-        .email('Please enter a valid email address')
-        .trim(),
+        .email('Please enter a valid email address'),
     
         password: yup
         .string()
         .required('Password is required')
         .min(8, 'Password must be at least 8 characters')
-        .max(128, 'Password must not exceed 128 characters')
-        .trim(),
+        .max(128, 'Password must not exceed 128 characters'),
     
         confirmPassword: yup
         .string()
         .required('Please confirm your password')
-        .trim()
-        .test('passwords-match', 'Passwords must match', function(value) {
-            logger.info('=== YUP PASSWORD VALIDATION ===');
-            logger.info('Password:', this.parent.password);
-            logger.info('Confirm Password:', value);
-            logger.info('Match:', this.parent.password === value);
-            return this.parent.password === value;
-        })
+        .oneOf([yup.ref('password')], 'Passwords must match')
 });
 
 const RegisterPage = () => {
@@ -53,6 +41,8 @@ const RegisterPage = () => {
     const [error, setError] = useState([]);
     const [serverErrors, setServerErrors] = useState({});
     const [successMessage, setSuccessMessage] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const siteName = String(settings?.siteName || 'Enterprise E-Commerce').trim();
     const siteTagline = String(settings?.siteTagline || '').trim();
     const logoUrl = resolveImageUrl(settings?.logo, { placeholder: null });
@@ -67,56 +57,39 @@ const RegisterPage = () => {
         mode: 'onBlur'
     });
 
-                    const onSubmit = async (data) => {
-                setError([]);
+    const onSubmit = async (data) => {
+        setError([]);
         setServerErrors({});
         setSuccessMessage('');
         setIsLoading(true);
 
-                logger.info('=== REGISTRATION FORM SUBMITTED ===');
-        logger.info('Validated data:', {
-            name: data.name,
-            email: data.email,
-            password: data.password,
-            confirmPassword: data.confirmPassword,
-            passwordLength: data.password.length,
-            confirmPasswordLength: data.confirmPassword.length,
-            passwordsMatch: data.password === data.confirmPassword,
-            trimmedPasswordsMatch: data.password.trim() === data.confirmPassword.trim()
-        });
-
         try {
-                        await authService.register({
+            await authService.register({
                 name: data.name,
                 email: data.email,
                 password: data.password.trim(),
                 confirmPassword: data.confirmPassword.trim()
             });
-            
-                        setSuccessMessage('You are successfully registered! Now you can login.');
+
+            setSuccessMessage('You are successfully registered! Now you can login.');
             reset();
         } catch (err) {
-                        const { fieldErrors, errorMessages, generalError } = processApiError(err);
-            
-            logger.info('=== PROCESSED ERROR RESULT ===');
-            logger.info('Field Errors:', fieldErrors);
-            logger.info('Error Messages:', errorMessages);
-            logger.info('General Error:', generalError);
-            
-                        setServerErrors(fieldErrors);
+            const { fieldErrors, errorMessages, generalError } = processApiError(err);
 
-                        const hasFieldErrors = Object.keys(fieldErrors).length > 0;
+            setServerErrors(fieldErrors);
+
+            const hasFieldErrors = Object.keys(fieldErrors).length > 0;
             if (!hasFieldErrors) {
                 const messages = errorMessages.length > 0 ? errorMessages : (generalError ? [generalError] : []);
                 setError(messages);
             }
         } finally {
-                        setIsLoading(false);
+            setIsLoading(false);
         }
     };
 
                 return (
-        <div className="relative min-h-screen overflow-hidden bg-slate-950 px-4 py-10 sm:py-14">
+        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4 py-6">
             <div className="absolute left-8 top-6 h-52 w-52 rounded-full bg-fuchsia-500/20 blur-3xl" />
             <div className="absolute bottom-8 right-8 h-52 w-52 rounded-full bg-cyan-500/20 blur-3xl" />
 
@@ -184,13 +157,27 @@ const RegisterPage = () => {
 
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Password</label>
-                            <input
-                                type="password"
-                                {...register('password')}
-                                className={getFieldClasses(errors, serverErrors, 'password')}
-                                placeholder="••••••••"
-                                autoComplete="new-password"
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    {...register('password')}
+                                    className={getFieldClasses(errors, serverErrors, 'password')}
+                                    placeholder="••••••••"
+                                    autoComplete="new-password"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(prev => !prev)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
+                                    tabIndex={-1}
+                                >
+                                    {showPassword ? (
+                                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>
+                                    ) : (
+                                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                    )}
+                                </button>
+                            </div>
                             <FieldError error={getFieldError(errors, serverErrors, 'password')} />
 
                             {!getFieldError(errors, serverErrors, 'password') && (
@@ -200,13 +187,27 @@ const RegisterPage = () => {
 
                         <div>
                             <label className="mb-2 block text-sm font-semibold text-slate-700">Confirm Password</label>
-                            <input
-                                type="password"
-                                {...register('confirmPassword')}
-                                className={getFieldClasses(errors, serverErrors, 'confirmPassword')}
-                                placeholder="••••••••"
-                                autoComplete="new-password"
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showConfirmPassword ? 'text' : 'password'}
+                                    {...register('confirmPassword')}
+                                    className={getFieldClasses(errors, serverErrors, 'confirmPassword')}
+                                    placeholder="••••••••"
+                                    autoComplete="new-password"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(prev => !prev)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
+                                    tabIndex={-1}
+                                >
+                                    {showConfirmPassword ? (
+                                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>
+                                    ) : (
+                                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                    )}
+                                </button>
+                            </div>
                             <FieldError error={getFieldError(errors, serverErrors, 'confirmPassword')} />
                         </div>
 

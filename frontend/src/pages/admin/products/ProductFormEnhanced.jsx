@@ -1,4 +1,4 @@
-﻿import { logger } from '../../../utils/logger.js';
+import { logger } from '../../../utils/logger.js';
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -27,8 +27,6 @@ const schema = yup.object({
     tags: yup.array().of(yup.string()).default([]),
     size: yup.array().of(yup.string()).default([]),
 });
-
-// ── Helpers
 
 const cartesian = (arrays) => {
     if (arrays.length === 0) return [[]];
@@ -231,9 +229,6 @@ const ProductFormEnhanced = () => {
     const [isLoading, setIsLoading] = useState(Boolean(isEdit));
     const [isSaving, setIsSaving] = useState(false);
 
-    // =========================================================================
-    // LIFECYCLE
-    // =========================================================================
 
     useEffect(() => {
         loadVariantTypes();
@@ -243,10 +238,6 @@ const ProductFormEnhanced = () => {
             loadSelectOptions();
         }
     }, [id]);
-
-    // =========================================================================
-    // DATA LOADING
-    // =========================================================================
 
     const loadSelectOptions = async () => {
         try {
@@ -270,7 +261,6 @@ const ProductFormEnhanced = () => {
             if (data.success) {
                 const types = Array.isArray(data.data) ? data.data : [];
                 setAvailableVariantTypes(types);
-                // Auto-load options for all types immediately
                 types.forEach(t => {
                     authFetch(
                         `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.VARIANT_OPTIONS}?variantTypeId=${t._id}&status=active&limit=100`
@@ -373,9 +363,6 @@ const ProductFormEnhanced = () => {
         }
     };
 
-    // =========================================================================
-    // FORM HANDLERS â€“ basic fields
-    // =========================================================================
 
 
     // â”€â”€ Product images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -425,10 +412,6 @@ const ProductFormEnhanced = () => {
         setImages(newFiles);
         setDraggedIndex(null);
     };
-
-    // =========================================================================
-    // VARIANT HANDLERS
-    // =========================================================================
 
     const handleHasVariantsToggle = (enabled) => {
         setHasVariants(enabled);
@@ -498,7 +481,6 @@ const ProductFormEnhanced = () => {
 
         setGeneratedVariants(newVariants);
         setVariantImages({});
-        // Auto-load random local images for all variants
         loadRandomImagesForVariants(newVariants);
     };
 
@@ -614,10 +596,6 @@ const ProductFormEnhanced = () => {
         }
     };
 
-    // =========================================================================
-    // VALIDATION
-    // =========================================================================
-
 
     const onSubmit = async (data) => {
         if (!hasVariants) {
@@ -727,10 +705,6 @@ const ProductFormEnhanced = () => {
         const d = parseFloat(watchBaseDiscount) || 0;
         return formatCurrency(p - p * d / 100, settings);
     };
-
-    // =========================================================================
-    // RENDER
-    // =========================================================================
 
     if (isLoading) {
         return (

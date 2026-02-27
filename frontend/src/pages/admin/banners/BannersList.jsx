@@ -4,6 +4,7 @@ import { API_CONFIG } from '../../../constants';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import notify from '../../../utils/notify';
 import authFetch from '../../../utils/authFetch.js';
+import { logger } from '../../../utils/logger.js';
 
 const BannersList = () => {
     const navigate = useNavigate();
@@ -44,7 +45,7 @@ const BannersList = () => {
                     : [];
             setBanners(items);
         } catch (error) {
-            console.error('Error loading banners:', error);
+            logger.error('Error loading banners:', error);
             notify.error(error, 'Failed to load banners');
             setBanners([]);
         } finally {
@@ -71,7 +72,7 @@ const BannersList = () => {
             setBannerToDelete(null);
             loadBanners();
         } catch (error) {
-            console.error('Error deleting banner:', error);
+            logger.error('Error deleting banner:', error);
             notify.error(error, 'Failed to delete banner');
         } finally {
             setIsDeleting(false);

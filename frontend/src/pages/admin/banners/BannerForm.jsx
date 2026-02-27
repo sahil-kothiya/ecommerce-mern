@@ -6,6 +6,7 @@ import * as yup from 'yup';
 import { API_CONFIG } from '../../../constants';
 import notify from '../../../utils/notify';
 import authFetch from '../../../utils/authFetch.js';
+import { logger } from '../../../utils/logger.js';
 
 const schema = yup.object({
     title: yup.string().trim().required('Title is required'),
@@ -50,7 +51,6 @@ const BannerForm = () => {
     const watchStatus = watch('status', 'inactive');
     const watchDescription = watch('description', '');
 
-    // Reset link/discount when linkType changes
     const prevLinkType = useRef(watchLinkType);
     useEffect(() => {
         if (prevLinkType.current !== watchLinkType) {
@@ -83,7 +83,7 @@ const BannerForm = () => {
                 setDiscountOptions(Array.isArray(data.data) ? data.data : []);
             }
         } catch (error) {
-            console.error('Error loading discounts:', error);
+            logger.error('Error loading discounts:', error);
         }
     };
 
@@ -117,7 +117,7 @@ const BannerForm = () => {
             setSelectedDiscountId(existingDiscountId || '');
             setExistingImage(banner.image || null);
         } catch (error) {
-            console.error('Error loading banner:', error);
+            logger.error('Error loading banner:', error);
             notify.error(error, 'Failed to load banner');
         } finally {
             setIsLoading(false);

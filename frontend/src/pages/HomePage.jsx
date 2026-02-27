@@ -11,7 +11,6 @@ import { useSiteSettings } from '../context/useSiteSettings';
 import ProductCard from '../components/product/ProductCard';
 import { getRecentlyViewed } from '../utils/recentlyViewed';
 import { resolveBannerAction } from '../utils/bannerLink';
-
 const PRODUCT_FETCH_LIMIT = 48;
 const FEATURED_CATEGORY_LIMIT = 12;
 const FEATURED_PRODUCTS_TARGET = 24;
@@ -227,6 +226,7 @@ const HomePage = () => {
     const [hoveredProduct, setHoveredProduct] = useState(null);
     const [currentImageIndex, setCurrentImageIndex] = useState({});
     const [sortOption, setSortOption] = useState('newest');
+    const [selectedCategory, setSelectedCategory] = useState(null);
     const hoverIntervalsRef = useRef({});
     const fallbackImageRef = useRef({});
     const failedImageRef = useRef({});
@@ -244,12 +244,9 @@ const HomePage = () => {
         const failedSet = failedImageRef.current[productId] || new Set();
         const images = Array.isArray(product?.images) ? product.images : [];
 
-        const urls = images
+        return images
             .map((img) => resolveImageUrl(getImageSource(img), { placeholder: null }))
             .filter((url) => Boolean(url) && !failedSet.has(url));
-
-        console.debug(`[HomePage] getUsableProductImages pid=${productId} total=${images.length} usable=${urls.length} failed=${failedSet.size}`, urls);
-        return urls;
     };
 
     const markProductImageFailed = (product, failedSrc) => {
@@ -259,7 +256,6 @@ const HomePage = () => {
             failedImageRef.current[productId] = new Set();
         }
         failedImageRef.current[productId].add(failedSrc);
-        console.debug(`[HomePage] markProductImageFailed pid=${productId} failedSrc=${failedSrc} totalFailed=${failedImageRef.current[productId].size}`);
         setCurrentImageIndex((prev) => ({ ...prev, [productId]: 0 }));
     };
 
@@ -404,15 +400,12 @@ const HomePage = () => {
     const handleProductHover = (product) => {
         setHoveredProduct(product._id);
         const usableImages = getUsableProductImages(product);
-        console.debug(`[HomePage] handleProductHover pid=${product._id} usable=${usableImages.length}`, usableImages);
         if (usableImages.length < 2 || hoverIntervalsRef.current[product._id]) return;
         hoverIntervalsRef.current[product._id] = setInterval(() => {
-            // Re-compute usable images inside interval to respect any newly failed URLs
             const freshImages = getUsableProductImages(product);
             if (freshImages.length < 1) return;
             setCurrentImageIndex((prev) => {
                 const nextIdx = ((prev[product._id] || 0) + 1) % freshImages.length;
-                console.debug(`[HomePage] interval tick pid=${product._id} idx ${prev[product._id] || 0} → ${nextIdx} of ${freshImages.length}`);
                 return { ...prev, [product._id]: nextIdx };
             });
         }, IMAGE_ROTATION_INTERVAL);
@@ -422,7 +415,6 @@ const HomePage = () => {
         setHoveredProduct(null);
         clearInterval(hoverIntervalsRef.current[product._id]);
         delete hoverIntervalsRef.current[product._id];
-        console.debug(`[HomePage] handleProductLeave pid=${product._id} — interval cleared`);
         setCurrentImageIndex((prev) => ({ ...prev, [product._id]: 0 }));
     };
 
@@ -430,16 +422,11 @@ const HomePage = () => {
         const usableImages = getUsableProductImages(product);
         if (usableImages.length > 0) {
             const index = (currentImageIndex[product._id] || 0) % usableImages.length;
-            const url = usableImages[index];
-            console.debug(`[HomePage] getProductImage pid=${product._id} idx=${index}/${usableImages.length} url=${url}`);
-            return url;
+            return usableImages[index];
         }
 
         const fallbackPrimary = resolveImageUrl(getImageSource(getPrimaryProductImage(product)), { placeholder: null });
-        const resolved = fallbackPrimary;
-        const url = resolved || getStableFallbackImage(product?._id);
-        console.debug(`[HomePage] getProductImage pid=${product._id} fallback url=${url}`);
-        return url;
+        return fallbackPrimary || getStableFallbackImage(product?._id);
     };
 
     const formatCurrency = (price) => {
@@ -455,7 +442,12 @@ const HomePage = () => {
         return arr;
     };
 
-    const featuredGridProducts = sortProducts(featuredProducts.length ? featuredProducts : products.slice(0, FEATURED_PRODUCTS_TARGET));
+    const featuredGridProducts = sortProducts(
+        selectedCategory
+            ? (featuredProducts.length ? featuredProducts : products.slice(0, FEATURED_PRODUCTS_TARGET))
+                .filter((p) => productInCategory(p, selectedCategory))
+            : (featuredProducts.length ? featuredProducts : products.slice(0, FEATURED_PRODUCTS_TARGET))
+    );
 
     const handleHeroShopNow = (banner) => {
         const action = resolveBannerAction(banner);
@@ -511,7 +503,7 @@ const HomePage = () => {
                 ))}
             </div>
 
-            {/* Categories */}
+            {/* Categories — in-place filter */}
             {categories.length > 0 && (
                 <section className="animate-fade-up mb-10" style={{ animationDelay: '150ms' }}>
                     <div className="mb-5 flex items-end justify-between">
@@ -522,12 +514,24 @@ const HomePage = () => {
                         <Link to="/products" className="store-btn-secondary tap-bounce rounded-xl px-4 py-2 text-sm">View All →</Link>
                     </div>
                     <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-9">
-                        <button onClick={() => navigate('/products')} className="store-category-chip animate-fade-up delay-75 flex flex-col items-center gap-1.5 px-3 py-3 text-center">
+                        <button
+                            onClick={() => setSelectedCategory(null)}
+                            className={`store-category-chip animate-fade-up delay-75 flex flex-col items-center gap-1.5 px-3 py-3 text-center transition-all ${
+                                !selectedCategory ? 'ring-2 ring-[#4250d5] bg-[rgba(66,80,213,0.08)]' : ''
+                            }`}
+                        >
                             <span className="text-xl">🛒</span>
                             <span className="text-xs font-semibold">All</span>
                         </button>
                         {categories.slice(0, 8).map((cat, i) => (
-                            <button key={cat._id || cat.slug} style={{ animationDelay: `${(i + 2) * 60}ms` }} onClick={() => navigate(`/products?category=${encodeURIComponent(cat.slug)}`)} className="store-category-chip animate-fade-up flex flex-col items-center gap-1.5 px-3 py-3 text-center">
+                            <button
+                                key={cat._id || cat.slug}
+                                style={{ animationDelay: `${(i + 2) * 60}ms` }}
+                                onClick={() => setSelectedCategory(selectedCategory?.slug === cat.slug ? null : cat)}
+                                className={`store-category-chip animate-fade-up flex flex-col items-center gap-1.5 px-3 py-3 text-center transition-all ${
+                                    selectedCategory?.slug === cat.slug ? 'ring-2 ring-[#4250d5] bg-[rgba(66,80,213,0.08)]' : ''
+                                }`}
+                            >
                                 <span className="text-xl">{catIcon(cat.title)}</span>
                                 <span className="line-clamp-2 text-xs font-semibold leading-tight">{cat.title}</span>
                             </button>
@@ -542,7 +546,7 @@ const HomePage = () => {
                     <div>
                         <p className="store-eyebrow mb-1">Curated for You</p>
                         <h2 className="store-display text-xl text-[#131313] sm:text-2xl">
-                            Featured Products
+                            {selectedCategory ? selectedCategory.title : 'Featured Products'}
                             <span className="ml-2 text-sm font-normal text-[#666]">
                                 ({featuredGridProducts.length})
                             </span>
@@ -566,8 +570,21 @@ const HomePage = () => {
                     <div className="store-surface animate-fade-in-scale py-14 text-center">
                         <div className="text-4xl mb-3">🛍️</div>
                         <h3 className="store-display text-lg text-[#212191] mb-1">No Products Found</h3>
-                        <p className="text-sm text-[#666] mb-5">No featured products available yet.</p>
-                        <Link to="/products" className="store-btn-primary tap-bounce inline-block rounded-xl px-6 py-2.5 text-sm font-bold">Browse All</Link>
+                        <p className="text-sm text-[#666] mb-5">
+                            {selectedCategory
+                                ? `No products found in "${selectedCategory.title}". Try another category.`
+                                : 'No featured products available yet.'}
+                        </p>
+                        {selectedCategory ? (
+                            <button
+                                onClick={() => setSelectedCategory(null)}
+                                className="store-btn-primary tap-bounce inline-block rounded-xl px-6 py-2.5 text-sm font-bold"
+                            >
+                                Show All Products
+                            </button>
+                        ) : (
+                            <Link to="/products" className="store-btn-primary tap-bounce inline-block rounded-xl px-6 py-2.5 text-sm font-bold">Browse All</Link>
+                        )}
                     </div>
                 )}
 

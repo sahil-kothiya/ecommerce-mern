@@ -399,7 +399,7 @@ export class CategoryController {
       const { id } = req.params;
       const { includeChildren = false } = req.query;
 
-      const category = await Category.findById(id);
+      const category = await Category.findById(id).lean();
 
       if (!category || category.status !== "active") {
         return res.status(404).json({
@@ -408,7 +408,7 @@ export class CategoryController {
         });
       }
 
-      const result = category.toObject();
+      const result = { ...category };
 
       if (includeChildren === "true") {
         const children = await Category.find({
@@ -442,7 +442,7 @@ export class CategoryController {
       const category = await Category.findOne({
         slug,
         status: "active",
-      });
+      }).lean();
 
       if (!category) {
         return res.status(404).json({
@@ -451,7 +451,7 @@ export class CategoryController {
         });
       }
 
-      const result = category.toObject();
+      const result = { ...category };
 
       if (includeChildren === "true") {
         const children = await Category.find({

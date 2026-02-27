@@ -222,7 +222,7 @@ export class DiscountService extends BaseService {
       throw new AppError("Invalid discount ID", 400);
     }
 
-    const existing = await Discount.findById(id);
+    const existing = await Discount.findById(id).lean();
     if (!existing) {
       throw new AppError("Discount not found", 404);
     }

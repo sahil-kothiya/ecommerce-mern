@@ -6,6 +6,7 @@ import { getPrimaryCartItemImage, resolveImageUrl } from '../utils/imageUrl';
 import notify from '../utils/notify';
 import { useSiteSettings } from '../context/useSiteSettings';
 import { formatCurrency } from '../utils/currency';
+import { logger } from '../utils/logger.js';
 
 const CartPage = () => {
     const { settings } = useSiteSettings();
@@ -25,7 +26,7 @@ const CartPage = () => {
             const data = await response.json();
             if (!response.ok || !data?.success) throw new Error(data?.message || 'Failed to load cart');
             setCart(data.data || cart);
-        } catch (error) { console.error(error); } finally { setIsLoading(false); }
+        } catch (error) { logger.error('Cart load error:', error); } finally { setIsLoading(false); }
     };
 
     useEffect(() => { loadCart(); }, []);
