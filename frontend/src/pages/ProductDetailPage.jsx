@@ -96,14 +96,14 @@ const RatingBar = ({ star, count, total }) => {
     const pct = total > 0 ? Math.round((count / total) * 100) : 0;
     return (
         <div className="flex items-center gap-2 text-sm">
-            <span className="w-6 text-right font-medium text-[#444]">{star}</span>
-            <svg className="h-3.5 w-3.5 flex-shrink-0 text-[#ffa336]" fill="currentColor" viewBox="0 0 20 20">
+            <span className="w-6 text-right font-medium text-slate-600">{star}</span>
+            <svg className="h-3.5 w-3.5 flex-shrink-0 text-secondary-400" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
-            <div className="flex-1 h-2 overflow-hidden rounded-full bg-[#f0f0f0]">
-                <div className="h-full rounded-full bg-[#ffa336] transition-all duration-300" style={{ width: `${pct}%` }} />
+            <div className="flex-1 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full rounded-full bg-secondary-400 transition-all duration-300" style={{ width: `${pct}%` }} />
             </div>
-            <span className="w-10 text-right text-xs text-[#878787]">{count}</span>
+            <span className="w-10 text-right text-xs text-slate-400">{count}</span>
         </div>
     );
 };
@@ -112,9 +112,10 @@ const ColorSwatch = ({ option, selected, available, onClick }) => (
     <button
         type="button"
         title={option.displayValue}
+        aria-label={option.displayValue}
         onClick={() => available && onClick(option.optionId)}
         className={`relative h-9 w-9 rounded-full border-2 transition-all focus:outline-none
-            ${selected ? 'border-[#2874f0] scale-110 shadow-[0_0_0_3px_rgba(40,116,240,0.25)]' : 'border-transparent'}
+            ${selected ? 'border-primary-600 scale-110 shadow-[0_0_0_3px_rgba(40,116,240,0.25)]' : 'border-transparent'}
             ${!available ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer hover:scale-105'}
         `}
     >
@@ -135,12 +136,13 @@ const PillOption = ({ option, selected, available, onClick }) => (
         type="button"
         onClick={() => available && onClick(option.optionId)}
         disabled={!available}
+        aria-pressed={selected}
         className={`rounded-sm border px-4 py-2 text-sm font-medium transition-all focus:outline-none
             ${selected
-                ? 'border-[#2874f0] bg-[#eff5ff] text-[#2874f0] shadow-[0_0_0_1px_#2874f0]'
+                ? 'border-primary-600 bg-primary-50 text-primary-600 shadow-[0_0_0_1px_#2874f0]'
                 : available
-                    ? 'border-[#c2c2c2] bg-white text-[#212121] hover:border-[#2874f0] hover:text-[#2874f0]'
-                    : 'border-[#e0e0e0] bg-[#f5f5f5] text-[#bdbdbd] cursor-not-allowed line-through'
+                    ? 'border-slate-300 bg-white text-slate-800 hover:border-primary-600 hover:text-primary-600'
+                    : 'border-slate-200 bg-slate-100 text-slate-300 cursor-not-allowed line-through'
             }
         `}
     >
@@ -531,8 +533,8 @@ const ProductDetailPage = () => {
     if (isLoading) return (
         <div className="flex min-h-[400px] items-center justify-center">
             <div className="store-surface p-12 text-center">
-                <div className="mx-auto mb-5 h-14 w-14 animate-spin rounded-full border-[3px] border-[#d2dff9] border-t-[#f9730c]" />
-                <p className="store-display text-lg text-[#212191]">Loading product…</p>
+                <div className="mx-auto mb-5 h-14 w-14 animate-spin rounded-full border-[3px] border-primary-200 border-t-secondary-500" />
+                <p className="store-display text-lg text-primary-800">Loading product…</p>
             </div>
         </div>
     );
@@ -542,7 +544,7 @@ const ProductDetailPage = () => {
             <div className="store-surface p-12 text-center">
                 <div className="mb-3 text-5xl">😕</div>
                 <h2 className="store-display mb-2 text-xl">Product Not Found</h2>
-                <p className="mb-6 text-sm text-[#666]">The product you're looking for doesn't exist.</p>
+                <p className="mb-6 text-sm text-slate-500">The product you're looking for doesn't exist.</p>
                 <button onClick={() => navigate('/')} className="store-btn-primary tap-bounce inline-block rounded-2xl px-7 py-3 text-sm font-bold">Back to Home</button>
             </div>
         </div>
@@ -552,19 +554,19 @@ const ProductDetailPage = () => {
         <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
             {/* Breadcrumb */}
             <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-sm">
-                <Link to="/" className="text-[#4250d5] hover:underline font-medium">Home</Link>
-                <span className="text-[#999]">/</span>
-                <Link to="/products" className="text-[#4250d5] hover:underline font-medium">{product.category?.title || 'Products'}</Link>
-                <span className="text-[#999]">/</span>
-                <span className="truncate text-[#666]">{product.title}</span>
+                <Link to="/" className="text-primary-600 hover:underline font-medium">Home</Link>
+                <span className="text-slate-400">/</span>
+                <Link to="/products" className="text-primary-600 hover:underline font-medium">{product.category?.title || 'Products'}</Link>
+                <span className="text-slate-400">/</span>
+                <span className="truncate text-slate-500">{product.title}</span>
             </nav>
 
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 mb-10">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 mb-10">
 
                 {/* ── Image gallery ──────────────────────────────────────── */}
                 <div className="space-y-3">
                     <div className="store-surface overflow-hidden p-3">
-                        <div className="relative aspect-square overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 to-blue-50">
+                        <div className="relative aspect-square overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 to-primary-50">
                             <img
                                 src={getImgSrc(images[selectedImage])}
                                 alt={`${product.title} ${selectedImage + 1}`}
@@ -572,7 +574,7 @@ const ProductDetailPage = () => {
                                 onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getRandomProductImage(); }}
                             />
                             {product.condition && (
-                                <span className="absolute left-4 top-4 rounded-full bg-gradient-to-r from-[#4250d5] to-[#f9730c] px-4 py-1.5 text-xs font-bold text-white shadow">
+                                <span className="absolute left-4 top-4 rounded-full bg-gradient-to-r from-primary-600 to-secondary-500 px-4 py-1.5 text-xs font-bold text-white shadow">
                                     {product.condition === PRODUCT_CONDITIONS.HOT && '🔥 Hot'}
                                     {product.condition === PRODUCT_CONDITIONS.NEW && '✨ New'}
                                     {product.condition === PRODUCT_CONDITIONS.DEFAULT && '⭐ Trending'}
@@ -591,7 +593,8 @@ const ProductDetailPage = () => {
                                 <button
                                     key={idx}
                                     onClick={() => setSelectedImage(idx)}
-                                    className={`flex-shrink-0 store-surface h-20 w-20 overflow-hidden transition-all ${selectedImage === idx ? 'ring-2 ring-[#2874f0] ring-offset-1' : 'opacity-60 hover:opacity-100'}`}
+                                    aria-label={`View image ${idx + 1}`}
+                                    className={`flex-shrink-0 store-surface h-20 w-20 overflow-hidden transition-all ${selectedImage === idx ? 'ring-2 ring-primary-600 ring-offset-1' : 'opacity-60 hover:opacity-100'}`}
                                 >
                                     <img
                                         src={getImgSrc(img)}
@@ -609,42 +612,42 @@ const ProductDetailPage = () => {
                 <div className="space-y-5">
                     {/* Brand + SKU */}
                     <div className="flex items-center gap-2">
-                        <span className="rounded-xl border border-[rgba(165,187,252,0.35)] bg-[rgba(66,80,213,0.06)] px-3 py-1 text-sm font-semibold text-[#4250d5]">
+                        <span className="rounded-xl border border-[rgba(165,187,252,0.35)] bg-[rgba(66,80,213,0.06)] px-3 py-1 text-sm font-semibold text-primary-600">
                             {product.brand?.title || 'Brand'}
                         </span>
-                        <span className="text-xs text-[#999]">SKU: {(selectedVariant?.sku || product.baseSku || product._id?.substring(0, 8))?.toUpperCase()}</span>
+                        <span className="text-xs text-slate-400">SKU: {(selectedVariant?.sku || product.baseSku || product._id?.substring(0, 8))?.toUpperCase()}</span>
                     </div>
 
-                    <h1 className="store-display text-2xl font-bold leading-snug text-[#212121] sm:text-3xl">{product.title}</h1>
+                    <h1 className="store-display text-2xl font-bold leading-snug text-slate-800 sm:text-3xl">{product.title}</h1>
 
                     {/* Rating */}
                     <div className="flex items-center gap-2">
-                        <span className="flex items-center gap-1 rounded bg-[#388e3c] px-2 py-0.5 text-sm font-bold text-white">
+                        <span className="flex items-center gap-1 rounded bg-success-600 px-2 py-0.5 text-sm font-bold text-white">
                             {(product.ratings?.average || 4).toFixed(1)}
                             <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
                         </span>
-                        <span className="text-sm text-[#878787]">{product.ratings?.count || 0} ratings</span>
+                        <span className="text-sm text-slate-400">{product.ratings?.count || 0} ratings</span>
                     </div>
 
                     {/* Price */}
                     <div className="border-t border-b border-[rgba(165,187,252,0.2)] py-4">
                         <div className="flex items-baseline gap-3 flex-wrap">
-                            <span className="text-3xl font-bold text-[#212121]">{finalPriceLabel}</span>
+                            <span className="text-3xl font-bold text-slate-800">{finalPriceLabel}</span>
                             {hasDiscount && !pricing.isRange && (
                                 <>
-                                    <span className="text-lg text-[#878787] line-through">{fmt(pricing.basePrice)}</span>
-                                    <span className="text-base font-semibold text-[#388e3c]">{Math.round(pricing.discount)}% off</span>
+                                    <span className="text-lg text-slate-400 line-through">{fmt(pricing.basePrice)}</span>
+                                    <span className="text-base font-semibold text-success-600">{Math.round(pricing.discount)}% off</span>
                                 </>
                             )}
                         </div>
-                        {hasDiscount && <p className="mt-1 text-sm text-[#388e3c]">You save {fmt(pricing.savings)}</p>}
+                        {hasDiscount && <p className="mt-1 text-sm text-success-600">You save {fmt(pricing.savings)}</p>}
                         <div className="mt-2 flex items-center gap-3 text-sm">
                             {isInStock
-                                ? <span className="font-medium text-[#388e3c]">✓ In Stock{variantStock !== null && variantStock <= 10 && ` (${variantStock} left)`}</span>
+                                ? <span className="font-medium text-success-600">✓ In Stock{variantStock !== null && variantStock <= 10 && ` (${variantStock} left)`}</span>
                                 : <span className="font-medium text-red-500">✕ Out of Stock</span>
                             }
-                            <span className="text-[#bbb]">|</span>
-                            <span className="text-[#666]">🚚 Free Delivery</span>
+                            <span className="text-slate-300">|</span>
+                            <span className="text-slate-500">🚚 Free Delivery</span>
                         </div>
                     </div>
 
@@ -657,9 +660,9 @@ const ProductDetailPage = () => {
                                 const selectedLabel = vt.options.find(o => o.optionId === selectedOptId)?.displayValue;
                                 return (
                                     <div key={vt.typeId}>
-                                        <p className="mb-2 text-sm font-semibold text-[#212121]">
+                                        <p className="mb-2 text-sm font-semibold text-slate-800">
                                             {vt.typeDisplayName}
-                                            {selectedLabel && <span className="ml-2 font-normal text-[#878787]">{selectedLabel}</span>}
+                                            {selectedLabel && <span className="ml-2 font-normal text-slate-400">{selectedLabel}</span>}
                                         </p>
                                         <div className="flex flex-wrap gap-2">
                                             {vt.options.map((opt) => {
@@ -685,11 +688,11 @@ const ProductDetailPage = () => {
 
                     {/* Quantity */}
                     <div>
-                        <p className="mb-2 text-sm font-semibold text-[#212121]">Quantity</p>
+                        <p className="mb-2 text-sm font-semibold text-slate-800">Quantity</p>
                         <div className="flex items-center gap-3">
-                            <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(165,187,252,0.4)] bg-[rgba(66,80,213,0.04)] font-bold text-[#4250d5] hover:bg-[rgba(66,80,213,0.1)] transition">−</button>
-                            <input type="number" value={quantity} min="1" onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="store-input h-10 w-20 rounded-xl text-center font-semibold" />
-                            <button onClick={() => setQuantity(quantity + 1)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(165,187,252,0.4)] bg-[rgba(66,80,213,0.04)] font-bold text-[#4250d5] hover:bg-[rgba(66,80,213,0.1)] transition">+</button>
+                            <button onClick={() => setQuantity(Math.max(1, quantity - 1))} aria-label="Decrease quantity" className="flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(165,187,252,0.4)] bg-[rgba(66,80,213,0.04)] font-bold text-primary-600 hover:bg-[rgba(66,80,213,0.1)] transition">−</button>
+                            <input type="number" value={quantity} min="1" aria-label="Quantity" onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="store-input h-10 w-20 rounded-xl text-center font-semibold" />
+                            <button onClick={() => setQuantity(quantity + 1)} aria-label="Increase quantity" className="flex h-10 w-10 items-center justify-center rounded-xl border border-[rgba(165,187,252,0.4)] bg-[rgba(66,80,213,0.04)] font-bold text-primary-600 hover:bg-[rgba(66,80,213,0.1)] transition">+</button>
                         </div>
                     </div>
 
@@ -707,7 +710,7 @@ const ProductDetailPage = () => {
                             className={`flex h-[56px] w-[56px] flex-shrink-0 items-center justify-center rounded-xl border-2 transition-all tap-bounce ${
                                 wishlistItems.includes(product._id)
                                     ? 'border-red-200 bg-red-50 text-red-500 hover:bg-red-100'
-                                    : 'border-[rgba(165,187,252,0.4)] bg-white text-[#999] hover:text-red-500 hover:border-red-200'
+                                    : 'border-[rgba(165,187,252,0.4)] bg-white text-slate-400 hover:text-red-500 hover:border-red-200'
                             }`}
                             aria-label={wishlistItems.includes(product._id) ? 'Remove from wishlist' : 'Add to wishlist'}
                         >
@@ -720,7 +723,7 @@ const ProductDetailPage = () => {
                     {/* Trust badges */}
                     <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[rgba(165,187,252,0.25)]">
                         {[['🛡️', 'Secure Payment'], ['↩️', '30-Day Returns'], ['✔', 'Genuine Product'], ['📦', 'Fast Delivery']].map(([icon, label]) => (
-                            <div key={label} className="flex items-center gap-2 text-sm text-[#666]"><span>{icon}</span><span>{label}</span></div>
+                            <div key={label} className="flex items-center gap-2 text-sm text-slate-500"><span>{icon}</span><span>{label}</span></div>
                         ))}
                     </div>
                 </div>
@@ -728,8 +731,8 @@ const ProductDetailPage = () => {
 
             {/* Description */}
             <div className="store-surface mb-6 p-7">
-                <h2 className="store-display mb-4 text-xl text-[#131313]">Product Description</h2>
-                <p className="text-[#444] leading-relaxed whitespace-pre-line">
+                <h2 className="store-display mb-4 text-xl text-slate-900">Product Description</h2>
+                <p className="text-slate-600 leading-relaxed whitespace-pre-line">
                     {product.description || `Experience the premium quality of ${product.title}. This exceptional product from ${product.brand?.title || 'our trusted brand'} combines innovative design with superior functionality.`}
                 </p>
             </div>
@@ -738,13 +741,14 @@ const ProductDetailPage = () => {
                 {/* Rating Summary + Sort Header */}
                 <div className="mb-6 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                        <h2 className="store-display text-xl text-[#131313]">Customer Reviews</h2>
-                        <p className="mt-1 text-sm text-[#666]">{reviewPagination?.total ?? reviews.length} review{(reviewPagination?.total ?? reviews.length) === 1 ? '' : 's'}</p>
+                        <h2 className="store-display text-xl text-slate-900">Customer Reviews</h2>
+                        <p className="mt-1 text-sm text-slate-500">{reviewPagination?.total ?? reviews.length} review{(reviewPagination?.total ?? reviews.length) === 1 ? '' : 's'}</p>
                     </div>
                     {reviews.length > 0 && (
                         <select
                             value={reviewSort}
                             onChange={(e) => handleReviewSortChange(e.target.value)}
+                            aria-label="Sort reviews"
                             className="store-input rounded-xl px-3 py-2 text-sm sm:w-48"
                         >
                             {REVIEW_SORT_OPTIONS.map((opt) => (
@@ -758,15 +762,15 @@ const ProductDetailPage = () => {
                 {product?.ratings?.count > 0 && (
                     <div className="mb-7 flex flex-col gap-5 rounded-xl border border-[rgba(165,187,252,0.25)] p-5 sm:flex-row sm:items-center sm:gap-8">
                         <div className="flex flex-col items-center">
-                            <span className="text-4xl font-bold text-[#212121]">{(product.ratings.average || 0).toFixed(1)}</span>
+                            <span className="text-4xl font-bold text-slate-800">{(product.ratings.average || 0).toFixed(1)}</span>
                             <div className="mt-1 flex items-center gap-0.5">
                                 {[1, 2, 3, 4, 5].map((s) => (
-                                    <svg key={s} className={`h-4 w-4 ${s <= Math.round(product.ratings.average) ? 'text-[#ffa336]' : 'text-[#d1d5db]'}`} fill="currentColor" viewBox="0 0 20 20">
+                                    <svg key={s} className={`h-4 w-4 ${s <= Math.round(product.ratings.average) ? 'text-secondary-400' : 'text-slate-300'}`} fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                                     </svg>
                                 ))}
                             </div>
-                            <span className="mt-1 text-xs text-[#878787]">{product.ratings.count} total</span>
+                            <span className="mt-1 text-xs text-slate-400">{product.ratings.count} total</span>
                         </div>
                         <div className="flex-1 space-y-1.5">
                             {[5, 4, 3, 2, 1].map((star) => (
@@ -784,11 +788,11 @@ const ProductDetailPage = () => {
                 {/* Review Form Area */}
                 {isAdmin ? (
                     <div className="mb-7 rounded-xl border border-[rgba(165,187,252,0.3)] bg-[rgba(66,80,213,0.03)] p-4 sm:p-5">
-                        <p className="text-sm text-[#666]">Admins cannot submit product reviews.</p>
+                        <p className="text-sm text-slate-500">Admins cannot submit product reviews.</p>
                     </div>
                 ) : !reviewOrderId ? (
                     <div className="mb-7 rounded-xl border border-[rgba(165,187,252,0.3)] bg-[rgba(66,80,213,0.03)] p-4 sm:p-5">
-                        <p className="text-sm text-[#444]">To add a review, open this product from <span className="font-semibold">My Orders</span> and use <span className="font-semibold">Rate & Review</span>.</p>
+                        <p className="text-sm text-slate-600">To add a review, open this product from <span className="font-semibold">My Orders</span> and use <span className="font-semibold">Rate & Review</span>.</p>
                         <Link
                             to="/account/orders"
                             className="store-btn-secondary tap-bounce mt-3 inline-flex rounded-xl px-5 py-2.5 text-sm font-bold"
@@ -798,7 +802,7 @@ const ProductDetailPage = () => {
                     </div>
                 ) : myReview && !isEditingReview ? (
                     <div className="mb-7 rounded-xl border border-[rgba(165,187,252,0.3)] bg-[rgba(66,80,213,0.03)] p-4 sm:p-5">
-                        <p className="text-sm text-[#444]">You already reviewed this product. You can edit or delete your review below.</p>
+                        <p className="text-sm text-slate-600">You already reviewed this product. You can edit or delete your review below.</p>
                         <button
                             type="button"
                             onClick={() => startEditingReview(myReview)}
@@ -810,20 +814,20 @@ const ProductDetailPage = () => {
                 ) : (
                     <form onSubmit={handleSubmit(handleReviewSubmit)} className="mb-7 rounded-xl border border-[rgba(165,187,252,0.3)] bg-[rgba(66,80,213,0.03)] p-4 sm:p-5">
                         <input type="hidden" {...register('rating')} />
-                        <p className="mb-2 text-sm font-semibold text-[#212121]">Your Rating</p>
+                        <p className="mb-2 text-sm font-semibold text-slate-800">Your Rating</p>
                         <div className="mb-2 flex items-center gap-1.5">
                             {[1, 2, 3, 4, 5].map((star) => (
                                 <button
                                     key={star}
                                     type="button"
                                     onClick={() => setValue('rating', star, { shouldDirty: true, shouldValidate: true })}
-                                    className={`text-2xl leading-none transition ${star <= Number(selectedReviewRating || 0) ? 'text-[#ffa336]' : 'text-[#d1d5db] hover:text-[#fbbf24]'}`}
+                                    className={`text-2xl leading-none transition ${star <= Number(selectedReviewRating || 0) ? 'text-secondary-400' : 'text-slate-300 hover:text-amber-400'}`}
                                     aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
                                 >
                                     ★
                                 </button>
                             ))}
-                            <span className="ml-2 text-xs text-[#878787]">
+                            <span className="ml-2 text-xs text-slate-400">
                                 {['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][Number(selectedReviewRating) || 0] || ''}
                             </span>
                         </div>
@@ -888,7 +892,7 @@ const ProductDetailPage = () => {
                         ))}
                     </div>
                 ) : reviews.length === 0 ? (
-                    <p className="text-sm text-[#666]">No reviews yet. Be the first to review this product.</p>
+                    <p className="text-sm text-slate-500">No reviews yet. Be the first to review this product.</p>
                 ) : (
                     <div className="space-y-4">
                         {reviews.map((review) => {
@@ -910,30 +914,30 @@ const ProductDetailPage = () => {
                                 <article key={review._id} className="rounded-xl border border-[rgba(165,187,252,0.25)] p-4">
                                     <div className="mb-2 flex items-start justify-between gap-3">
                                         <div className="flex items-center gap-2.5">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(66,80,213,0.1)] text-xs font-bold text-[#4250d5]">
+                                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(66,80,213,0.1)] text-xs font-bold text-primary-600">
                                                 {rawName.charAt(0).toUpperCase()}
                                             </div>
                                             <div>
-                                                <p className="text-sm font-semibold text-[#1f1f1f]">
+                                                <p className="text-sm font-semibold text-slate-800">
                                                     {isOwnReview ? 'You' : maskedName}
                                                 </p>
-                                                <p className="text-xs text-[#878787]">{createdLabel}</p>
+                                                <p className="text-xs text-slate-400">{createdLabel}</p>
                                             </div>
                                         </div>
-                                        <span className="flex items-center gap-1 rounded bg-[#388e3c] px-2 py-0.5 text-xs font-bold text-white">
+                                        <span className="flex items-center gap-1 rounded bg-success-600 px-2 py-0.5 text-xs font-bold text-white">
                                             {rating}
                                             <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
                                         </span>
                                     </div>
 
                                     {isVerified && (
-                                        <span className="mb-2 inline-flex items-center gap-1 rounded-full border border-[rgba(56,142,60,0.35)] bg-[rgba(56,142,60,0.1)] px-2.5 py-0.5 text-[11px] font-semibold text-[#2f7d32]">
+                                        <span className="mb-2 inline-flex items-center gap-1 rounded-full border border-[rgba(56,142,60,0.35)] bg-[rgba(56,142,60,0.1)] px-2.5 py-0.5 text-[11px] font-semibold text-success-600">
                                             ✓ Verified Purchase
                                         </span>
                                     )}
 
-                                    {review?.title && <p className="mb-1 text-sm font-semibold text-[#212121]">{review.title}</p>}
-                                    <p className="text-sm leading-relaxed text-[#444]">{review.comment}</p>
+                                    {review?.title && <p className="mb-1 text-sm font-semibold text-slate-800">{review.title}</p>}
+                                    <p className="text-sm leading-relaxed text-slate-600">{review.comment}</p>
 
                                     {reviewImages.length > 0 && (
                                         <div className="mt-2 flex gap-2 overflow-x-auto">
@@ -956,8 +960,8 @@ const ProductDetailPage = () => {
                                                 onClick={() => handleHelpfulVote(review._id)}
                                                 className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
                                                     userVoted
-                                                        ? 'border-[#2874f0] bg-[#eff5ff] text-[#2874f0]'
-                                                        : 'border-[rgba(165,187,252,0.4)] text-[#666] hover:border-[#2874f0] hover:text-[#2874f0]'
+                                                        ? 'border-primary-600 bg-primary-50 text-primary-600'
+                                                        : 'border-[rgba(165,187,252,0.4)] text-slate-500 hover:border-primary-600 hover:text-primary-600'
                                                 }`}
                                             >
                                                 <svg className="h-3.5 w-3.5" fill={userVoted ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
@@ -967,7 +971,7 @@ const ProductDetailPage = () => {
                                             </button>
                                         )}
                                         {isOwnReview && helpfulCount > 0 && (
-                                            <span className="text-xs text-[#878787]">{helpfulCount} found helpful</span>
+                                            <span className="text-xs text-slate-400">{helpfulCount} found helpful</span>
                                         )}
 
                                         {canManageOwnReview && (
@@ -975,7 +979,7 @@ const ProductDetailPage = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => startEditingReview(review)}
-                                                    className="rounded-lg border border-[rgba(66,80,213,0.3)] px-3 py-1.5 text-xs font-semibold text-[#4250d5] hover:bg-[rgba(66,80,213,0.06)]"
+                                                    className="rounded-lg border border-[rgba(66,80,213,0.3)] px-3 py-1.5 text-xs font-semibold text-primary-600 hover:bg-[rgba(66,80,213,0.06)]"
                                                 >
                                                     Edit
                                                 </button>
@@ -1012,7 +1016,7 @@ const ProductDetailPage = () => {
 
             {/* Specifications */}
             <div className="store-surface p-7 mb-8">
-                <h2 className="store-display mb-5 text-xl text-[#131313]">Specifications</h2>
+                <h2 className="store-display mb-5 text-xl text-slate-900">Specifications</h2>
                 <div className="grid grid-cols-1 gap-0 md:grid-cols-2">
                     {[
                         ['Brand', product.brand?.title || 'N/A'],
@@ -1022,8 +1026,8 @@ const ProductDetailPage = () => {
                         ...(selectedVariant ? [['SKU', selectedVariant.sku || 'N/A'], ['Variant', selectedVariant.displayName || 'N/A']] : []),
                     ].map(([k, v]) => (
                         <div key={k} className="flex justify-between border-b border-[rgba(165,187,252,0.2)] py-3">
-                            <span className="font-medium text-[#666]">{k}</span>
-                            <span className={`font-semibold ${k === 'Availability' ? (isInStock ? 'text-[#27ae60]' : 'text-red-500') : 'text-[#1f1f1f]'}`}>{v}</span>
+                            <span className="font-medium text-slate-500">{k}</span>
+                            <span className={`font-semibold ${k === 'Availability' ? (isInStock ? 'text-success-600' : 'text-red-500') : 'text-slate-800'}`}>{v}</span>
                         </div>
                     ))}
                 </div>
@@ -1032,11 +1036,11 @@ const ProductDetailPage = () => {
             {/* Similar Products Section */}
             <div className="store-surface p-7">
                 <div className="mb-5 flex items-center justify-between">
-                    <h2 className="store-display text-xl text-[#131313]">Similar Products</h2>
+                    <h2 className="store-display text-xl text-slate-900">Similar Products</h2>
                     {!similarProductsLoading && similarProducts.length > 0 && (
                         <Link 
                             to={`/products?categoryId=${product.category?._id || product.category?.id}`}
-                            className="text-sm font-semibold text-[#2874f0] hover:text-[#1557bf] flex items-center gap-1"
+                            className="text-sm font-semibold text-primary-600 hover:text-primary-600 flex items-center gap-1"
                         >
                             View All <span>→</span>
                         </Link>
@@ -1098,7 +1102,7 @@ const ProductDetailPage = () => {
                                     className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 bg-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-slate-50"
                                     aria-label="Scroll left"
                                 >
-                                    <svg className="w-5 h-5 text-[#212121]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-5 h-5 text-slate-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                     </svg>
                                 </button>
@@ -1110,7 +1114,7 @@ const ProductDetailPage = () => {
                                     className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 bg-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-slate-50"
                                     aria-label="Scroll right"
                                 >
-                                    <svg className="w-5 h-5 text-[#212121]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-5 h-5 text-slate-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                     </svg>
                                 </button>
@@ -1125,10 +1129,10 @@ const ProductDetailPage = () => {
                         <svg className="w-16 h-16 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                         </svg>
-                        <p className="text-[#666] text-sm font-medium">No similar products available</p>
+                        <p className="text-slate-500 text-sm font-medium">No similar products available</p>
                         <Link 
                             to="/products" 
-                            className="mt-3 inline-block text-sm text-[#2874f0] hover:text-[#1557bf] font-semibold"
+                            className="mt-3 inline-block text-sm text-primary-600 hover:text-primary-600 font-semibold"
                         >
                             Browse all products →
                         </Link>
@@ -1139,13 +1143,13 @@ const ProductDetailPage = () => {
             <div className="store-surface p-7 mt-8 mb-8">
                 <div className="mb-5 flex items-center justify-between">
                     <div>
-                        <h2 className="store-display text-xl text-[#131313]">Recently Viewed</h2>
-                        <p className="text-sm text-[#666] mt-1">Products you've viewed recently</p>
+                        <h2 className="store-display text-xl text-slate-900">Recently Viewed</h2>
+                        <p className="text-sm text-slate-500 mt-1">Products you've viewed recently</p>
                     </div>
                     {recentlyViewed.length > 0 && (
                         <Link 
                             to="/products"
-                            className="text-sm font-semibold text-[#2874f0] hover:text-[#1557bf] flex items-center gap-1"
+                            className="text-sm font-semibold text-primary-600 hover:text-primary-600 flex items-center gap-1"
                         >
                             View All <span>→</span>
                         </Link>
@@ -1198,7 +1202,7 @@ const ProductDetailPage = () => {
                                     className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 bg-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-slate-50"
                                     aria-label="Scroll left"
                                 >
-                                    <svg className="w-5 h-5 text-[#212121]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-5 h-5 text-slate-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                     </svg>
                                 </button>
@@ -1210,7 +1214,7 @@ const ProductDetailPage = () => {
                                     className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 bg-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-slate-50"
                                     aria-label="Scroll right"
                                 >
-                                    <svg className="w-5 h-5 text-[#212121]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-5 h-5 text-slate-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                     </svg>
                                 </button>
@@ -1225,10 +1229,10 @@ const ProductDetailPage = () => {
                         <svg className="w-16 h-16 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <p className="text-[#666] text-sm font-medium">No recently viewed products</p>
+                        <p className="text-slate-500 text-sm font-medium">No recently viewed products</p>
                         <Link 
                             to="/products" 
-                            className="mt-3 inline-block text-sm text-[#2874f0] hover:text-[#1557bf] font-semibold"
+                            className="mt-3 inline-block text-sm text-primary-600 hover:text-primary-600 font-semibold"
                         >
                             Browse products →
                         </Link>

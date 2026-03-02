@@ -80,7 +80,7 @@ const SelectionPanel = ({
     );
 
     const accentStyles = {
-        cyan: 'from-cyan-50 to-sky-50 border-cyan-200 text-cyan-800',
+        cyan: 'from-primary-50 to-sky-50 border-primary-200 text-primary-800',
         amber: 'from-amber-50 to-orange-50 border-amber-200 text-amber-800',
     };
 
@@ -391,7 +391,7 @@ const DiscountsPage = () => {
                     <button
                         type="button"
                         onClick={openCreateForm}
-                        className="rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-600"
+                        className="rounded-xl bg-primary-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-primary-600"
                     >
                         + Add Discount
                     </button>

@@ -129,8 +129,8 @@ const OrdersList = () => {
 
     const metrics = useMemo(
         () => [
-            { label: 'Total Orders', value: summary.totalOrders || 0, tone: 'border-cyan-200 bg-cyan-50 text-cyan-800' },
-            { label: 'Revenue', value: formatCurrency(summary.totalRevenue, settings), tone: 'border-blue-200 bg-blue-50 text-blue-800' },
+            { label: 'Total Orders', value: summary.totalOrders || 0, tone: 'border-primary-200 bg-primary-50 text-primary-800' },
+            { label: 'Revenue', value: formatCurrency(summary.totalRevenue, settings), tone: 'border-primary-200 bg-primary-50 text-primary-800' },
             { label: 'New', value: summary.newOrders || 0, tone: 'border-amber-200 bg-amber-50 text-amber-800' },
             { label: 'Processing', value: summary.processingOrders || 0, tone: 'border-violet-200 bg-violet-50 text-violet-800' },
             { label: 'Delivered', value: summary.deliveredOrders || 0, tone: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
@@ -180,7 +180,7 @@ const OrdersList = () => {
                             value={searchTerm}
                             onChange={(event) => setSearchTerm(event.target.value)}
                             placeholder="Search order number, customer email, customer name..."
-                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                         />
                         {searchTerm && (
                             <button
@@ -199,7 +199,7 @@ const OrdersList = () => {
                     <select
                         value={statusFilter}
                         onChange={(event) => setStatusFilter(event.target.value)}
-                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                     >
                         <option value="">All Status</option>
                         {ORDER_STATUSES.map((status) => (
@@ -210,7 +210,7 @@ const OrdersList = () => {
                     <select
                         value={paymentFilter}
                         onChange={(event) => setPaymentFilter(event.target.value)}
-                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                     >
                         <option value="">All Payment</option>
                         {PAYMENT_STATUSES.map((status) => (
@@ -234,7 +234,7 @@ const OrdersList = () => {
                 </div>
                 <p className="mt-3 text-sm text-slate-500">
                     Showing <span className="font-semibold text-slate-800">{orders.length}</span> result{orders.length !== 1 ? 's' : ''} on this page.
-                    {isRefreshing ? <span className="ml-2 font-semibold text-cyan-700">Updating...</span> : null}
+                    {isRefreshing ? <span className="ml-2 font-semibold text-primary-700">Updating...</span> : null}
                 </p>
             </AdminSurface>
 
@@ -286,7 +286,7 @@ const OrdersList = () => {
                                         <select
                                             value={order.status}
                                             onChange={(event) => handleStatusUpdate(order._id, event.target.value)}
-                                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                                         >
                                             {ORDER_STATUSES.map((status) => (
                                                 <option key={status} value={status}>{status}</option>

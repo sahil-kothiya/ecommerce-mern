@@ -60,7 +60,7 @@ const AccountWishlist = () => {
     if (isLoading) {
         return (
             <div className="flex min-h-[40vh] items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
             </div>
         );
     }
@@ -78,7 +78,7 @@ const AccountWishlist = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                     </svg>
                     <p className="text-slate-500">Your wishlist is empty.</p>
-                    <Link to="/products" className="mt-3 inline-block rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                    <Link to="/products" className="mt-3 inline-block rounded-xl bg-primary-600 px-5 py-2 text-sm font-semibold text-white hover:bg-primary-700">
                         Browse Products
                     </Link>
                 </div>
@@ -106,7 +106,7 @@ const AccountWishlist = () => {
                                     />
                                 </Link>
                                 <div className="flex flex-1 flex-col p-4">
-                                    <Link to={productUrl} className="mb-1 font-semibold text-slate-800 transition hover:text-blue-600 line-clamp-2 leading-snug">
+                                    <Link to={productUrl} className="mb-1 font-semibold text-slate-800 transition hover:text-primary-600 line-clamp-2 leading-snug">
                                         {product.title}
                                     </Link>
                                     <div className="mt-auto pt-3">
@@ -120,7 +120,7 @@ const AccountWishlist = () => {
                                             <button
                                                 onClick={() => moveToCart(item._id)}
                                                 disabled={isBusy}
-                                                className="flex-1 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+                                                className="flex-1 rounded-xl bg-primary-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-50"
                                             >
                                                 Move to Cart
                                             </button>

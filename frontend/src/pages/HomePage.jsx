@@ -171,27 +171,27 @@ const HeroBanner = ({ banners, onShopNow, fallbackTitle, fallbackDescription }) 
                                         wrapperClassName="h-full w-full"
                                         className="h-full w-full object-cover"
                                         rootMargin="0px"
-                                        fallback={<div className="h-full w-full bg-gradient-to-r from-[#0a2156] via-[#212191] to-[#f9730c]" />}
+                                        fallback={<div className="h-full w-full bg-gradient-to-r from-slate-900 via-primary-800 to-secondary-500" />}
                                     />
                                 ) : (
-                                    <div className="h-full w-full bg-gradient-to-r from-[#0a2156] via-[#212191] to-[#f9730c]" />
+                                    <div className="h-full w-full bg-gradient-to-r from-slate-900 via-primary-800 to-secondary-500" />
                                 )}
-                                <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-[#1c2f8f]/50 to-[#f9730c]/40" />
+                                <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-primary-900/50 to-secondary-500/40" />
                             </div>
                         );
                     })}
                 </div>
             </div>
 
-            <div className="absolute -right-10 -top-20 h-56 w-56 rounded-full bg-[#ffa336]/20 blur-3xl pointer-events-none animate-hero-orb" />
-            <div className="absolute -bottom-16 -left-8 h-48 w-48 rounded-full bg-[#a5bbfc]/20 blur-3xl pointer-events-none animate-hero-orb-alt" />
-            <div className="absolute left-1/2 top-1/3 h-40 w-40 -translate-x-1/2 rounded-full bg-[#f9730c]/10 blur-2xl pointer-events-none animate-hero-orb" style={{ animationDuration: '13s' }} />
+            <div className="absolute -right-10 -top-20 h-56 w-56 rounded-full bg-secondary-400/20 blur-3xl pointer-events-none animate-hero-orb" />
+            <div className="absolute -bottom-16 -left-8 h-48 w-48 rounded-full bg-primary-300/20 blur-3xl pointer-events-none animate-hero-orb-alt" />
+            <div className="absolute left-1/2 top-1/3 h-40 w-40 -translate-x-1/2 rounded-full bg-secondary-500/10 blur-2xl pointer-events-none animate-hero-orb" style={{ animationDuration: '13s' }} />
 
             <div className="relative z-10 max-w-2xl">
                 <span className="animate-fade-up delay-75 mb-5 inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.12)] px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
                     🎉 Limited Time Offer
                 </span>
-                <h1 className="animate-fade-up delay-150 store-display mb-4 text-4xl leading-tight text-white sm:text-5xl lg:text-6xl">
+                <h1 className="animate-fade-up delay-150 store-display mb-4 text-3xl leading-tight text-white sm:text-4xl lg:text-6xl">
                     {b?.title || fallbackTitle || 'Up to 80% Off'}
                 </h1>
                 <p className="animate-fade-up delay-225 mb-7 text-base text-white/85 leading-relaxed sm:text-lg">
@@ -205,7 +205,7 @@ const HeroBanner = ({ banners, onShopNow, fallbackTitle, fallbackDescription }) 
             {slides.length > 1 && (
                 <div className="absolute bottom-5 left-8 flex items-center gap-2">
                     {slides.map((_, i) => (
-                        <button key={i} onClick={() => goTo(i)} className={`h-1.5 rounded-full transition-all ${i === activeIdx ? 'w-6 bg-[#ffa336]' : 'w-1.5 bg-white/40 hover:bg-white/70'}`} />
+                        <button key={i} onClick={() => goTo(i)} aria-label={`Go to slide ${i + 1}`} className={`h-1.5 rounded-full transition-all ${i === activeIdx ? 'w-6 bg-secondary-400' : 'w-1.5 bg-white/40 hover:bg-white/70'}`} />
                     ))}
                 </div>
             )}
@@ -496,8 +496,8 @@ const HomePage = () => {
                     <div key={label} style={{ animationDelay: `${i * 80 + 100}ms` }} className="store-surface animate-fade-up flex items-center gap-3 px-4 py-3">
                         <span className="text-xl">{icon}</span>
                         <div>
-                            <p className="text-sm font-bold text-[#1f1f1f]">{label}</p>
-                            <p className="text-xs text-[#666]">{sub}</p>
+                            <p className="text-sm font-bold text-slate-800">{label}</p>
+                            <p className="text-xs text-slate-500">{sub}</p>
                         </div>
                     </div>
                 ))}
@@ -509,15 +509,16 @@ const HomePage = () => {
                     <div className="mb-5 flex items-end justify-between">
                         <div>
                             <p className="store-eyebrow mb-1">Explore</p>
-                            <h2 className="store-display text-2xl text-[#131313] sm:text-3xl">Shop by Category</h2>
+                            <h2 className="store-display text-2xl text-slate-900 sm:text-3xl">Shop by Category</h2>
                         </div>
                         <Link to="/products" className="store-btn-secondary tap-bounce rounded-xl px-4 py-2 text-sm">View All →</Link>
                     </div>
-                    <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-9">
+                    <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-8 lg:grid-cols-9">
                         <button
                             onClick={() => setSelectedCategory(null)}
+                            aria-pressed={!selectedCategory}
                             className={`store-category-chip animate-fade-up delay-75 flex flex-col items-center gap-1.5 px-3 py-3 text-center transition-all ${
-                                !selectedCategory ? 'ring-2 ring-[#4250d5] bg-[rgba(66,80,213,0.08)]' : ''
+                                !selectedCategory ? 'ring-2 ring-primary-600 bg-primary-600/[0.08]' : ''
                             }`}
                         >
                             <span className="text-xl">🛒</span>
@@ -528,8 +529,9 @@ const HomePage = () => {
                                 key={cat._id || cat.slug}
                                 style={{ animationDelay: `${(i + 2) * 60}ms` }}
                                 onClick={() => setSelectedCategory(selectedCategory?.slug === cat.slug ? null : cat)}
+                                aria-pressed={selectedCategory?.slug === cat.slug}
                                 className={`store-category-chip animate-fade-up flex flex-col items-center gap-1.5 px-3 py-3 text-center transition-all ${
-                                    selectedCategory?.slug === cat.slug ? 'ring-2 ring-[#4250d5] bg-[rgba(66,80,213,0.08)]' : ''
+                                    selectedCategory?.slug === cat.slug ? 'ring-2 ring-primary-600 bg-primary-600/[0.08]' : ''
                                 }`}
                             >
                                 <span className="text-xl">{catIcon(cat.title)}</span>
@@ -545,9 +547,9 @@ const HomePage = () => {
                 <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <p className="store-eyebrow mb-1">Curated for You</p>
-                        <h2 className="store-display text-xl text-[#131313] sm:text-2xl">
+                        <h2 className="store-display text-xl text-slate-900 sm:text-2xl">
                             {selectedCategory ? selectedCategory.title : 'Featured Products'}
-                            <span className="ml-2 text-sm font-normal text-[#666]">
+                            <span className="ml-2 text-sm font-normal text-slate-500">
                                 ({featuredGridProducts.length})
                             </span>
                         </h2>
@@ -563,14 +565,14 @@ const HomePage = () => {
                 </div>
 
                 {isLoading ? (<LoadingSkeleton />) : featuredGridProducts.length > 0 ? (
-                    <div key="all" className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                    <div key="all" className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                         {featuredGridProducts.map((p, i) => <ProductCard key={p._id} {...cardProps(p)} animDelay={Math.min(i * 45, 700)} />)}
                     </div>
                 ) : (
                     <div className="store-surface animate-fade-in-scale py-14 text-center">
                         <div className="text-4xl mb-3">🛍️</div>
-                        <h3 className="store-display text-lg text-[#212191] mb-1">No Products Found</h3>
-                        <p className="text-sm text-[#666] mb-5">
+                        <h3 className="store-display text-lg text-primary-700 mb-1">No Products Found</h3>
+                        <p className="text-sm text-slate-500 mb-5">
                             {selectedCategory
                                 ? `No products found in "${selectedCategory.title}". Try another category.`
                                 : 'No featured products available yet.'}
@@ -601,9 +603,9 @@ const HomePage = () => {
             {!isLoading && recentlyViewed.length > 0 && (
                 <section className="mb-14">
                     <div className="mb-6">
-                        <p className="store-eyebrow mb-2 text-[#666]">Your History</p>
-                        <h2 className="store-display text-2xl text-[#131313] sm:text-3xl">Recently Viewed</h2>
-                        <p className="text-sm text-[#666] mt-1">Products you've checked out recently</p>
+                        <p className="store-eyebrow mb-2 text-slate-500">Your History</p>
+                        <h2 className="store-display text-2xl text-slate-900 sm:text-3xl">Recently Viewed</h2>
+                        <p className="text-sm text-slate-500 mt-1">Products you've checked out recently</p>
                     </div>
 
                     <div className="relative group">
@@ -649,7 +651,7 @@ const HomePage = () => {
                                     className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 bg-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-slate-50"
                                     aria-label="Scroll left"
                                 >
-                                    <svg className="w-5 h-5 text-[#212121]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-5 h-5 text-slate-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                     </svg>
                                 </button>
@@ -661,7 +663,7 @@ const HomePage = () => {
                                     className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 bg-white shadow-lg rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-slate-50"
                                     aria-label="Scroll right"
                                 >
-                                    <svg className="w-5 h-5 text-[#212121]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-5 h-5 text-slate-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                     </svg>
                                 </button>
@@ -673,13 +675,13 @@ const HomePage = () => {
             {/* Trust badges */}
             <section className="mt-14 store-hero rounded-3xl px-8 py-10 text-center sm:px-12">
                 <div className="relative">
-                    <p className="store-eyebrow mb-2 text-[#d2dff9]">Why Choose Us</p>
+                    <p className="store-eyebrow mb-2 text-primary-200">Why Choose Us</p>
                     <h2 className="store-display mb-2 text-2xl text-white sm:text-3xl">Trusted by Thousands</h2>
                     <p className="mb-8 text-sm text-white/80">Join our growing community of happy shoppers worldwide.</p>
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                         {[{ value: '10M+', label: 'Products' }, { value: '500K+', label: 'Happy Customers' }, { value: '99.8%', label: 'Satisfaction Rate' }, { value: '24/7', label: 'Support' }].map(({ value, label }, i) => (
                             <div key={label} style={{ animationDelay: `${i * 90}ms` }} className="animate-fade-up rounded-2xl border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.08)] px-4 py-5 backdrop-blur-sm">
-                                <p className="store-display text-2xl font-bold text-[#ffa336]">{value}</p>
+                                <p className="store-display text-2xl font-bold text-secondary-400">{value}</p>
                                 <p className="mt-1 text-xs text-white/75">{label}</p>
                             </div>
                         ))}

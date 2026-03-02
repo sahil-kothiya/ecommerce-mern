@@ -710,7 +710,7 @@ const ProductFormEnhanced = () => {
         return (
             <div className="flex items-center justify-center h-screen">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4" />
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600 mx-auto mb-4" />
                     <p className="text-lg text-gray-700 font-medium">Loading product...</p>
                 </div>
             </div>
@@ -729,28 +729,28 @@ const ProductFormEnhanced = () => {
                 {/* â”€â”€ 1. Basic Information â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
                     <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                        <span className="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                        <span className="bg-primary-100 text-primary-600 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold">1</span>
                         Basic Information
                     </h2>
                     <div className="space-y-5">
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Product Title *</label>
                             <input {...register('title')}
-                                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 transition-all ${errors.title ? 'border-red-500' : 'border-gray-300'}`}
+                                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 transition-all ${errors.title ? 'border-red-500' : 'border-gray-300'}`}
                                 placeholder="Enter product title" />
                             {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Summary</label>
                             <textarea {...register('summary')} rows={2} maxLength={500}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all"
                                 placeholder="Brief product summary (max 500 chars)" />
                             <p className="mt-1 text-xs text-gray-400">{(watchSummary || '').length}/500</p>
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
                             <textarea {...register('description')} rows={6}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all"
                                 placeholder="Detailed product description" />
                         </div>
                     </div>
@@ -769,7 +769,7 @@ const ProductFormEnhanced = () => {
                             <div className="relative">
                                 <span className="absolute left-4 top-3.5 text-gray-500">$</span>
                                 <input {...register('basePrice')} type="number" step="0.01" min="0"
-                                    className={`w-full pl-8 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 transition-all ${errors.basePrice ? 'border-red-500' : 'border-gray-300'}`}
+                                    className={`w-full pl-8 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 transition-all ${errors.basePrice ? 'border-red-500' : 'border-gray-300'}`}
                                     placeholder="0.00" />
                             </div>
                             {errors.basePrice && <p className="mt-1 text-sm text-red-600">{errors.basePrice.message}</p>}
@@ -777,7 +777,7 @@ const ProductFormEnhanced = () => {
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Discount (%)</label>
                             <input {...register('baseDiscount')} type="number" step="0.01" min="0" max="100"
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all" />
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all" />
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Final Price</label>
@@ -786,12 +786,12 @@ const ProductFormEnhanced = () => {
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Stock Qty</label>
                             <input {...register('baseStock')} type="number" min="0"
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all" />
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all" />
                         </div>
                         <div className="md:col-span-2">
                             <label className="block text-sm font-semibold text-gray-700 mb-1">SKU *</label>
                             <input {...register('baseSku')}
-                                className={`w-full px-4 py-3 border rounded-xl uppercase focus:ring-2 focus:ring-blue-500 transition-all ${errors.baseSku ? 'border-red-500' : 'border-gray-300'}`}
+                                className={`w-full px-4 py-3 border rounded-xl uppercase focus:ring-2 focus:ring-primary-500 transition-all ${errors.baseSku ? 'border-red-500' : 'border-gray-300'}`}
                                 placeholder="e.g., PROD-12345" />
                             {errors.baseSku && <p className="mt-1 text-sm text-red-600">{errors.baseSku.message}</p>}
                         </div>
@@ -806,7 +806,7 @@ const ProductFormEnhanced = () => {
                     </h2>
                     <div className="space-y-5">
                         <label className="block">
-                            <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-blue-500 hover:bg-blue-50 transition-all cursor-pointer">
+                            <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-primary-500 hover:bg-primary-50 transition-all cursor-pointer">
                                 <svg className="mx-auto h-10 w-10 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                 </svg>
@@ -843,7 +843,7 @@ const ProductFormEnhanced = () => {
                                             onDragStart={(e) => handleDragStart(e, i)}
                                             onDragOver={handleDragOver}
                                             onDrop={(e) => handleDrop(e, i)}
-                                            className={`relative group aspect-square bg-gray-100 rounded-xl overflow-hidden border-2 cursor-move transition-all ${draggedIndex === i ? 'border-blue-500 opacity-50' : 'border-gray-200'}`}>
+                                            className={`relative group aspect-square bg-gray-100 rounded-xl overflow-hidden border-2 cursor-move transition-all ${draggedIndex === i ? 'border-primary-500 opacity-50' : 'border-gray-200'}`}>
                                             <img src={preview.url} alt={preview.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                                             {preview.isPrimary && <span className="absolute top-1 left-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full">â˜…</span>}
                                             <span className="absolute top-1 right-1 bg-white/90 text-gray-700 text-xs px-1.5 py-0.5 rounded-full">{i + 1}</span>
@@ -869,7 +869,7 @@ const ProductFormEnhanced = () => {
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Category</label>
                             <select {...register('categoryId')}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all">
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all">
                                 <option value="">Select Category</option>
                                 {categories.map(cat => <option key={cat._id} value={cat._id}>{cat.title}</option>)}
                             </select>
@@ -877,7 +877,7 @@ const ProductFormEnhanced = () => {
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Brand</label>
                             <select {...register('brandId')}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all">
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all">
                                 <option value="">Select Brand</option>
                                 {brands.map(b => <option key={b._id} value={b._id}>{b.title}</option>)}
                             </select>
@@ -885,7 +885,7 @@ const ProductFormEnhanced = () => {
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Condition</label>
                             <select {...register('condition')}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all">
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all">
                                 <option value="new">New</option>
                                 <option value="hot">Hot</option>
                                 <option value="default">Default</option>
@@ -894,7 +894,7 @@ const ProductFormEnhanced = () => {
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
                             <select {...register('status')}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all">
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all">
                                 <option value="draft">Draft</option>
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
@@ -903,18 +903,18 @@ const ProductFormEnhanced = () => {
                         <div className="md:col-span-2">
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Tags (comma-separated)</label>
                             <input type="text" value={watchTags.join(', ')} onChange={(e) => setValue('tags', e.target.value.split(',').map(t => t.trim()).filter(Boolean))}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all"
                                 placeholder="e.g., summer, sale, trending" />
                         </div>
                         <div className="md:col-span-2">
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Sizes (comma-separated)</label>
                             <input type="text" value={watchSize.join(', ')} onChange={(e) => setValue('size', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 transition-all"
                                 placeholder="e.g., S, M, L, XL" />
                         </div>
                         <div className="md:col-span-2 flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
                             <input {...register('isFeatured')} type="checkbox" id="isFeatured"
-                                className="w-5 h-5 text-blue-600 border-gray-300 rounded" />
+                                className="w-5 h-5 text-primary-600 border-gray-300 rounded" />
                             <label htmlFor="isFeatured" className="text-sm font-medium text-gray-700 cursor-pointer">
                                 â˜… Mark as Featured Product (display on homepage)
                             </label>
@@ -925,7 +925,7 @@ const ProductFormEnhanced = () => {
                 {/* â”€â”€ 5. Product Variants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
                     <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                        <span className="bg-indigo-100 text-indigo-600 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold">5</span>
+                        <span className="bg-primary-100 text-primary-600 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold">5</span>
                         Product Variants
                     </h2>
 
@@ -936,7 +936,7 @@ const ProductFormEnhanced = () => {
                             id="hasVariants"
                             checked={hasVariants}
                             onChange={e => handleHasVariantsToggle(e.target.checked)}
-                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded cursor-pointer"
+                            className="w-4 h-4 text-primary-600 border-gray-300 rounded cursor-pointer"
                         />
                         <label htmlFor="hasVariants" className="text-sm font-medium text-gray-700 cursor-pointer select-none">
                             Enable Variants <span className="text-gray-400">(e.g., Colors, Sizes)</span>
@@ -954,7 +954,7 @@ const ProductFormEnhanced = () => {
                                 {availableVariantTypes.length === 0 ? (
                                     <div className="text-center py-6 border border-dashed border-gray-300 rounded-xl text-gray-400 text-sm">
                                         No variant types found.{' '}
-                                        <a href="/admin/variants/types" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">Create variant types first</a>
+                                        <a href="/admin/variants/types" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">Create variant types first</a>
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -969,7 +969,7 @@ const ProductFormEnhanced = () => {
                                                     ) : (variantOptions[type._id] || []).length === 0 ? (
                                                         <p className="text-xs text-gray-400">
                                                             No options.{' '}
-                                                            <a href="/admin/variants/options" target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline">Add options</a>
+                                                            <a href="/admin/variants/options" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:underline">Add options</a>
                                                         </p>
                                                     ) : (
                                                         <div className="flex flex-wrap gap-1.5">
@@ -977,7 +977,7 @@ const ProductFormEnhanced = () => {
                                                                 const isSelected = selectedOptionIds[type._id]?.has(opt._id);
                                                                 return (
                                                                     <label key={opt._id}
-                                                                        className={`flex items-center gap-1.5 px-2.5 py-1 border rounded-full text-xs cursor-pointer transition-all select-none ${isSelected ? 'border-blue-500 bg-blue-600 text-white' : 'border-gray-300 text-gray-600 hover:border-blue-400 bg-white'}`}>
+                                                                        className={`flex items-center gap-1.5 px-2.5 py-1 border rounded-full text-xs cursor-pointer transition-all select-none ${isSelected ? 'border-primary-500 bg-primary-600 text-white' : 'border-gray-300 text-gray-600 hover:border-primary-400 bg-white'}`}>
                                                                         <input type="checkbox" checked={!!isSelected} onChange={() => handleOptionToggle(type._id, opt._id)} className="hidden" />
                                                                         {opt.hexColor && (
                                                                             <span className="w-3 h-3 rounded-full border border-white/50 inline-block flex-shrink-0" style={{ background: opt.hexColor }} />
@@ -1062,7 +1062,7 @@ const ProductFormEnhanced = () => {
                                                     <div className="flex items-start flex-wrap gap-1 mb-2 md:mb-0 md:items-center">
                                                         {variant.options?.length > 0 ? (
                                                             variant.options.map((opt, oi) => (
-                                                                <span key={oi} className="flex items-center gap-1 text-xs font-semibold text-blue-700">
+                                                                <span key={oi} className="flex items-center gap-1 text-xs font-semibold text-primary-700">
                                                                     {opt.hexColor && (
                                                                         <span className="w-2.5 h-2.5 rounded-full border border-gray-300 inline-block flex-shrink-0" style={{ background: opt.hexColor }} />
                                                                     )}
@@ -1074,7 +1074,7 @@ const ProductFormEnhanced = () => {
                                                             <input type="text" value={variant.displayName}
                                                                 onChange={e => updateVariantField(vi, 'displayName', e.target.value)}
                                                                 placeholder="Variant name"
-                                                                className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-indigo-400" />
+                                                                className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-primary-400" />
                                                         )}
                                                     </div>
                                                     {/* SKU */}
@@ -1082,28 +1082,28 @@ const ProductFormEnhanced = () => {
                                                         <label className="md:hidden block text-xs font-semibold text-gray-500 mb-1">SKU *</label>
                                                         <input type="text" value={variant.sku}
                                                             onChange={e => updateVariantField(vi, 'sku', e.target.value.toUpperCase())}
-                                                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs font-mono uppercase focus:ring-1 focus:ring-indigo-400" />
+                                                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs font-mono uppercase focus:ring-1 focus:ring-primary-400" />
                                                     </div>
                                                     {/* Price */}
                                                     <div className="mb-2 md:mb-0">
                                                         <label className="md:hidden block text-xs font-semibold text-gray-500 mb-1">{`Price (${currencyCode}) *`}</label>
                                                         <input type="number" step="0.01" min="0" value={variant.price}
                                                             onChange={e => updateVariantField(vi, 'price', e.target.value)}
-                                                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-indigo-400" />
+                                                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-primary-400" />
                                                     </div>
                                                     {/* Discount */}
                                                     <div className="mb-2 md:mb-0">
                                                         <label className="md:hidden block text-xs font-semibold text-gray-500 mb-1">Discount (%)</label>
                                                         <input type="number" step="0.01" min="0" max="100" value={variant.discount}
                                                             onChange={e => updateVariantField(vi, 'discount', e.target.value)}
-                                                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-indigo-400" />
+                                                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-primary-400" />
                                                     </div>
                                                     {/* Stock */}
                                                     <div className="mb-2 md:mb-0">
                                                         <label className="md:hidden block text-xs font-semibold text-gray-500 mb-1">Stock *</label>
                                                         <input type="number" min="0" value={variant.stock}
                                                             onChange={e => updateVariantField(vi, 'stock', e.target.value)}
-                                                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-indigo-400" />
+                                                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-primary-400" />
                                                     </div>
                                                     {/* Images */}
                                                     <div className="mb-2 md:mb-0">
@@ -1118,13 +1118,13 @@ const ProductFormEnhanced = () => {
                                                                 </div>
                                                             ))}
                                                             {(variantImages[vi]?.previews || []).map((src, ii) => (
-                                                                <div key={`new-${ii}`} className="relative group w-12 h-12 bg-gray-100 rounded overflow-hidden border-2 border-blue-400 flex-shrink-0">
+                                                                <div key={`new-${ii}`} className="relative group w-12 h-12 bg-gray-100 rounded overflow-hidden border-2 border-primary-400 flex-shrink-0">
                                                                     <img src={src} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                                                                     <button type="button" onClick={() => removeVariantImage(vi, ii, false)}
                                                                         className="absolute inset-0 bg-red-500/0 hover:bg-red-500/70 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 text-white text-sm font-bold">x</button>
                                                                 </div>
                                                             ))}
-                                                            <label className="w-12 h-12 border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 cursor-pointer transition-all flex-shrink-0">
+                                                            <label className="w-12 h-12 border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 hover:border-primary-400 hover:text-primary-500 cursor-pointer transition-all flex-shrink-0">
                                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                                                 </svg>
@@ -1163,7 +1163,7 @@ const ProductFormEnhanced = () => {
                         Cancel
                     </button>
                     <button type="submit" disabled={isSaving}
-                        className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                        className="px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                         {isSaving ? (
                             <>
                                 <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">

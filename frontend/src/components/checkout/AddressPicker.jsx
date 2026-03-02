@@ -14,7 +14,7 @@ const AddressPicker = ({ addresses, selectedId, onSelect, onAddNew }) => {
                         onClick={() => onSelect(addr)}
                         className={`rounded-xl border p-3 text-left text-xs transition ${
                             selectedId === addr._id
-                                ? "border-[#4250d5] bg-[rgba(66,80,213,0.06)] ring-1 ring-[#4250d5]"
+                                ? "border-primary-600 bg-[rgba(66,80,213,0.06)] ring-1 ring-primary-600"
                                 : "border-slate-200 bg-white hover:border-slate-300"
                         }`}
                     >
@@ -25,17 +25,17 @@ const AddressPicker = ({ addresses, selectedId, onSelect, onAddNew }) => {
                                 </span>
                             )}
                             {addr.isDefault && (
-                                <span className="rounded bg-[rgba(66,80,213,0.1)] px-1.5 py-0.5 text-[10px] font-semibold text-[#4250d5]">
+                                <span className="rounded bg-[rgba(66,80,213,0.1)] px-1.5 py-0.5 text-[10px] font-semibold text-primary-600">
                                     Default
                                 </span>
                             )}
                             {selectedId === addr._id && (
-                                <svg className="ml-auto h-3.5 w-3.5 text-[#4250d5]" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="ml-auto h-3.5 w-3.5 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                             )}
                         </div>
-                        <p className="font-semibold text-[#1f1f1f]">{addr.firstName} {addr.lastName}</p>
+                        <p className="font-semibold text-slate-800">{addr.firstName} {addr.lastName}</p>
                         <p className="text-slate-500">{addr.address1}{addr.address2 ? `, ${addr.address2}` : ""}</p>
                         <p className="text-slate-500">
                             {addr.city}{addr.state ? `, ${addr.state}` : ""} {addr.postCode}
@@ -48,7 +48,7 @@ const AddressPicker = ({ addresses, selectedId, onSelect, onAddNew }) => {
                     onClick={onAddNew}
                     className={`flex items-center justify-center gap-2 rounded-xl border border-dashed p-3 text-xs font-semibold transition ${
                         selectedId === "new"
-                            ? "border-[#4250d5] bg-[rgba(66,80,213,0.04)] text-[#4250d5]"
+                            ? "border-primary-600 bg-[rgba(66,80,213,0.04)] text-primary-600"
                             : "border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700"
                     }`}
                 >

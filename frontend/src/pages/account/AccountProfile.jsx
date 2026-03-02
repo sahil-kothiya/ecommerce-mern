@@ -32,7 +32,7 @@ const inputClass = (hasError) =>
     `w-full rounded-xl border px-3 py-2.5 text-sm transition focus:outline-none focus:ring-2 ${
         hasError
             ? 'border-red-400 focus:border-red-400 focus:ring-red-100 bg-red-50'
-            : 'border-slate-200 focus:border-blue-400 focus:ring-blue-100'
+            : 'border-slate-200 focus:border-primary-400 focus:ring-primary-100'
     }`;
 
 const AccountProfile = () => {
@@ -127,7 +127,7 @@ const AccountProfile = () => {
     if (isLoadingProfile) {
         return (
             <div className="flex min-h-[40vh] items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
             </div>
         );
     }
@@ -145,7 +145,7 @@ const AccountProfile = () => {
                     <button
                         key={tab.key}
                         onClick={() => setActiveSection(tab.key)}
-                        className={`flex-1 rounded-xl py-2 text-sm font-semibold transition ${activeSection === tab.key ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        className={`flex-1 rounded-xl py-2 text-sm font-semibold transition ${activeSection === tab.key ? 'bg-white text-primary-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         {tab.label}
                     </button>
@@ -197,7 +197,7 @@ const AccountProfile = () => {
                     <button
                         type="submit"
                         disabled={isSavingProfile}
-                        className="mt-5 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+                        className="mt-5 rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-50"
                     >
                         {isSavingProfile ? 'Saving...' : 'Save Changes'}
                     </button>
@@ -256,7 +256,7 @@ const AccountProfile = () => {
                     <button
                         type="submit"
                         disabled={isSavingPassword}
-                        className="mt-5 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+                        className="mt-5 rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-50"
                     >
                         {isSavingPassword ? 'Updating...' : 'Update Password'}
                     </button>

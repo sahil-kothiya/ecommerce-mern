@@ -54,8 +54,8 @@ const ForgotPasswordPage = () => {
 
                 return (
         <div className="relative min-h-screen overflow-hidden bg-slate-950 px-4 py-10 sm:py-14">
-            <div className="absolute -left-10 top-16 h-56 w-56 rounded-full bg-amber-500/20 blur-3xl" />
-            <div className="absolute -right-10 bottom-8 h-56 w-56 rounded-full bg-cyan-500/20 blur-3xl" />
+            <div className="absolute -left-10 top-16 h-56 w-56 rounded-full bg-secondary-500/20 blur-3xl" />
+            <div className="absolute -right-10 bottom-8 h-56 w-56 rounded-full bg-primary-500/20 blur-3xl" />
 
             <div className="relative mx-auto grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-white/95 shadow-2xl backdrop-blur md:grid-cols-2">
                 <aside className="hidden bg-gradient-to-br from-slate-900 via-sky-900 to-cyan-900 p-10 text-white md:flex md:flex-col md:justify-between">
@@ -79,8 +79,8 @@ const ForgotPasswordPage = () => {
                         {logoUrl && (
                             <img src={logoUrl} alt={siteName} className="mb-3 h-10 w-10 rounded-lg object-cover" />
                         )}
-                        <div className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-100">
-                            <svg className="h-7 w-7 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-100">
+                            <svg className="h-7 w-7 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                             </svg>
                         </div>
@@ -140,7 +140,7 @@ const ForgotPasswordPage = () => {
                     <div className="mt-6 text-center md:text-left">
                         <p className="text-sm text-slate-600">
                             Remembered your password?{' '}
-                            <Link to="/login" className="font-semibold text-blue-600 hover:text-blue-700">
+                            <Link to="/login" className="font-semibold text-primary-600 hover:text-primary-700">
                                 Sign in
                             </Link>
                         </p>

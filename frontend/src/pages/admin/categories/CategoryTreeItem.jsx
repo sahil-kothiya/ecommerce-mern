@@ -16,8 +16,8 @@ const ChildDropSection = ({ categoryId, depth }) => {
             style={{ marginLeft: `${(depth + 1) * 40}px` }}
             className={`mt-3 rounded-xl border-2 border-dashed px-4 py-5 text-center text-sm font-semibold transition-colors ${
                 isOver
-                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                    : 'border-indigo-200 bg-indigo-50/70 text-indigo-600'
+                    ? 'border-primary-500 bg-primary-50 text-primary-700'
+                    : 'border-primary-200 bg-primary-50/70 text-primary-600'
             }`}
         >
             <span className="inline-flex items-center gap-2">
@@ -65,11 +65,11 @@ const CategoryTreeItem = ({
     const getLevelColor = (level) => {
         const colors = [
             'bg-green-50 border-green-200',
-            'bg-blue-50 border-blue-200',
+            'bg-primary-50 border-primary-200',
             'bg-purple-50 border-purple-200',
             'bg-pink-50 border-pink-200',
             'bg-yellow-50 border-yellow-200',
-            'bg-indigo-50 border-indigo-200',
+            'bg-primary-50 border-primary-200',
         ];
         return colors[level % colors.length];
     };
@@ -77,11 +77,11 @@ const CategoryTreeItem = ({
     const getLevelBadge = (level) => {
         const badges = [
             { text: 'Level 0', color: 'bg-green-500' },
-            { text: 'Level 1', color: 'bg-blue-500' },
+            { text: 'Level 1', color: 'bg-primary-500' },
             { text: 'Level 2', color: 'bg-purple-500' },
             { text: 'Level 3', color: 'bg-pink-500' },
             { text: 'Level 4', color: 'bg-yellow-500' },
-            { text: 'Level 5', color: 'bg-indigo-500' },
+            { text: 'Level 5', color: 'bg-primary-500' },
         ];
         const badge = badges[level] || { text: `Level ${level}`, color: 'bg-gray-500' };
         return badge;
@@ -197,7 +197,7 @@ const CategoryTreeItem = ({
 
                                                         <button
                                 onClick={() => onToggleChildDrop(category._id)}
-                                className="rounded-lg bg-indigo-500 p-2 text-white transition-colors hover:bg-indigo-400"
+                                className="rounded-lg bg-primary-500 p-2 text-white transition-colors hover:bg-primary-400"
                                 title="Toggle child drop area"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -224,7 +224,7 @@ const CategoryTreeItem = ({
                                     navigator.clipboard.writeText(category._id);
                                     notify.success('Category ID copied');
                                 }}
-                                className="rounded-lg bg-cyan-500 p-2 text-white transition-colors hover:bg-cyan-400"
+                                className="rounded-lg bg-primary-500 p-2 text-white transition-colors hover:bg-primary-400"
                                 title="Copy ID"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

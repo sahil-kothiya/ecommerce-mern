@@ -91,7 +91,7 @@ const VariantTypesList = () => {
 
     return (
         <div className="space-y-8">
-            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-6 text-white shadow-lg sm:p-8">
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 text-white shadow-lg sm:p-8">
                 <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-200/80">Variants</p>
@@ -100,7 +100,7 @@ const VariantTypesList = () => {
                     </div>
                     <div className="flex gap-3">
                         <button onClick={loadItems} className="rounded-xl border border-white/30 bg-white/10 px-5 py-3 font-semibold hover:bg-white/20">Refresh</button>
-                        <button onClick={() => navigate('/admin/variant-type/create')} className="rounded-xl bg-cyan-400 px-5 py-3 font-bold text-slate-900 hover:bg-cyan-300">+ Add Type</button>
+                        <button onClick={() => navigate('/admin/variant-type/create')} className="rounded-xl bg-primary-400 px-5 py-3 font-bold text-slate-900 hover:bg-primary-300">+ Add Type</button>
                     </div>
                 </div>
             </div>
@@ -109,7 +109,7 @@ const VariantTypesList = () => {
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-xs uppercase tracking-widest text-slate-500">Total</p><p className="mt-2 text-3xl font-black text-slate-900">{stats.total}</p></div>
                 <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm"><p className="text-xs uppercase tracking-widest text-emerald-700">Active</p><p className="mt-2 text-3xl font-black text-emerald-800">{stats.active}</p></div>
                 <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm"><p className="text-xs uppercase tracking-widest text-amber-700">Inactive</p><p className="mt-2 text-3xl font-black text-amber-800">{stats.inactive}</p></div>
-                <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-5 shadow-sm"><p className="text-xs uppercase tracking-widest text-blue-700">Total Options</p><p className="mt-2 text-3xl font-black text-blue-800">{stats.options}</p></div>
+                <div className="rounded-2xl border border-primary-200 bg-gradient-to-br from-primary-50 to-white p-5 shadow-sm"><p className="text-xs uppercase tracking-widest text-primary-700">Total Options</p><p className="mt-2 text-3xl font-black text-primary-800">{stats.options}</p></div>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -123,7 +123,7 @@ const VariantTypesList = () => {
                             placeholder="Search type name..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                         />
                         {searchTerm && (
                             <button
@@ -138,7 +138,7 @@ const VariantTypesList = () => {
                             </button>
                         )}
                     </div>
-                    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200">
+                    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200">
                         <option value="">All Status</option>
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
@@ -185,7 +185,7 @@ const VariantTypesList = () => {
                                         {/* View */}
                                         <button
                                             onClick={() => navigate(`/admin/variant-type/${item._id}`)}
-                                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-600 hover:bg-cyan-100"
+                                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary-200 bg-primary-50 text-primary-600 hover:bg-primary-100"
                                             title="View"
                                         >
                                             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -196,7 +196,7 @@ const VariantTypesList = () => {
                                         {/* Edit */}
                                         <button
                                             onClick={() => navigate(`/admin/variant-type/${item._id}/edit`)}
-                                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary-200 bg-primary-50 text-primary-600 hover:bg-primary-100"
                                             title="Edit"
                                         >
                                             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

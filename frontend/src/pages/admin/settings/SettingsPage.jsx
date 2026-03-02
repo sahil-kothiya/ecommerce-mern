@@ -172,9 +172,9 @@ const SettingsPage = () => {
 
     return (
         <div className="space-y-8">
-            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-6 text-white shadow-lg sm:p-8">
-                <div className="absolute -right-10 -top-20 h-48 w-48 rounded-full bg-indigo-400/20 blur-3xl" />
-                <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-blue-300/20 blur-3xl" />
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 text-white shadow-lg sm:p-8">
+                <div className="absolute -right-10 -top-20 h-48 w-48 rounded-full bg-primary-400/20 blur-3xl" />
+                <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-primary-300/20 blur-3xl" />
                 <div className="relative">
                     <p className="text-xs uppercase tracking-[0.2em] text-slate-200/80">Admin Console</p>
                     <h1 className="mt-2 text-3xl font-black leading-tight sm:text-4xl">Settings</h1>
@@ -189,9 +189,9 @@ const SettingsPage = () => {
                     <p className="text-xs uppercase tracking-widest text-slate-500">Logo</p>
                     <p className="mt-2 text-2xl font-black text-slate-900">{stats.hasLogo ? 'Configured' : 'Missing'}</p>
                 </div>
-                <div className="rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 to-white p-5 shadow-sm">
-                    <p className="text-xs uppercase tracking-widest text-cyan-700">Favicon</p>
-                    <p className="mt-2 text-2xl font-black text-cyan-800">{stats.hasFavicon ? 'Configured' : 'Missing'}</p>
+                <div className="rounded-2xl border border-primary-200 bg-gradient-to-br from-primary-50 to-white p-5 shadow-sm">
+                    <p className="text-xs uppercase tracking-widest text-primary-700">Favicon</p>
+                    <p className="mt-2 text-2xl font-black text-primary-800">{stats.hasFavicon ? 'Configured' : 'Missing'}</p>
                 </div>
                 <div className={`rounded-2xl border p-5 shadow-sm ${stats.maintenance ? 'border-amber-200 bg-gradient-to-br from-amber-50 to-white' : 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-white'}`}>
                     <p className={`text-xs uppercase tracking-widest ${stats.maintenance ? 'text-amber-700' : 'text-emerald-700'}`}>Mode</p>
@@ -321,9 +321,9 @@ const SettingsPage = () => {
                     <h2 className="mb-1 text-xl font-black text-slate-900">Credentials</h2>
                     <p className="mb-6 text-sm text-slate-500">SMTP and payment gateway configuration. Changes take effect immediately.</p>
 
-                    <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50/40 p-5">
+                    <div className="mb-6 rounded-2xl border border-primary-100 bg-primary-50/40 p-5">
                         <div className="mb-4 flex items-center gap-2">
-                            <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="h-5 w-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
                             <h3 className="text-base font-bold text-slate-800">SMTP Email Configuration</h3>
@@ -367,7 +367,7 @@ const SettingsPage = () => {
                             </div>
                         </div>
 
-                        <div className="mt-4 rounded-xl border border-blue-200 bg-white p-4">
+                        <div className="mt-4 rounded-xl border border-primary-200 bg-white p-4">
                             <p className="mb-3 text-sm font-semibold text-slate-700">Send Test Email</p>
                             <div className="flex flex-col gap-2 sm:flex-row">
                                 <input
@@ -381,7 +381,7 @@ const SettingsPage = () => {
                                     type="button"
                                     onClick={handleTestEmail}
                                     disabled={isSendingTest}
-                                    className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                                    className="flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
                                 >
                                     {isSendingTest ? (
                                         <><svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg> Sending...</>
@@ -491,7 +491,7 @@ const SettingsPage = () => {
                     <button type="button" onClick={loadSettings} className="w-full rounded-xl border border-slate-300 bg-white px-6 py-3 font-semibold text-slate-800 transition-colors hover:bg-slate-100 sm:w-auto">
                         Reset
                     </button>
-                    <button type="submit" disabled={isSaving} className="w-full rounded-xl bg-indigo-400 px-6 py-3 font-bold text-slate-900 transition-colors hover:bg-indigo-300 disabled:opacity-50 sm:flex-1">
+                    <button type="submit" disabled={isSaving} className="w-full rounded-xl bg-primary-400 px-6 py-3 font-bold text-slate-900 transition-colors hover:bg-primary-300 disabled:opacity-50 sm:flex-1">
                         {isSaving ? 'Saving...' : 'Save Settings'}
                     </button>
                 </div>

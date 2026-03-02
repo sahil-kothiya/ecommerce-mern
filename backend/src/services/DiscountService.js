@@ -179,9 +179,7 @@ export class DiscountService extends BaseService {
       value: this.parseNumber(data.value, null),
       startsAt: data.startsAt ? new Date(data.startsAt) : null,
       endsAt: data.endsAt ? new Date(data.endsAt) : null,
-      status: ["active", "inactive"].includes(data.status)
-        ? data.status
-        : "active",
+      isActive: data.isActive !== false,
       applyToCategories: this.parseBoolean(data.applyToCategories, false),
       applyToProducts: this.parseBoolean(data.applyToProducts, false),
       categoryIds: this.parseObjectIdArray(data.categoryIds),
@@ -213,7 +211,18 @@ export class DiscountService extends BaseService {
       }
     }
 
-    const discount = await Discount.create(payload);
+    const discountData = {
+      title: payload.title,
+      type: payload.type,
+      value: payload.value,
+      startsAt: payload.startsAt,
+      endsAt: payload.endsAt,
+      isActive: payload.isActive,
+      categories: payload.categoryIds || [],
+      products: payload.productIds || [],
+    };
+
+    const discount = await Discount.create(discountData);
     return discount.toObject();
   }
 
@@ -222,7 +231,7 @@ export class DiscountService extends BaseService {
       throw new AppError("Invalid discount ID", 400);
     }
 
-    const existing = await Discount.findById(id).lean();
+    const existing = await Discount.findById(id);
     if (!existing) {
       throw new AppError("Discount not found", 404);
     }
@@ -235,11 +244,7 @@ export class DiscountService extends BaseService {
       payload.value = this.parseNumber(data.value, null);
     if (data.startsAt !== undefined) payload.startsAt = new Date(data.startsAt);
     if (data.endsAt !== undefined) payload.endsAt = new Date(data.endsAt);
-    if (
-      data.status !== undefined &&
-      ["active", "inactive"].includes(data.status)
-    )
-      payload.status = data.status;
+    if (data.isActive !== undefined) payload.isActive = Boolean(data.isActive);
     if (data.applyToCategories !== undefined)
       payload.applyToCategories = this.parseBoolean(data.applyToCategories);
     if (data.applyToProducts !== undefined)
@@ -275,19 +280,34 @@ export class DiscountService extends BaseService {
       }
     }
 
-    Object.assign(existing, payload);
-    await existing.save();
-    return existing.toObject();
+    const updateData = {};
+    if (payload.title !== undefined) updateData.title = payload.title;
+    if (payload.type !== undefined) updateData.type = payload.type;
+    if (payload.value !== undefined) updateData.value = payload.value;
+    if (payload.startsAt !== undefined) updateData.startsAt = payload.startsAt;
+    if (payload.endsAt !== undefined) updateData.endsAt = payload.endsAt;
+    if (payload.isActive !== undefined) updateData.isActive = payload.isActive;
+    if (payload.categoryIds !== undefined)
+      updateData.categories = payload.categoryIds;
+    if (payload.productIds !== undefined)
+      updateData.products = payload.productIds;
+
+    const updated = await Discount.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    }).lean();
+
+    return updated;
   }
 
   async getDiscounts(filters = {}) {
-    const { page = 1, limit = 20, status, type, search } = filters;
+    const { page = 1, limit = 20, isActive, type, search } = filters;
 
     const skip = (page - 1) * limit;
     const query = {};
 
-    if (status && ["active", "inactive"].includes(status)) {
-      query.status = status;
+    if (isActive !== undefined) {
+      query.isActive = Boolean(isActive);
     }
 
     if (type && ["percentage", "fixed"].includes(type)) {

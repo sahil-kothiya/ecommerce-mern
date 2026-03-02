@@ -30,11 +30,9 @@ export class DiscountController extends BaseController {
       const result = await this.discountService.getDiscounts({
         page: req.query.page,
         limit: req.query.limit,
-        status:
+        isActive:
           req.query.isActive !== undefined
             ? req.query.isActive === "true"
-              ? "active"
-              : "inactive"
             : undefined,
         type: req.query.type,
         search: req.query.search,
@@ -115,7 +113,7 @@ export class DiscountController extends BaseController {
         value: req.body.value,
         startsAt: req.body.startsAt,
         endsAt: req.body.endsAt,
-        status: req.body.isActive === false ? "inactive" : "active",
+        isActive: req.body.isActive !== false,
         applyToCategories: req.body.categories !== undefined,
         applyToProducts: req.body.products !== undefined,
         categoryIds: req.body.categories,
@@ -151,11 +149,9 @@ export class DiscountController extends BaseController {
         value: req.body.value,
         startsAt: req.body.startsAt,
         endsAt: req.body.endsAt,
-        status:
+        isActive:
           req.body.isActive !== undefined
-            ? req.body.isActive
-              ? "active"
-              : "inactive"
+            ? Boolean(req.body.isActive)
             : undefined,
         applyToCategories: req.body.categories !== undefined,
         applyToProducts: req.body.products !== undefined,

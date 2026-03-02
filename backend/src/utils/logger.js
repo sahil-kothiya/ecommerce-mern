@@ -1,55 +1,57 @@
-import winston from 'winston';
-import { config } from '../config/index.js';
+import winston from "winston";
+import { config } from "../config/index.js";
 
 const levels = {
-    error: 0,
-    warn: 1,
-    info: 2,
-    http: 3,
-    debug: 4,
+  error: 0,
+  warn: 1,
+  info: 2,
+  http: 3,
+  debug: 4,
 };
 
 const level = () => {
-    const env = config.nodeEnv || 'development';
-    const isDevelopment = env === 'development';
-    return isDevelopment ? 'debug' : config.logLevel;
+  const env = config.nodeEnv || "development";
+  const isDevelopment = env === "development";
+  return isDevelopment ? "debug" : config.logLevel;
 };
 
 const colors = {
-    error: 'red',
-    warn: 'yellow',
-    info: 'green',
-    http: 'magenta',
-    debug: 'white',
+  error: "red",
+  warn: "yellow",
+  info: "green",
+  http: "magenta",
+  debug: "white",
 };
 
 winston.addColors(colors);
 
 const format = winston.format.combine(
-    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
-    winston.format.colorize({ all: true }),
-    winston.format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`)
+  winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:ms" }),
+  winston.format.colorize({ all: true }),
+  winston.format.printf(
+    (info) => `${info.timestamp} ${info.level}: ${info.message}`,
+  ),
 );
 
 const transports = [
-    new winston.transports.Console({
-        silent: config.nodeEnv === 'test',
-    }),
+  new winston.transports.Console({
+    silent: config.nodeEnv === "test",
+  }),
 ];
 
-if (config.nodeEnv !== 'test') {
-    transports.push(
-        new winston.transports.File({
-            filename: 'logs/error.log',
-            level: 'error',
-        })
-    );
-    transports.push(new winston.transports.File({ filename: 'logs/all.log' }));
+if (config.nodeEnv !== "test") {
+  transports.push(
+    new winston.transports.File({
+      filename: "logs/error.log",
+      level: "error",
+    }),
+  );
+  transports.push(new winston.transports.File({ filename: "logs/all.log" }));
 }
 
 export const logger = winston.createLogger({
-    level: level(),
-    levels,
-    format,
-    transports,
+  level: level(),
+  levels,
+  format,
+  transports,
 });

@@ -62,8 +62,8 @@ const Dashboard = () => {
                 title: 'Total Products',
                 value: stats.totalProducts,
                 link: '/admin/products',
-                theme: 'from-[#4250d5] via-[#6a88e2] to-[#a5bbfc]',
-                ring: 'ring-[#d2dff9]/70',
+                theme: 'from-primary-600 via-primary-400 to-primary-300',
+                ring: 'ring-primary-200/70',
                 icon: (
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
@@ -74,8 +74,8 @@ const Dashboard = () => {
                 title: 'Total Users',
                 value: stats.totalUsers,
                 link: '/admin/users',
-                theme: 'from-[#11115b] via-[#4250d5] to-[#6a88e2]',
-                ring: 'ring-[#a7c0f1]/70',
+                theme: 'from-primary-900 via-primary-600 to-primary-400',
+                ring: 'ring-primary-300/70',
                 icon: (
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-5-3.87M9 20H4v-2a4 4 0 015-3.87m8-4a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -86,8 +86,8 @@ const Dashboard = () => {
                 title: 'Total Orders',
                 value: stats.totalOrders,
                 link: '/admin/orders',
-                theme: 'from-[#a5460f] via-[#f9730c] to-[#ffa336]',
-                ring: 'ring-[#ffb053]/70',
+                theme: 'from-secondary-700 via-secondary-500 to-secondary-400',
+                ring: 'ring-secondary-400/70',
                 icon: (
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m1.6 8L5.4 5M7 13l-1.5 7h13" />
@@ -98,8 +98,8 @@ const Dashboard = () => {
                 title: 'Revenue',
                 value: formatCurrency(stats.totalRevenue, settings),
                 link: '/admin/orders',
-                theme: 'from-[#29211d] via-[#0a2156] to-[#4250d5]',
-                ring: 'ring-[#a5bbfc]/70',
+                theme: 'from-slate-800 via-slate-900 to-primary-600',
+                ring: 'ring-primary-300/70',
                 icon: (
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .672-3 1.5S10.343 11 12 11s3 .672 3 1.5S13.657 14 12 14m0-8v2m0 6v2" />
@@ -110,8 +110,8 @@ const Dashboard = () => {
                 title: 'Paid Orders',
                 value: stats.paidOrders,
                 link: '/admin/orders',
-                theme: 'from-[#556adc] via-[#f9730c] to-[#ffb053]',
-                ring: 'ring-[#f0d5ba]/80',
+                theme: 'from-primary-500 via-secondary-500 to-secondary-400',
+                ring: 'ring-secondary-200/80',
                 icon: (
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -129,13 +129,13 @@ const Dashboard = () => {
     return (
         <div className="space-y-8">
             <div className="admin-hero rounded-3xl p-6 text-white sm:p-8">
-                <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-[#ffa336]/30 blur-3xl" />
-                <div className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-[#a5bbfc]/30 blur-3xl" />
+                <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-secondary-400/30 blur-3xl" />
+                <div className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-primary-300/30 blur-3xl" />
                 <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                     <div>
                         <p className="admin-hero-eyebrow text-xs uppercase">Command Center</p>
                         <h1 className="admin-display mt-2 text-3xl leading-tight sm:text-4xl">Sovereign Commerce Dashboard</h1>
-                        <p className="mt-2 max-w-xl text-[#e8effc]">Track live performance, monitor recent activity, and jump into high-impact actions.</p>
+                        <p className="mt-2 max-w-xl text-primary-100">Track live performance, monitor recent activity, and jump into high-impact actions.</p>
                     </div>
                     <div className="flex flex-wrap gap-3">
                         <Link to="/admin/orders" className="admin-button-secondary rounded-full px-5 py-3 text-sm font-semibold">
@@ -162,10 +162,10 @@ const Dashboard = () => {
                         <div className={`rounded-2xl border border-white/20 bg-[#0f172a]/85 p-5 text-white ring-1 ${stat.ring}`}>
                             <div className="mb-4 flex items-center justify-between">
                                 <span className="text-xs uppercase tracking-[0.16em] text-slate-300">{stat.title}</span>
-                                <span className="rounded-lg bg-white/10 p-2 text-[#ffb053]">{stat.icon}</span>
+                                <span className="rounded-lg bg-white/10 p-2 text-secondary-400">{stat.icon}</span>
                             </div>
                             <p className="text-3xl font-black">{stat.value}</p>
-                            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-300/90 group-hover:text-[#ffb053]">View details</p>
+                            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-300/90 group-hover:text-secondary-400">View details</p>
                         </div>
                     </Link>
                 ))}
@@ -189,10 +189,10 @@ const Dashboard = () => {
                                     : formatPrice(pricing.finalPrice, priceCurrency);
 
                                 return (
-                                <div key={product._id || product.title || index} className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-cyan-50 px-3 py-2.5">
+                                <div key={product._id || product.title || index} className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-primary-50 px-3 py-2.5">
                                     <div className="flex items-center justify-between gap-3">
                                         <p className="line-clamp-1 text-sm font-semibold text-slate-900">{product.title || 'Untitled Product'}</p>
-                                        <span className="rounded-md bg-cyan-100 px-2 py-1 text-xs font-bold text-cyan-800">{index + 1}</span>
+                                        <span className="rounded-md bg-primary-100 px-2 py-1 text-xs font-bold text-primary-800">{index + 1}</span>
                                     </div>
                                     <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
                                         <span>{product.status || 'draft'}</span>

@@ -95,10 +95,10 @@ const HeroBanner = ({ banners }) => {
                                         wrapperClassName="h-56 w-full"
                                         className="h-56 w-full object-cover"
                                         rootMargin="0px"
-                                        fallback={<div className="h-56 w-full bg-gradient-to-r from-[#0a2156] via-[#212191] to-[#4250d5]" />}
+                                        fallback={<div className="h-56 w-full bg-gradient-to-r from-slate-900 via-primary-800 to-primary-600" />}
                                     />
                                 ) : (
-                                    <div className="h-56 w-full bg-gradient-to-r from-[#0a2156] via-[#212191] to-[#4250d5]" />
+                                    <div className="h-56 w-full bg-gradient-to-r from-slate-900 via-primary-800 to-primary-600" />
                                 )}
                             </div>
                         );
@@ -116,14 +116,14 @@ const HeroBanner = ({ banners }) => {
                         href={action.href}
                         target={action.target}
                         rel="noopener noreferrer"
-                        className="mt-3 inline-block rounded-xl bg-[#ffa336] px-5 py-2 text-sm font-bold text-white shadow hover:bg-[#f9730c] transition"
+                        className="mt-3 inline-block rounded-xl bg-secondary-400 px-5 py-2 text-sm font-bold text-white shadow hover:bg-secondary-500 transition"
                     >
                         Shop Now →
                     </a>
                 ) : (
                     <Link
                         to={action.href}
-                        className="mt-3 inline-block rounded-xl bg-[#ffa336] px-5 py-2 text-sm font-bold text-white shadow hover:bg-[#f9730c] transition"
+                        className="mt-3 inline-block rounded-xl bg-secondary-400 px-5 py-2 text-sm font-bold text-white shadow hover:bg-secondary-500 transition"
                     >
                         Shop Now →
                     </Link>
@@ -135,8 +135,9 @@ const HeroBanner = ({ banners }) => {
                         <button
                             key={i}
                             onClick={() => setIdx(i)}
+                            aria-label={`Go to slide ${i + 1}`}
                             className={`h-2 rounded-full transition-all ${
-                                i === idx ? 'w-6 bg-[#ffa336]' : 'w-2 bg-white/50 hover:bg-white/80'
+                                i === idx ? 'w-6 bg-secondary-400' : 'w-2 bg-white/50 hover:bg-white/80'
                             }`}
                         />
                     ))}
@@ -455,7 +456,7 @@ const ProductsPage = () => {
                 </p>
                 <StoreNav />
                 {message && (
-                    <div className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-cyan-800">
+                    <div className="rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm text-primary-800">
                         {message}
                     </div>
                 )}
@@ -467,11 +468,13 @@ const ProductsPage = () => {
                     value={filters.search}
                     onChange={(event) => onFilterChange('search', event.target.value)}
                     placeholder="Search products..."
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-cyan-500 focus:ring"
+                    aria-label="Search products"
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-primary-500 focus:ring"
                 />
                 <select
                     value={filters.category}
                     onChange={(event) => onFilterChange('category', event.target.value)}
+                    aria-label="Filter by category"
                     className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
                     <option value="all">All Categories</option>
@@ -484,6 +487,7 @@ const ProductsPage = () => {
                 <select
                     value={filters.brand}
                     onChange={(event) => onFilterChange('brand', event.target.value)}
+                    aria-label="Filter by brand"
                     className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
                     <option value="all">All Brands</option>
@@ -498,6 +502,7 @@ const ProductsPage = () => {
                     value={filters.minPrice}
                     onChange={(event) => onFilterChange('minPrice', event.target.value)}
                     placeholder="Min Price"
+                    aria-label="Minimum price"
                     className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 />
                 <input
@@ -505,6 +510,7 @@ const ProductsPage = () => {
                     value={filters.maxPrice}
                     onChange={(event) => onFilterChange('maxPrice', event.target.value)}
                     placeholder="Max Price"
+                    aria-label="Maximum price"
                     className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 />
             </div>
@@ -513,6 +519,7 @@ const ProductsPage = () => {
                 <select
                     value={filters.sort}
                     onChange={(event) => onFilterChange('sort', event.target.value)}
+                    aria-label="Sort by"
                     className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
                     <option value="newest">Newest</option>
@@ -524,6 +531,7 @@ const ProductsPage = () => {
                 <select
                     value={pageSize}
                     onChange={(event) => onPageSizeChange(event.target.value)}
+                    aria-label="Items per page"
                     className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 >
                     {PAGE_SIZE_OPTIONS.map((size) => (
@@ -571,7 +579,7 @@ const ProductsPage = () => {
                         />
                         <button
                             onClick={saveCurrentFilter}
-                            className="rounded-lg bg-cyan-600 px-3 py-2 text-sm font-medium text-white hover:bg-cyan-700"
+                            className="rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700"
                         >
                             Save
                         </button>
@@ -584,7 +592,7 @@ const ProductsPage = () => {
                                 <div key={entry.name} className="flex items-center justify-between rounded bg-slate-50 px-3 py-2">
                                     <button
                                         onClick={() => applySavedFilter(entry)}
-                                        className="text-sm font-medium text-slate-800 hover:text-cyan-700"
+                                        className="text-sm font-medium text-slate-800 hover:text-primary-700"
                                     >
                                         {entry.name}
                                     </button>
@@ -602,7 +610,7 @@ const ProductsPage = () => {
             </div>
 
             {isLoading ? (
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                     {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
                 </div>
             ) : products.length === 0 ? (
@@ -632,9 +640,11 @@ const ProductsPage = () => {
                                 <button
                                     key={pageNumber}
                                     onClick={() => setPage(pageNumber)}
+                                    aria-label={`Page ${pageNumber}`}
+                                    aria-current={pageNumber === pagination.page ? 'page' : undefined}
                                     className={`rounded-lg px-3 py-1.5 text-sm ${
                                         pageNumber === pagination.page
-                                            ? 'bg-cyan-600 text-white'
+                                            ? 'bg-primary-600 text-white'
                                             : 'border border-slate-300 text-slate-700'
                                     }`}
                                 >
@@ -658,7 +668,7 @@ const ProductsPage = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                         {products.map((product) => {
                             const pricing = getProductDisplayPricing(product);
                             const hasDiscount = pricing.hasDiscount;
@@ -672,15 +682,15 @@ const ProductsPage = () => {
                                 <Link
                                     key={product._id}
                                     to={`/products/${product.slug || product._id}`}
-                                    className="product-card-wrap group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-cyan-300 hover:shadow-md"
+                                    className="product-card-wrap group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-primary-300 hover:shadow-md"
                                 >
                                     <LazyImage
                                         src={imgUrl}
                                         alt={product.title}
-                                        wrapperClassName="h-56 w-full bg-gradient-to-br from-slate-50 to-blue-50"
+                                        wrapperClassName="h-56 w-full bg-gradient-to-br from-slate-50 to-primary-50"
                                         className="h-56 w-full object-cover group-hover:scale-105"
                                         fallback={
-                                            <div className="flex h-56 w-full items-center justify-center bg-gradient-to-br from-slate-100 to-blue-100">
+                                            <div className="flex h-56 w-full items-center justify-center bg-gradient-to-br from-slate-100 to-primary-100">
                                                 <svg className="h-12 w-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                 </svg>

@@ -91,7 +91,7 @@ const VariantTypeForm = () => {
         }
     };
 
-    const fc = (field) => `w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${errors[field] ? 'border-red-400 focus:ring-red-100 bg-red-50' : 'border-slate-300 focus:ring-cyan-100'}`;
+    const fc = (field) => `w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${errors[field] ? 'border-red-400 focus:ring-red-100 bg-red-50' : 'border-slate-300 focus:ring-primary-100'}`;
 
     if (isLoading) {
         return <AdminLoadingState title="Loading variant type..." subtitle="Preparing variant type details" />;
@@ -137,7 +137,7 @@ const VariantTypeForm = () => {
                 </div>
 
                 <div className="flex gap-3 pt-2">
-                    <button type="submit" disabled={isSaving} className="flex-1 rounded-xl bg-cyan-500 px-6 py-3 font-semibold text-slate-900 hover:bg-cyan-400 disabled:opacity-50">
+                    <button type="submit" disabled={isSaving} className="flex-1 rounded-xl bg-primary-500 px-6 py-3 font-semibold text-slate-900 hover:bg-primary-400 disabled:opacity-50">
                         {isSaving ? 'Saving...' : isEdit ? 'Update Type' : 'Create Type'}
                     </button>
                     <button type="button" onClick={() => navigate('/admin/variant-type')} className="rounded-xl border border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700 hover:bg-slate-100">

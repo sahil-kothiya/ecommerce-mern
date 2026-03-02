@@ -120,7 +120,7 @@ const SelectionPanel = ({
     );
 
     const accentStyles = {
-        cyan: 'from-cyan-50 to-sky-50 border-cyan-200 text-cyan-800',
+        cyan: 'from-primary-50 to-sky-50 border-primary-200 text-primary-800',
         amber: 'from-amber-50 to-orange-50 border-amber-200 text-amber-800',
     };
 
@@ -336,11 +336,11 @@ const DiscountForm = () => {
 
     return (
         <div className="w-full px-4 space-y-8 relative">
-            <div className="pointer-events-none absolute top-16 right-8 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl"></div>
+            <div className="pointer-events-none absolute top-16 right-8 h-40 w-40 rounded-full bg-primary-300/20 blur-3xl"></div>
             <div className="pointer-events-none absolute bottom-20 left-8 h-44 w-44 rounded-full bg-sky-300/20 blur-3xl"></div>
 
-            <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-6 sm:p-8 text-white shadow-[0_20px_60px_rgba(15,23,42,0.35)]">
-                <div className="absolute -top-20 -right-10 h-48 w-48 rounded-full bg-cyan-400/20 blur-3xl"></div>
+            <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 sm:p-8 text-white shadow-[0_20px_60px_rgba(15,23,42,0.35)]">
+                <div className="absolute -top-20 -right-10 h-48 w-48 rounded-full bg-primary-400/20 blur-3xl"></div>
                 <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-teal-300/20 blur-3xl"></div>
                 <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div>
@@ -484,7 +484,7 @@ const DiscountForm = () => {
                     <button
                         type="submit"
                         disabled={isSaving}
-                        className="w-full rounded-xl bg-indigo-400 px-6 py-3 font-bold text-slate-900 transition-colors hover:bg-indigo-300 disabled:opacity-50 sm:flex-1"
+                        className="w-full rounded-xl bg-primary-400 px-6 py-3 font-bold text-slate-900 transition-colors hover:bg-primary-300 disabled:opacity-50 sm:flex-1"
                     >
                         {isSaving ? 'Saving...' : isEdit ? 'Update Discount' : 'Create Discount'}
                     </button>

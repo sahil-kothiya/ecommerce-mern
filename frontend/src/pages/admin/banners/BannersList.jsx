@@ -105,9 +105,9 @@ const BannersList = () => {
 
     return (
         <div className="space-y-8">
-            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-6 text-white shadow-lg sm:p-8">
-                <div className="absolute -right-10 -top-20 h-48 w-48 rounded-full bg-indigo-400/20 blur-3xl" />
-                <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-blue-300/20 blur-3xl" />
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 text-white shadow-lg sm:p-8">
+                <div className="absolute -right-10 -top-20 h-48 w-48 rounded-full bg-primary-400/20 blur-3xl" />
+                <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-primary-300/20 blur-3xl" />
                 <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-200/80">Admin Console</p>
@@ -125,7 +125,7 @@ const BannersList = () => {
                         </button>
                         <button
                             onClick={() => navigate('/admin/banners/create')}
-                            className="flex items-center gap-2 rounded-xl bg-indigo-300 px-5 py-3 font-bold text-slate-900 transition-colors hover:bg-indigo-200"
+                            className="flex items-center gap-2 rounded-xl bg-primary-300 px-5 py-3 font-bold text-slate-900 transition-colors hover:bg-primary-200"
                         >
                             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
@@ -149,9 +149,9 @@ const BannersList = () => {
                     <p className="text-xs uppercase tracking-widest text-amber-700">Inactive</p>
                     <p className="mt-2 text-3xl font-black text-amber-800">{inactiveBanners}</p>
                 </div>
-                <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-5 shadow-sm">
-                    <p className="text-xs uppercase tracking-widest text-blue-700">Scheduled</p>
-                    <p className="mt-2 text-3xl font-black text-blue-800">{scheduledBanners}</p>
+                <div className="rounded-2xl border border-primary-200 bg-gradient-to-br from-primary-50 to-white p-5 shadow-sm">
+                    <p className="text-xs uppercase tracking-widest text-primary-700">Scheduled</p>
+                    <p className="mt-2 text-3xl font-black text-primary-800">{scheduledBanners}</p>
                 </div>
                 <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-5 shadow-sm">
                     <p className="text-xs uppercase tracking-widest text-violet-700">Discount Linked</p>
@@ -170,7 +170,7 @@ const BannersList = () => {
                             placeholder="Search by banner title..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
+                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                         />
                         {searchTerm && (
                             <button
@@ -187,7 +187,7 @@ const BannersList = () => {
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                     >
                         <option value="">All Status</option>
                         <option value="active">Active</option>
@@ -222,7 +222,7 @@ const BannersList = () => {
                     {!searchTerm && (
                         <button
                             onClick={() => navigate('/admin/banners/create')}
-                            className="rounded-xl bg-indigo-500 px-6 py-3 font-bold text-white transition-colors hover:bg-indigo-400"
+                            className="rounded-xl bg-primary-500 px-6 py-3 font-bold text-white transition-colors hover:bg-primary-400"
                         >
                             Add Banner
                         </button>
@@ -235,7 +235,7 @@ const BannersList = () => {
                             key={banner._id}
                             className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
                         >
-                            <div className="relative h-48 overflow-hidden bg-gradient-to-br from-slate-100 via-slate-50 to-indigo-100">
+                            <div className="relative h-48 overflow-hidden bg-gradient-to-br from-slate-100 via-slate-50 to-primary-100">
                                 {banner.image ? (
                                     <img
                                         src={getImageUrl(banner.image)}
@@ -252,7 +252,7 @@ const BannersList = () => {
                                         banner.status === 'active'
                                             ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
                                             : banner.status === 'scheduled'
-                                                ? 'border-blue-200 bg-blue-100 text-blue-700'
+                                                ? 'border-primary-200 bg-primary-100 text-primary-700'
                                                 : 'border-amber-200 bg-amber-100 text-amber-700'
                                     }`}>
                                         {banner.status || 'inactive'}
@@ -267,7 +267,7 @@ const BannersList = () => {
                                 )}
 
                                 <div className="flex flex-wrap gap-2">
-                                    <span className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                                    <span className="rounded-lg border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700">
                                         Link: {banner.linkType || banner.link_type || 'none'}
                                     </span>
                                     {banner.link ? (

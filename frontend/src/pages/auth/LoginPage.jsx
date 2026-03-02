@@ -167,32 +167,36 @@ const LoginPage = () => {
 
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
                         <div>
-                            <label className="mb-2 block text-sm font-semibold text-slate-700">Email Address</label>
+                            <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">Email Address</label>
                             <input
+                                id="email"
                                 type="email"
                                 {...register('email')}
                                 className={getFieldClasses(errors, serverErrors, 'email')}
                                 placeholder="your@email.com"
                                 autoComplete="email"
+                                aria-invalid={errors.email ? true : undefined}
                             />
                             <FieldError error={getFieldError(errors, serverErrors, 'email')} />
                         </div>
 
                         <div>
-                            <label className="mb-2 block text-sm font-semibold text-slate-700">Password</label>
+                            <label htmlFor="password" className="mb-2 block text-sm font-semibold text-slate-700">Password</label>
                             <div className="relative">
                                 <input
+                                    id="password"
                                     type={showPassword ? 'text' : 'password'}
                                     {...register('password')}
                                     className={getFieldClasses(errors, serverErrors, 'password')}
                                     placeholder="••••••••"
                                     autoComplete="current-password"
+                                    aria-invalid={errors.password ? true : undefined}
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(prev => !prev)}
+                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
-                                    tabIndex={-1}
                                 >
                                     {showPassword ? (
                                         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>
@@ -209,7 +213,7 @@ const LoginPage = () => {
                                 <input
                                     type="checkbox"
                                     {...register('rememberMe')}
-                                    className="cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                    className="cursor-pointer rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                                 />
                                 <span className="ml-2 text-sm text-slate-600">
                                     Remember me
@@ -219,7 +223,7 @@ const LoginPage = () => {
 
                             <Link
                                 to="/forgot-password"
-                                className="text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+                                className="text-sm font-semibold text-primary-600 transition-colors hover:text-primary-700"
                             >
                                 Forgot password?
                             </Link>
@@ -237,15 +241,15 @@ const LoginPage = () => {
                     <div className="mt-6 text-center">
                         <p className="text-slate-600">
                             Don&apos;t have an account?{' '}
-                            <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700">
+                            <Link to="/register" className="font-semibold text-primary-600 hover:text-primary-700">
                                 Create one
                             </Link>
                         </p>
                     </div>
 
                     <>
-                        <div className="glass-panel interactive-card mt-7 rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50 to-blue-50 p-4">
-                            <p className="mb-3 text-sm font-semibold text-indigo-900">Quick Login:</p>
+                        <div className="glass-panel interactive-card mt-7 rounded-2xl border border-primary-100 bg-gradient-to-r from-primary-50 to-primary-50/50 p-4">
+                            <p className="mb-3 text-sm font-semibold text-primary-900">Quick Login:</p>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <button
                                     type="button"

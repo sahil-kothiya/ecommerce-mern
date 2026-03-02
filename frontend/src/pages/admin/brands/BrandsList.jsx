@@ -97,8 +97,8 @@ const BrandsList = () => {
 
     return (
         <div className="space-y-8">
-                        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-6 sm:p-8 text-white shadow-lg">
-                <div className="absolute -top-20 -right-10 h-48 w-48 rounded-full bg-cyan-400/20 blur-3xl" />
+                        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 sm:p-8 text-white shadow-lg">
+                <div className="absolute -top-20 -right-10 h-48 w-48 rounded-full bg-primary-400/20 blur-3xl" />
                 <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-teal-300/20 blur-3xl" />
                 <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
@@ -117,7 +117,7 @@ const BrandsList = () => {
                         </button>
                         <button
                             onClick={() => navigate('/admin/brands/create')}
-                            className="px-5 py-3 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-900 font-bold transition-colors flex items-center gap-2"
+                            className="px-5 py-3 rounded-xl bg-primary-400 hover:bg-primary-300 text-slate-900 font-bold transition-colors flex items-center gap-2"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
@@ -141,9 +141,9 @@ const BrandsList = () => {
                     <p className="text-xs uppercase tracking-widest text-amber-700">Inactive</p>
                     <p className="mt-2 text-3xl font-black text-amber-800">{inactiveBrands}</p>
                 </div>
-                <div className="rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 to-white p-5 shadow-sm">
-                    <p className="text-xs uppercase tracking-widest text-cyan-700">With Logo</p>
-                    <p className="mt-2 text-3xl font-black text-cyan-800">{brandsWithLogo}</p>
+                <div className="rounded-2xl border border-primary-200 bg-gradient-to-br from-primary-50 to-white p-5 shadow-sm">
+                    <p className="text-xs uppercase tracking-widest text-primary-700">With Logo</p>
+                    <p className="mt-2 text-3xl font-black text-primary-800">{brandsWithLogo}</p>
                 </div>
             </div>
 
@@ -158,7 +158,7 @@ const BrandsList = () => {
                             placeholder="Search by brand title..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full px-4 py-3 pl-10 pr-10 border border-slate-300 rounded-xl focus:ring-2 focus:ring-cyan-300 focus:border-cyan-400 text-slate-800"
+                            className="w-full px-4 py-3 pl-10 pr-10 border border-slate-300 rounded-xl focus:ring-2 focus:ring-primary-300 focus:border-primary-400 text-slate-800"
                         />
                         {searchTerm && (
                             <button
@@ -175,7 +175,7 @@ const BrandsList = () => {
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:ring-2 focus:ring-cyan-300 focus:border-cyan-400"
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:ring-2 focus:ring-primary-300 focus:border-primary-400"
                     >
                         <option value="">All Status</option>
                         <option value="active">Active</option>
@@ -209,7 +209,7 @@ const BrandsList = () => {
                     {!searchTerm && (
                         <button
                             onClick={() => navigate('/admin/brands/create')}
-                            className="px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-900 rounded-xl font-bold transition-colors"
+                            className="px-6 py-3 bg-primary-500 hover:bg-primary-400 text-slate-900 rounded-xl font-bold transition-colors"
                         >
                             Add Brand
                         </button>
@@ -222,7 +222,7 @@ const BrandsList = () => {
                             key={brand._id}
                             className="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
                         >
-                                                        <div className="relative bg-gradient-to-br from-slate-100 via-slate-50 to-cyan-100 h-48 flex items-center justify-center">
+                                                        <div className="relative bg-gradient-to-br from-slate-100 via-slate-50 to-primary-100 h-48 flex items-center justify-center">
                                 <span className={`absolute top-3 right-3 px-3 py-1 text-[11px] font-semibold rounded-full ${
                                     brand.status === 'active'
                                         ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
@@ -264,7 +264,7 @@ const BrandsList = () => {
                                         {(brand.banners && brand.banners.length) || 0} banner{(brand.banners && brand.banners.length) === 1 ? '' : 's'}
                                     </span>
                                     {brand.logo && (
-                                        <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-cyan-50 text-cyan-700 border border-cyan-200">
+                                        <span className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-primary-50 text-primary-700 border border-primary-200">
                                             Logo added
                                         </span>
                                     )}

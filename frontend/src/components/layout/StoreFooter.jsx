@@ -56,6 +56,7 @@ const StoreFooter = () => {
                 const cats = Array.isArray(data?.data) ? data.data : (data?.data?.categories || []);
                 setCategories(cats.slice(0, 6));
             } catch {
+                // Categories are non-critical, silently skip on failure
             }
         };
         fetchCategories();
@@ -79,11 +80,11 @@ const StoreFooter = () => {
                                 {logoUrl ? <img src={logoUrl} alt={siteName} className="h-full w-full object-cover" /> : brandMark}
                             </span>
                             <div>
-                                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#a5bbfc]">{siteTagline || 'Creator Store'}</p>
+                                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-primary-300">{siteTagline || 'Creator Store'}</p>
                                 <p className="store-display text-base text-white">{siteName}</p>
                             </div>
                         </div>
-                        <p className="text-sm leading-relaxed text-[#8fa8d8]">
+                        <p className="text-sm leading-relaxed text-slate-400">
                             {settings?.metaDescription || 'Your trusted partner for premium products and smooth online shopping.'}
                         </p>
                         {socialLinks.length > 0 && (
@@ -95,7 +96,7 @@ const StoreFooter = () => {
                                         target="_blank"
                                         rel="noreferrer"
                                         aria-label={social.label}
-                                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-[rgba(165,187,252,0.2)] bg-[rgba(165,187,252,0.08)] text-[#a5bbfc] transition hover:border-[rgba(165,187,252,0.45)] hover:bg-[rgba(165,187,252,0.18)] hover:text-white"
+                                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary-500/20 bg-primary-500/10 text-primary-300 transition hover:border-primary-400/40 hover:bg-primary-500/20 hover:text-white"
                                     >
                                         {SOCIAL_ICONS[social.key]}
                                     </a>
@@ -105,17 +106,17 @@ const StoreFooter = () => {
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-[#a5bbfc]">Categories</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-primary-300">Categories</h3>
                         <ul className="space-y-2">
                             {categories.map((cat) => (
                                 <li key={cat._id || cat.slug}>
-                                    <Link to={`/products?category=${cat.slug}`} className="text-sm text-[#8fa8d8] transition hover:text-[#a5bbfc]">
+                                    <Link to={`/products?category=${cat.slug}`} className="text-sm text-slate-400 transition hover:text-primary-300">
                                         {cat.title}
                                     </Link>
                                 </li>
                             ))}
                             <li>
-                                <Link to="/products" className="text-sm font-semibold text-[#ffa336] hover:text-[#f9730c] transition">
+                                <Link to="/products" className="text-sm font-semibold text-secondary-400 hover:text-secondary-300 transition">
                                     View All {'->'}
                                 </Link>
                             </li>
@@ -123,21 +124,21 @@ const StoreFooter = () => {
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-[#a5bbfc]">Quick Links</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-primary-300">Quick Links</h3>
                         <ul className="space-y-2">
                             {QUICK_LINKS.map((link) => (
                                 <li key={link.label}>
-                                    <Link to={link.href} className="text-sm text-[#8fa8d8] transition hover:text-[#a5bbfc]">{link.label}</Link>
+                                    <Link to={link.href} className="text-sm text-slate-400 transition hover:text-primary-300">{link.label}</Link>
                                 </li>
                             ))}
                         </ul>
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-[#a5bbfc]">Stay Connected</h3>
-                        <p className="text-sm text-[#8fa8d8]">Subscribe for exclusive offers and new product alerts.</p>
+                        <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-primary-300">Stay Connected</h3>
+                        <p className="text-sm text-slate-400">Subscribe for exclusive offers and new product alerts.</p>
                         {subscribed ? (
-                            <div className="rounded-xl border border-[rgba(165,187,252,0.25)] bg-[rgba(165,187,252,0.1)] p-4 text-sm font-semibold text-[#a5bbfc]">
+                            <div className="rounded-xl border border-primary-400/25 bg-primary-500/10 p-4 text-sm font-semibold text-primary-300">
                                 You're subscribed. Thanks for joining.
                             </div>
                         ) : (
@@ -148,14 +149,14 @@ const StoreFooter = () => {
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="Enter your email"
                                     required
-                                    className="w-full rounded-xl border border-[rgba(165,187,252,0.25)] bg-[rgba(255,255,255,0.06)] px-4 py-2.5 text-sm text-white placeholder-[#5a7ab8] outline-none focus:border-[rgba(165,187,252,0.55)] focus:bg-[rgba(255,255,255,0.1)]"
+                                    className="w-full rounded-xl border border-primary-400/25 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-primary-400/50 focus:bg-white/10"
                                 />
                                 <button type="submit" className="store-btn-primary w-full rounded-xl px-4 py-2.5 text-sm">
                                     Subscribe Now
                                 </button>
                             </form>
                         )}
-                        <div className="space-y-1 pt-1 text-xs text-[#8fa8d8]">
+                        <div className="space-y-1 pt-1 text-xs text-slate-400">
                             {settings?.supportEmail && <p>Support: {settings.supportEmail}</p>}
                             {settings?.phone && <p>Phone: {settings.phone}</p>}
                             {settings?.address && <p>{settings.address}</p>}
@@ -164,14 +165,14 @@ const StoreFooter = () => {
                 </div>
             </div>
 
-            <div className="border-t border-[rgba(165,187,252,0.15)]">
+            <div className="border-t border-primary-400/15">
                 <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
                     <div className="flex flex-col items-center justify-between gap-3 md:flex-row">
-                        <p className="text-xs text-[#5a7ab8]">
+                        <p className="text-xs text-slate-500">
                             © {new Date().getFullYear()} {siteName}. All rights reserved.
                         </p>
                         <div className="flex items-center gap-4">
-                            <span className="text-xs text-[#5a7ab8]">Currency: {settings?.currencyCode || 'USD'}</span>
+                            <span className="text-xs text-slate-500">Currency: {settings?.currencyCode || 'USD'}</span>
                         </div>
                     </div>
                 </div>

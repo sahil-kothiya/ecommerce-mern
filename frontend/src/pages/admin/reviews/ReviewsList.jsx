@@ -104,8 +104,8 @@ const ReviewsList = () => {
 
     return (
         <div className="space-y-8">
-            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-6 sm:p-8 text-white shadow-lg">
-                <div className="absolute -top-20 -right-10 h-48 w-48 rounded-full bg-cyan-400/20 blur-3xl"></div>
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 sm:p-8 text-white shadow-lg">
+                <div className="absolute -top-20 -right-10 h-48 w-48 rounded-full bg-primary-400/20 blur-3xl"></div>
                 <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-teal-300/20 blur-3xl"></div>
                 <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
@@ -148,7 +148,7 @@ const ReviewsList = () => {
                             type="text"
                             value={filters.search}
                             onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                             placeholder="Search by title/comment"
                         />
                         {filters.search && (
@@ -167,7 +167,7 @@ const ReviewsList = () => {
                     <select
                         value={filters.status}
                         onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
-                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                     >
                         <option value="">All status</option>
                         <option value="active">Active</option>
@@ -176,7 +176,7 @@ const ReviewsList = () => {
                     <select
                         value={filters.productId}
                         onChange={(e) => setFilters((prev) => ({ ...prev, productId: e.target.value }))}
-                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                     >
                         <option value="">All products</option>
                         {products.map((product) => (
@@ -199,7 +199,7 @@ const ReviewsList = () => {
                 </div>
                 <p className="mt-3 text-sm text-slate-500">
                     Showing <span className="font-semibold text-slate-800">{reviews.length}</span> result{reviews.length !== 1 ? 's' : ''}.
-                    {isFetching ? <span className="ml-2 font-semibold text-cyan-700"> Updating...</span> : null}
+                    {isFetching ? <span className="ml-2 font-semibold text-primary-700"> Updating...</span> : null}
                 </p>
             </div>
 

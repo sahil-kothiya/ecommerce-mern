@@ -160,7 +160,7 @@ const CouponForm = () => {
         }
     };
 
-    const fc = (field) => `w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${errors[field] ? 'border-red-400 focus:ring-red-100 bg-red-50' : 'border-slate-300 focus:ring-cyan-100'}`;
+    const fc = (field) => `w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${errors[field] ? 'border-red-400 focus:ring-red-100 bg-red-50' : 'border-slate-300 focus:ring-primary-100'}`;
 
     if (isLoading) {
         return (
@@ -175,7 +175,7 @@ const CouponForm = () => {
 
     return (
         <div className="space-y-8">
-            <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-6 text-white shadow-lg sm:p-8">
+            <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 text-white shadow-lg sm:p-8">
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-200/80">Coupon Studio</p>
                 <h1 className="mt-2 text-3xl font-black leading-tight sm:text-4xl">{isEdit ? 'Edit Coupon' : 'Create Coupon'}</h1>
                 <p className="mt-2 text-slate-200/90">Configure checkout coupon rules and validity window.</p>
@@ -236,7 +236,7 @@ const CouponForm = () => {
                     </div>
                     <div className="md:col-span-2">
                         <label className="mb-2 block text-sm font-semibold text-slate-700">Description</label>
-                        <textarea {...register('description')} rows="3" className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-100" placeholder="Optional description for admin reference" />
+                        <textarea {...register('description')} rows="3" className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-100" placeholder="Optional description for admin reference" />
                     </div>
                 </div>
 
@@ -244,7 +244,7 @@ const CouponForm = () => {
                     <button type="button" onClick={() => navigate('/admin/coupons')} className="w-full rounded-xl border border-slate-300 bg-white px-6 py-3 font-semibold text-slate-800 transition-colors hover:bg-slate-100 sm:w-auto">
                         Cancel
                     </button>
-                    <button type="submit" disabled={isSaving} className="w-full rounded-xl bg-indigo-400 px-6 py-3 font-bold text-slate-900 transition-colors hover:bg-indigo-300 disabled:opacity-50 sm:flex-1">
+                    <button type="submit" disabled={isSaving} className="w-full rounded-xl bg-primary-400 px-6 py-3 font-bold text-slate-900 transition-colors hover:bg-primary-300 disabled:opacity-50 sm:flex-1">
                         {isSaving ? 'Saving...' : isEdit ? 'Update Coupon' : 'Create Coupon'}
                     </button>
                 </div>

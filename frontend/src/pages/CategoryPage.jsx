@@ -66,7 +66,7 @@ const CategoryPage = () => {
                             <Link
                                 key={product._id}
                                 to={`/products/${product.slug || product._id}`}
-                                className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-cyan-300 hover:shadow-md"
+                                className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-primary-300 hover:shadow-md"
                             >
                                 <h2 className="line-clamp-2 text-sm font-semibold text-slate-900">{product.title}</h2>
                                 <p className="mt-2 text-sm text-slate-600">

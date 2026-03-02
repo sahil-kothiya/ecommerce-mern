@@ -6,7 +6,7 @@ const RETURN_STATUS_STYLES = {
     pending: 'bg-yellow-100 text-yellow-700',
     approved: 'bg-green-100 text-green-700',
     rejected: 'bg-red-100 text-red-700',
-    completed: 'bg-blue-100 text-blue-700',
+    completed: 'bg-primary-100 text-primary-700',
 };
 
 const AccountReturns = () => {
@@ -31,7 +31,7 @@ const AccountReturns = () => {
     if (isLoading) {
         return (
             <div className="flex min-h-[40vh] items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
             </div>
         );
     }
@@ -78,7 +78,7 @@ const AccountReturns = () => {
                             </div>
 
                             {req.adminNote && (
-                                <div className="mt-3 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700 ring-1 ring-blue-100">
+                                <div className="mt-3 rounded-xl bg-primary-50 px-4 py-3 text-sm text-primary-700 ring-1 ring-primary-100">
                                     <p className="font-medium">Store note:</p>
                                     <p>{req.adminNote}</p>
                                 </div>

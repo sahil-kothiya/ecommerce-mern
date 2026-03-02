@@ -8,7 +8,7 @@ import { useSiteSettings } from '../../context/useSiteSettings';
 import { formatCurrency } from '../../utils/currency';
 
 const STATUS_CONFIG = {
-    new:       { label: 'Order Placed',  badge: 'bg-blue-100 text-blue-700 ring-blue-200',      dot: 'bg-blue-500',   step: 1 },
+    new:       { label: 'Order Placed',  badge: 'bg-primary-100 text-primary-700 ring-primary-200',      dot: 'bg-primary-500',   step: 1 },
     process:   { label: 'Processing',    badge: 'bg-yellow-100 text-yellow-700 ring-yellow-200', dot: 'bg-yellow-500', step: 2 },
     shipped:   { label: 'Shipped',       badge: 'bg-purple-100 text-purple-700 ring-purple-200', dot: 'bg-purple-500', step: 3 },
     delivered: { label: 'Delivered',     badge: 'bg-green-100 text-green-700 ring-green-200',    dot: 'bg-green-500',  step: 4 },
@@ -60,7 +60,7 @@ const OrderTracker = ({ status }) => {
             <div className="absolute left-0 right-0 top-4 mx-8 h-0.5 bg-slate-200" />
             {/* Active progress */}
             <div
-                className="absolute left-0 top-4 mx-8 h-0.5 bg-blue-500 transition-all duration-700"
+                className="absolute left-0 top-4 mx-8 h-0.5 bg-primary-500 transition-all duration-700"
                 style={{ width: `${((currentStep - 1) / (TRACKING_STEPS.length - 1)) * 100}%` }}
             />
             {TRACKING_STEPS.map(({ step, label }) => {
@@ -69,8 +69,8 @@ const OrderTracker = ({ status }) => {
                 return (
                     <div key={step} className="relative z-10 flex min-w-[60px] flex-col items-center gap-2">
                         <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors duration-300 ${
-                            done   ? 'border-blue-500 bg-blue-500 text-white' :
-                            active ? 'border-blue-500 bg-white text-blue-600 shadow-md shadow-blue-100' :
+                            done   ? 'border-primary-500 bg-primary-500 text-white' :
+                            active ? 'border-primary-500 bg-white text-primary-600 shadow-md shadow-primary-100' :
                                      'border-slate-200 bg-white text-slate-400'
                         }`}>
                             {done ? (
@@ -82,7 +82,7 @@ const OrderTracker = ({ status }) => {
                             )}
                         </div>
                         <span className={`text-center text-xs font-medium leading-tight ${
-                            active ? 'text-blue-700' : done ? 'text-blue-500' : 'text-slate-400'
+                            active ? 'text-primary-700' : done ? 'text-primary-500' : 'text-slate-400'
                         }`}>{label}</span>
                     </div>
                 );
@@ -135,7 +135,7 @@ const ItemRow = ({ item, orderId, canReview, settings }) => {
 
             <div className="min-w-0 flex-1">
                 {productLink ? (
-                    <Link to={productLink} className="font-semibold leading-snug text-slate-800 hover:text-blue-600 transition-colors">
+                    <Link to={productLink} className="font-semibold leading-snug text-slate-800 hover:text-primary-600 transition-colors">
                         {title}
                     </Link>
                 ) : (
@@ -153,7 +153,7 @@ const ItemRow = ({ item, orderId, canReview, settings }) => {
                 {canReview && productLink && (
                     <Link
                         to={`${productLink}?orderId=${orderId}`}
-                        className="mt-2 inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                        className="mt-2 inline-flex items-center rounded-lg border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700 hover:bg-primary-100"
                     >
                         Rate & Review
                     </Link>
@@ -326,7 +326,7 @@ const AccountOrders = () => {
     if (isLoading) {
         return (
             <div className="flex min-h-[40vh] items-center justify-center">
-                <div className="h-9 w-9 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+                <div className="h-9 w-9 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
             </div>
         );
     }
@@ -344,7 +344,7 @@ const AccountOrders = () => {
                 <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                     <option value="">All Orders</option>
                     <option value="new">New</option>
@@ -379,7 +379,7 @@ const AccountOrders = () => {
                     <p className="font-medium text-slate-500">
                         {statusFilter ? `No ${statusFilter} orders found.` : "You haven't placed any orders yet."}
                     </p>
-                    <Link to="/products" className="mt-4 inline-block rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700">
+                    <Link to="/products" className="mt-4 inline-block rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700">
                         Start Shopping
                     </Link>
                 </div>
@@ -492,7 +492,7 @@ const AccountOrders = () => {
                                             <button
                                                 onClick={() => handleReorder(order._id)}
                                                 disabled={!!actionOrderId}
-                                                className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 {actionOrderId === order._id ? (
                                                     <span className="flex items-center gap-2">

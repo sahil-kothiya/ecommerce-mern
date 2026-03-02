@@ -44,7 +44,7 @@ const CategoryForm = () => {
     });
 
     const fc = (field) =>
-        `w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-300'}`;
+        `w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 ${errors[field] ? 'border-red-500 bg-red-50' : 'border-gray-300'}`;
 
     const watchSummary = watch('summary', '');
     const watchSeoTitle = watch('seoTitle', '');
@@ -254,7 +254,7 @@ const CategoryForm = () => {
         return (
             <div className="flex items-center justify-center h-screen">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600 mx-auto mb-4"></div>
                     <p className="text-lg text-gray-700">Loading category...</p>
                 </div>
             </div>
@@ -298,7 +298,7 @@ const CategoryForm = () => {
                             {...register('summary')}
                             rows="3"
                             maxLength="500"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                             placeholder="Brief category description"
                         />
                         <p className="mt-1 text-sm text-gray-500">{watchSummary.length}/500</p>
@@ -310,7 +310,7 @@ const CategoryForm = () => {
                         </label>
                         <select
                             {...register('parentId')}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                         >
                             <option value="">None (Top Level)</option>
                             {categories
@@ -441,7 +441,7 @@ const CategoryForm = () => {
                             </label>
                             <select
                                 {...register('status')}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                             >
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
@@ -456,7 +456,7 @@ const CategoryForm = () => {
                                 {...register('sortOrder')}
                                 type="number"
                                 min="0"
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                             />
                         </div>
                     </div>
@@ -466,7 +466,7 @@ const CategoryForm = () => {
                             <input
                                 {...register('isFeatured')}
                                 type="checkbox"
-                                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                                className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
                             />
                             <span className="text-sm font-medium text-gray-700">Featured Category</span>
                         </label>
@@ -475,7 +475,7 @@ const CategoryForm = () => {
                             <input
                                 {...register('isNavigationVisible')}
                                 type="checkbox"
-                                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                                className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
                             />
                             <span className="text-sm font-medium text-gray-700">Show in Navigation</span>
                         </label>
@@ -493,7 +493,7 @@ const CategoryForm = () => {
                             {...register('seoTitle')}
                             type="text"
                             maxLength="60"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                             placeholder="SEO optimized title"
                         />
                         {errors.seoTitle && <p className="mt-1 text-sm text-red-600">{errors.seoTitle.message}</p>}
@@ -508,7 +508,7 @@ const CategoryForm = () => {
                             {...register('seoDescription')}
                             maxLength="160"
                             rows="2"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                             placeholder="Meta description for search engines"
                         />
                         {errors.seoDescription && <p className="mt-1 text-sm text-red-600">{errors.seoDescription.message}</p>}
@@ -520,7 +520,7 @@ const CategoryForm = () => {
                     <button
                         type="submit"
                         disabled={isSaving}
-                        className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
+                        className="flex-1 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
                     >
                         {isSaving ? 'Saving...' : isEdit ? 'Update Category' : 'Create Category'}
                     </button>

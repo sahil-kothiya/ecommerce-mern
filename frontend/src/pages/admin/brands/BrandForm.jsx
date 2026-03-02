@@ -38,7 +38,7 @@ const BrandForm = () => {
         defaultValues: { title: '', description: '', status: 'active' },
         mode: 'onBlur',
     });
-    const fc = (field) => `w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-cyan-300 focus:border-cyan-400 text-slate-900 ${errors[field] ? 'border-red-400 bg-red-50' : 'border-slate-200'}`;
+    const fc = (field) => `w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-300 focus:border-primary-400 text-slate-900 ${errors[field] ? 'border-red-400 bg-red-50' : 'border-slate-200'}`;
 
     const getImageUrl = (path) => {
         if (!path) return '';
@@ -219,11 +219,11 @@ const BrandForm = () => {
 
     return (
         <div className="w-full px-4 space-y-8 relative">
-            <div className="pointer-events-none absolute top-16 right-8 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
+            <div className="pointer-events-none absolute top-16 right-8 h-40 w-40 rounded-full bg-primary-300/20 blur-3xl" />
             <div className="pointer-events-none absolute bottom-20 left-8 h-44 w-44 rounded-full bg-sky-300/20 blur-3xl" />
 
-            <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-6 sm:p-8 text-white shadow-[0_20px_60px_rgba(15,23,42,0.35)]">
-                <div className="absolute -top-20 -right-10 h-48 w-48 rounded-full bg-cyan-400/20 blur-3xl" />
+            <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 sm:p-8 text-white shadow-[0_20px_60px_rgba(15,23,42,0.35)]">
+                <div className="absolute -top-20 -right-10 h-48 w-48 rounded-full bg-primary-400/20 blur-3xl" />
                 <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-teal-300/20 blur-3xl" />
                 <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div>
@@ -267,7 +267,7 @@ const BrandForm = () => {
                         <div className="media-card">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-black text-slate-900">Brand Logo (Optional)</h2>
-                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-cyan-100 to-sky-100 text-cyan-700 border border-cyan-200">
+                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary-100 to-sky-100 text-primary-700 border border-primary-200">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
                                     </svg>
@@ -283,7 +283,7 @@ const BrandForm = () => {
                                             <img
                                                 src={logoPreview || getImageUrl(existingLogo)}
                                                 alt="Logo preview"
-                                                className="w-full aspect-square object-contain bg-gradient-to-br from-slate-100 to-cyan-100 rounded-xl border-2 border-slate-200 p-5"
+                                                className="w-full aspect-square object-contain bg-gradient-to-br from-slate-100 to-primary-100 rounded-xl border-2 border-slate-200 p-5"
                                             />
                                             <button
                                                 type="button"
@@ -326,7 +326,7 @@ const BrandForm = () => {
                         <div className="bg-white/95 backdrop-blur rounded-3xl shadow-[0_10px_30px_rgba(15,23,42,0.08)] border border-slate-200 p-6 sm:p-7 space-y-6 transition-all hover:shadow-[0_20px_40px_rgba(15,23,42,0.12)]">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-xl font-black text-slate-900">Basic Information</h2>
-                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-100 to-sky-100 text-indigo-700 border border-indigo-200">
+                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary-100 to-sky-100 text-primary-700 border border-primary-200">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z" />
                                     </svg>
@@ -471,7 +471,7 @@ const BrandForm = () => {
                     <button
                         type="submit"
                         disabled={isSaving}
-                        className="w-full rounded-xl bg-indigo-400 px-6 py-3 font-bold text-slate-900 transition-colors hover:bg-indigo-300 disabled:opacity-50 sm:flex-1"
+                        className="w-full rounded-xl bg-primary-400 px-6 py-3 font-bold text-slate-900 transition-colors hover:bg-primary-300 disabled:opacity-50 sm:flex-1"
                     >
                         {isSaving ? 'Saving...' : isEdit ? 'Update Brand' : 'Create Brand'}
                     </button>

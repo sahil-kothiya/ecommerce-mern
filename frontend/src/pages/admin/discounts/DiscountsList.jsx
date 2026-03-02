@@ -71,8 +71,8 @@ const DiscountsList = () => {
 
     return (
         <div className="space-y-8">
-            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-6 sm:p-8 text-white shadow-lg">
-                <div className="absolute -top-20 -right-10 h-48 w-48 rounded-full bg-cyan-400/20 blur-3xl"></div>
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 sm:p-8 text-white shadow-lg">
+                <div className="absolute -top-20 -right-10 h-48 w-48 rounded-full bg-primary-400/20 blur-3xl"></div>
                 <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-teal-300/20 blur-3xl"></div>
                 <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
@@ -93,7 +93,7 @@ const DiscountsList = () => {
                         <button
                             type="button"
                             onClick={() => navigate('/admin/discounts/create')}
-                            className="px-5 py-3 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-900 font-bold transition-colors"
+                            className="px-5 py-3 rounded-xl bg-primary-400 hover:bg-primary-300 text-slate-900 font-bold transition-colors"
                         >
                             + Add Discount
                         </button>
@@ -114,9 +114,9 @@ const DiscountsList = () => {
                     <p className="text-xs uppercase tracking-widest text-amber-700">Inactive</p>
                     <p className="mt-2 text-3xl font-black text-amber-800">{discounts.length - activeCount}</p>
                 </div>
-                <div className="rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 to-white p-5 shadow-sm">
-                    <p className="text-xs uppercase tracking-widest text-cyan-700">Coverage</p>
-                    <p className="mt-2 text-3xl font-black text-cyan-800">
+                <div className="rounded-2xl border border-primary-200 bg-gradient-to-br from-primary-50 to-white p-5 shadow-sm">
+                    <p className="text-xs uppercase tracking-widest text-primary-700">Coverage</p>
+                    <p className="mt-2 text-3xl font-black text-primary-800">
                         {discounts.reduce((sum, item) => sum + ((item.categories || []).length + (item.products || []).length), 0)}
                     </p>
                 </div>
@@ -133,7 +133,7 @@ const DiscountsList = () => {
                             placeholder="Search by discount title..."
                             value={searchTerm}
                             onChange={(event) => setSearchTerm(event.target.value)}
-                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                         />
                         {searchTerm && (
                             <button
@@ -151,7 +151,7 @@ const DiscountsList = () => {
                     <select
                         value={typeFilter}
                         onChange={(event) => setTypeFilter(event.target.value)}
-                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                     >
                         <option value="">All Types</option>
                         <option value="percentage">Percentage</option>
@@ -160,7 +160,7 @@ const DiscountsList = () => {
                     <select
                         value={statusFilter}
                         onChange={(event) => setStatusFilter(event.target.value)}
-                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                     >
                         <option value="">All Status</option>
                         <option value="true">Active</option>

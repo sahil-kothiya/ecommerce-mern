@@ -45,7 +45,7 @@ export const getFieldClasses = (errors, serverErrors, fieldName) => {
   const error =
     "border-red-400 bg-red-50/40 focus:border-red-400 focus:ring-red-100 placeholder-red-300";
   const valid =
-    "border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-100";
+    "border-gray-300 bg-white focus:border-primary-500 focus:ring-primary-100";
 
   const hasError = errors[fieldName] || serverErrors[fieldName];
   return `${base} ${hasError ? error : valid}`;

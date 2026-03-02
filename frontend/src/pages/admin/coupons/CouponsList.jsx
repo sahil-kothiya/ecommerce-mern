@@ -82,7 +82,7 @@ const CouponsList = () => {
 
     return (
         <div className="space-y-8">
-            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-6 text-white shadow-lg sm:p-8">
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 text-white shadow-lg sm:p-8">
                 <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-200/80">Admin Console</p>
@@ -93,7 +93,7 @@ const CouponsList = () => {
                         <button type="button" onClick={loadCoupons} className="rounded-xl border border-white/30 bg-white/10 px-5 py-3 font-semibold backdrop-blur-sm transition-all hover:bg-white/20">
                             Refresh
                         </button>
-                        <button type="button" onClick={() => navigate('/admin/coupons/create')} className="rounded-xl bg-cyan-400 px-5 py-3 font-bold text-slate-900 transition-colors hover:bg-cyan-300">
+                        <button type="button" onClick={() => navigate('/admin/coupons/create')} className="rounded-xl bg-primary-400 px-5 py-3 font-bold text-slate-900 transition-colors hover:bg-primary-300">
                             + Add Coupon
                         </button>
                     </div>
@@ -126,7 +126,7 @@ const CouponsList = () => {
                             placeholder="Search by code or description..."
                             value={searchTerm}
                             onChange={(event) => setSearchTerm(event.target.value)}
-                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                         />
                         {searchTerm && (
                             <button
@@ -144,7 +144,7 @@ const CouponsList = () => {
                     <select
                         value={typeFilter}
                         onChange={(event) => setTypeFilter(event.target.value)}
-                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                     >
                         <option value="">All Types</option>
                         <option value="percent">Percent</option>
@@ -153,7 +153,7 @@ const CouponsList = () => {
                     <select
                         value={statusFilter}
                         onChange={(event) => setStatusFilter(event.target.value)}
-                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                     >
                         <option value="">All Status</option>
                         <option value="active">Active</option>

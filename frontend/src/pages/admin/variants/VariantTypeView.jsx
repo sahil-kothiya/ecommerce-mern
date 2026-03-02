@@ -86,7 +86,7 @@ const VariantTypeView = () => {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-6 text-white shadow-lg sm:p-8">
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 text-white shadow-lg sm:p-8">
                 <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-200/80">Variant Studio</p>
@@ -101,7 +101,7 @@ const VariantTypeView = () => {
                         </button>
                         <button
                             onClick={() => navigate('/admin/variant-option/create')}
-                            className="rounded-xl bg-cyan-400 px-5 py-2.5 font-bold text-slate-900 hover:bg-cyan-300"
+                            className="rounded-xl bg-primary-400 px-5 py-2.5 font-bold text-slate-900 hover:bg-primary-300"
                         >
                             Add Option
                         </button>
@@ -186,7 +186,7 @@ const VariantTypeView = () => {
                                         <div className="flex justify-end gap-2">
                                             <button
                                                 onClick={() => navigate(`/admin/variant-option/${opt._id}/edit`)}
-                                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary-200 bg-primary-50 text-primary-600 hover:bg-primary-100"
                                                 title="Edit"
                                             >
                                                 <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -210,7 +210,7 @@ const VariantTypeView = () => {
                                 <tr>
                                     <td colSpan="6" className="py-8 text-center text-slate-500">
                                         No options found for this type.{' '}
-                                        <button onClick={() => navigate('/admin/variant-option/create')} className="text-cyan-600 hover:underline">Add one now</button>
+                                        <button onClick={() => navigate('/admin/variant-option/create')} className="text-primary-600 hover:underline">Add one now</button>
                                     </td>
                                 </tr>
                             )}

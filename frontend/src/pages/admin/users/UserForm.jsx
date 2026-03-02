@@ -35,7 +35,7 @@ const UserForm = () => {
         mode: 'onBlur',
     });
 
-    const fc = (field) => `w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${errors[field] ? 'border-red-400 focus:ring-red-100 bg-red-50' : 'border-slate-200 focus:ring-cyan-100'}`;
+    const fc = (field) => `w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${errors[field] ? 'border-red-400 focus:ring-red-100 bg-red-50' : 'border-slate-200 focus:ring-primary-100'}`;
 
     useEffect(() => {
         if (isEdit) {
@@ -220,7 +220,7 @@ const UserForm = () => {
                                 name="avatar"
                                 accept="image/jpeg,image/png,image/gif,image/webp"
                                 onChange={handlePhotoChange}
-                                className="w-full rounded-xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-100"
+                                className="w-full rounded-xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-100"
                             />
                             <p className="mt-1 text-xs text-slate-500">Allowed: JPG, PNG, GIF, WEBP. Max file size: 2MB.</p>
                             {errors.photo && <p className="mt-1 text-sm text-red-600">{errors.photo}</p>}
@@ -267,7 +267,7 @@ const UserForm = () => {
                     <button
                         type="submit"
                         disabled={isSaving}
-                        className="flex-1 rounded-xl bg-cyan-500 px-6 py-3 font-semibold text-slate-900 hover:bg-cyan-400 disabled:opacity-50"
+                        className="flex-1 rounded-xl bg-primary-500 px-6 py-3 font-semibold text-slate-900 hover:bg-primary-400 disabled:opacity-50"
                     >
                         {isSaving ? 'Saving...' : isEdit ? 'Update User' : 'Create User'}
                     </button>

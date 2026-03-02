@@ -165,9 +165,9 @@ const UsersList = () => {
 
     return (
         <div className="space-y-8">
-            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-900 p-6 text-white shadow-lg sm:p-8">
-                <div className="absolute -right-10 -top-20 h-48 w-48 rounded-full bg-cyan-400/20 blur-3xl" />
-                <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-blue-300/20 blur-3xl" />
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 text-white shadow-lg sm:p-8">
+                <div className="absolute -right-10 -top-20 h-48 w-48 rounded-full bg-primary-400/20 blur-3xl" />
+                <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-primary-300/20 blur-3xl" />
                 <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-200/80">Admin Console</p>
@@ -183,7 +183,7 @@ const UsersList = () => {
                         </button>
                         <Link
                             to="/admin/users/create"
-                            className="rounded-xl bg-cyan-400 px-5 py-3 font-bold text-slate-900 transition-colors hover:bg-cyan-300"
+                            className="rounded-xl bg-primary-400 px-5 py-3 font-bold text-slate-900 transition-colors hover:bg-primary-300"
                         >
                             + Add User
                         </Link>
@@ -204,9 +204,9 @@ const UsersList = () => {
                     <p className="text-xs uppercase tracking-widest text-violet-700">Admins</p>
                     <p className="mt-2 text-3xl font-black text-violet-800">{stats.admins}</p>
                 </div>
-                <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-5 shadow-sm">
-                    <p className="text-xs uppercase tracking-widest text-blue-700">Users</p>
-                    <p className="mt-2 text-3xl font-black text-blue-800">{stats.normalUsers}</p>
+                <div className="rounded-2xl border border-primary-200 bg-gradient-to-br from-primary-50 to-white p-5 shadow-sm">
+                    <p className="text-xs uppercase tracking-widest text-primary-700">Users</p>
+                    <p className="mt-2 text-3xl font-black text-primary-800">{stats.normalUsers}</p>
                 </div>
             </div>
 
@@ -221,7 +221,7 @@ const UsersList = () => {
                             placeholder="Search name or email..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                            className="w-full rounded-xl border border-slate-300 px-4 py-3 pl-10 pr-10 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                         />
                         {searchTerm && (
                             <button
@@ -239,7 +239,7 @@ const UsersList = () => {
                     <select
                         value={roleFilter}
                         onChange={(e) => setRoleFilter(e.target.value)}
-                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                     >
                         <option value="">All Roles</option>
                         <option value="admin">Admin</option>
@@ -248,7 +248,7 @@ const UsersList = () => {
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200"
+                        className="rounded-xl border border-slate-300 px-4 py-3 text-slate-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                     >
                         <option value="">All Status</option>
                         <option value="active">Active</option>
@@ -269,7 +269,7 @@ const UsersList = () => {
                     </button>
                 </div>
                 {isFetching && (
-                    <p className="mt-2 text-xs font-medium text-cyan-700">Searching...</p>
+                    <p className="mt-2 text-xs font-medium text-primary-700">Searching...</p>
                 )}
                 <p className="mt-3 text-sm text-slate-500">
                     Showing <span className="font-semibold text-slate-800">{users.length}</span> result{users.length !== 1 ? 's' : ''} on this page.
@@ -307,7 +307,7 @@ const UsersList = () => {
                                                 }}
                                             />
                                         ) : null}
-                                        <div className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-cyan-600 to-blue-600 font-semibold text-white ${user.photo ? 'hidden' : ''}`}>
+                                        <div className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-primary-600 to-primary-600 font-semibold text-white ${user.photo ? 'hidden' : ''}`}>
                                             {user.name?.charAt(0)?.toUpperCase() || 'U'}
                                         </div>
                                         <span className="font-semibold text-slate-900">{user.name}</span>
@@ -315,7 +315,7 @@ const UsersList = () => {
                                 </td>
                                 <td className="py-3 pr-3 text-slate-700">{user.email}</td>
                                 <td className="py-3 pr-3">
-                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${user.role === 'admin' ? 'bg-violet-100 text-violet-800' : 'bg-blue-100 text-blue-800'}`}>
+                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${user.role === 'admin' ? 'bg-violet-100 text-violet-800' : 'bg-primary-100 text-primary-800'}`}>
                                         {user.role}
                                     </span>
                                 </td>

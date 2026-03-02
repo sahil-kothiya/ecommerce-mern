@@ -113,8 +113,8 @@ const CartPage = () => {
     if (isLoading) return (
         <div className="flex min-h-[400px] items-center justify-center">
             <div className="store-surface p-12 text-center">
-                <div className="mx-auto mb-5 h-14 w-14 animate-spin rounded-full border-[3px] border-[#d2dff9] border-t-[#f9730c]" />
-                <p className="store-display text-lg text-[#212191]">Loading your cart...</p>
+                <div className="mx-auto mb-5 h-14 w-14 animate-spin rounded-full border-[3px] border-primary-200 border-t-secondary-500" />
+                <p className="store-display text-lg text-primary-800">Loading your cart...</p>
             </div>
         </div>
     );
@@ -140,7 +140,7 @@ const CartPage = () => {
             <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <p className="store-eyebrow mb-1">My Account</p>
-                    <h1 className="store-display text-2xl text-[#131313] sm:text-3xl">Shopping Cart <span className="text-base font-normal text-[#666]">({cart.items.length} items)</span></h1>
+                    <h1 className="store-display text-2xl text-slate-900 sm:text-3xl">Shopping Cart <span className="text-base font-normal text-slate-500">({cart.items.length} items)</span></h1>
                 </div>
                 <button onClick={clearCart} disabled={isBusy || !cart.items.length} className="store-btn-secondary tap-bounce rounded-xl px-5 py-2.5 text-sm disabled:opacity-40">Clear Cart</button>
             </div>
@@ -148,8 +148,8 @@ const CartPage = () => {
             {!cart.items.length ? (
                 <div className="store-surface py-16 text-center">
                     <div className="mb-3 text-5xl">🛒</div>
-                    <h2 className="store-display mb-2 text-xl text-[#212191]">Your cart is empty</h2>
-                    <p className="mb-6 text-sm text-[#666]">You have not added anything yet.</p>
+                    <h2 className="store-display mb-2 text-xl text-primary-800">Your cart is empty</h2>
+                    <p className="mb-6 text-sm text-slate-500">You have not added anything yet.</p>
                     <Link to="/" className="store-btn-primary tap-bounce inline-block rounded-2xl px-8 py-3 text-sm font-bold">Continue Shopping</Link>
                 </div>
             ) : (
@@ -160,7 +160,7 @@ const CartPage = () => {
                             return (
                             <div key={item._id} className="store-surface p-4">
                                 <div className="flex items-start gap-4">
-                                    <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 to-blue-50">
+                                    <div className="h-16 w-16 sm:h-24 sm:w-24 flex-shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 to-primary-50">
                                         <img
                                             src={resolveImageUrl(getPrimaryCartItemImage(item))}
                                             alt={item.product?.title || 'Product'}
@@ -169,27 +169,27 @@ const CartPage = () => {
                                         />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <Link to={`/products/${item.product?._id}`} className="font-semibold text-[#1f1f1f] hover:text-[#212191] line-clamp-2 transition">{item.product?.title || 'Product'}</Link>
+                                        <Link to={`/products/${item.product?._id}`} className="font-semibold text-slate-800 hover:text-primary-800 line-clamp-2 transition">{item.product?.title || 'Product'}</Link>
                                         {variantLabel && (
-                                            <p className="mt-1 text-xs text-[#666] line-clamp-2">{variantLabel}</p>
+                                            <p className="mt-1 text-xs text-slate-500 line-clamp-2">{variantLabel}</p>
                                         )}
-                                        <p className="mt-1 text-sm text-[#666]">
-                                            Unit: <span className="font-semibold text-[#4250d5]">{fmt(item.unitFinalPrice ?? item.price)}</span>
+                                        <p className="mt-1 text-sm text-slate-500">
+                                            Unit: <span className="font-semibold text-primary-600">{fmt(item.unitFinalPrice ?? item.price)}</span>
                                             {Number(item.unitDiscountAmount || 0) > 0 && (
                                                 <>
-                                                    {' '}<span className="text-[#999] line-through">{fmt(item.unitMrpPrice)}</span>
-                                                    {' '}<span className="font-semibold text-[#388e3c]">{Math.round(item.unitDiscountPercent || 0)}% off</span>
+                                                    {' '}<span className="text-slate-400 line-through">{fmt(item.unitMrpPrice)}</span>
+                                                    {' '}<span className="font-semibold text-success-600">{Math.round(item.unitDiscountPercent || 0)}% off</span>
                                                 </>
                                             )}
                                         </p>
-                                        <p className="text-sm text-[#444]">Line total: <span className="font-bold text-[#131313]">{fmt(item.lineFinalAmount ?? item.amount)}</span></p>
+                                        <p className="text-sm text-slate-600">Line total: <span className="font-bold text-slate-900">{fmt(item.lineFinalAmount ?? item.amount)}</span></p>
                                         {Number(item.lineDiscountAmount || 0) > 0 && (
-                                            <p className="text-xs font-medium text-[#388e3c]">You save {fmt(item.lineDiscountAmount)}</p>
+                                            <p className="text-xs font-medium text-success-600">You save {fmt(item.lineDiscountAmount)}</p>
                                         )}
                                         <div className="mt-3 flex items-center gap-2">
-                                            <button onClick={() => updateQuantity(item._id, item.quantity - 1)} disabled={isBusy || item.quantity <= 1} className="flex h-8 w-8 items-center justify-center rounded-lg border border-[rgba(165,187,252,0.4)] bg-[rgba(66,80,213,0.04)] font-bold text-[#4250d5] hover:bg-[rgba(66,80,213,0.1)] disabled:opacity-40 transition">-</button>
-                                            <span className="min-w-8 text-center font-semibold text-[#131313]">{item.quantity}</span>
-                                            <button onClick={() => updateQuantity(item._id, item.quantity + 1)} disabled={isBusy} className="flex h-8 w-8 items-center justify-center rounded-lg border border-[rgba(165,187,252,0.4)] bg-[rgba(66,80,213,0.04)] font-bold text-[#4250d5] hover:bg-[rgba(66,80,213,0.1)] disabled:opacity-40 transition">+</button>
+                                            <button onClick={() => updateQuantity(item._id, item.quantity - 1)} disabled={isBusy || item.quantity <= 1} aria-label="Decrease quantity" className="flex h-8 w-8 items-center justify-center rounded-lg border border-[rgba(165,187,252,0.4)] bg-[rgba(66,80,213,0.04)] font-bold text-primary-600 hover:bg-[rgba(66,80,213,0.1)] disabled:opacity-40 transition">-</button>
+                                            <span className="min-w-8 text-center font-semibold text-slate-900">{item.quantity}</span>
+                                            <button onClick={() => updateQuantity(item._id, item.quantity + 1)} disabled={isBusy} aria-label="Increase quantity" className="flex h-8 w-8 items-center justify-center rounded-lg border border-[rgba(165,187,252,0.4)] bg-[rgba(66,80,213,0.04)] font-bold text-primary-600 hover:bg-[rgba(66,80,213,0.1)] disabled:opacity-40 transition">+</button>
                                             <button onClick={() => removeItem(item._id)} disabled={isBusy} className="ml-auto rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:opacity-40 transition">Remove</button>
                                         </div>
                                     </div>
@@ -199,15 +199,16 @@ const CartPage = () => {
                         })}
                     </div>
                     <div className="store-surface h-fit p-6">
-                        <h2 className="store-display mb-5 text-lg text-[#131313]">Order Summary</h2>
+                        <h2 className="store-display mb-5 text-lg text-slate-900">Order Summary</h2>
                         <div className="mb-4 rounded-xl border border-[rgba(165,187,252,0.35)] bg-[rgba(66,80,213,0.04)] p-3">
-                            <p className="mb-2 text-sm font-semibold text-[#212191]">Apply Coupon</p>
+                            <p className="mb-2 text-sm font-semibold text-primary-800">Apply Coupon</p>
                             <div className="flex gap-2">
                                 <input
                                     type="text"
                                     value={couponCode}
                                     onChange={(e) => { setCouponCode(e.target.value.trim().toUpperCase()); setCouponError(''); }}
                                     placeholder="Enter coupon code"
+                                    aria-label="Coupon code"
                                     className="store-input h-10 flex-1 rounded-lg px-3 text-sm"
                                     disabled={isApplyingCoupon}
                                 />
@@ -234,25 +235,25 @@ const CartPage = () => {
                                 <p className="mt-1.5 text-xs font-medium text-red-600">{couponError}</p>
                             )}
                             {appliedCoupon && !couponError && (
-                                <p className="mt-2 text-xs font-medium text-[#388e3c]">
+                                <p className="mt-2 text-xs font-medium text-success-600">
                                     {appliedCoupon.code} applied • You save {fmt(couponDiscount)}
                                 </p>
                             )}
                         </div>
                         <div className="space-y-3 text-sm">
-                            <div className="flex justify-between text-[#555]"><span>Items</span><span className="font-semibold">{cart.summary.totalItems}</span></div>
-                            <div className="flex justify-between text-[#555]"><span>MRP Total</span><span className="font-semibold">{fmt(cart.summary.mrpTotal)}</span></div>
-                            <div className="flex justify-between text-[#388e3c]"><span>Discount</span><span className="font-semibold">- {fmt(cart.summary.discountTotal)}</span></div>
-                            <div className="flex justify-between text-[#555]"><span>Subtotal</span><span className="font-semibold">{fmt(cart.summary.subTotal)}</span></div>
+                            <div className="flex justify-between text-slate-500"><span>Items</span><span className="font-semibold">{cart.summary.totalItems}</span></div>
+                            <div className="flex justify-between text-slate-500"><span>MRP Total</span><span className="font-semibold">{fmt(cart.summary.mrpTotal)}</span></div>
+                            <div className="flex justify-between text-success-600"><span>Discount</span><span className="font-semibold">- {fmt(cart.summary.discountTotal)}</span></div>
+                            <div className="flex justify-between text-slate-500"><span>Subtotal</span><span className="font-semibold">{fmt(cart.summary.subTotal)}</span></div>
                             {appliedCoupon && couponDiscount > 0 && (
-                                <div className="flex justify-between text-[#388e3c]"><span>Coupon Discount</span><span className="font-semibold">- {fmt(couponDiscount)}</span></div>
+                                <div className="flex justify-between text-success-600"><span>Coupon Discount</span><span className="font-semibold">- {fmt(couponDiscount)}</span></div>
                             )}
-                            <div className="flex justify-between text-[#555]"><span>Shipping</span><span className="font-semibold">{fmt(cart.summary.shippingCost)}</span></div>
-                            <div className="flex justify-between border-t border-[rgba(165,187,252,0.25)] pt-3 text-base font-bold text-[#131313]"><span>Total</span><span>{fmt(payableTotal)}</span></div>
+                            <div className="flex justify-between text-slate-500"><span>Shipping</span><span className="font-semibold">{fmt(cart.summary.shippingCost)}</span></div>
+                            <div className="flex justify-between border-t border-[rgba(165,187,252,0.25)] pt-3 text-base font-bold text-slate-900"><span>Total</span><span>{fmt(payableTotal)}</span></div>
                         </div>
                         <button onClick={() => navigate('/checkout')} className="store-btn-primary tap-bounce mt-5 w-full rounded-2xl py-3.5 text-sm font-bold">Proceed to Checkout</button>
                         <Link to="/" className="store-btn-secondary tap-bounce mt-3 block w-full rounded-2xl py-3 text-center text-sm font-semibold">Continue Shopping</Link>
-                        <div className="mt-4 flex items-center justify-center gap-2 text-xs text-[#666]"><span>🔒</span><span>Secure SSL encrypted checkout</span></div>
+                        <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-500"><span>🔒</span><span>Secure SSL encrypted checkout</span></div>
                     </div>
                 </div>
             )}

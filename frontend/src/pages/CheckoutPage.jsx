@@ -192,7 +192,7 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             {/* Shipping */}
             <div className="store-surface p-6">
-                <h2 className="store-display mb-4 text-lg text-[#131313]">Shipping Information</h2>
+                <h2 className="store-display mb-4 text-lg text-slate-900">Shipping Information</h2>
                 <AddressPicker
                     addresses={savedAddresses}
                     selectedId={selectedAddressId}
@@ -201,31 +201,31 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
                 />
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
-                        <input {...register("firstName")} placeholder="First Name *" className={fieldClass("firstName")} />
+                        <input {...register("firstName")} placeholder="First Name *" aria-label="First name" aria-invalid={!!errors?.firstName} className={fieldClass("firstName")} />
                         {errors.firstName && (
                             <p className="mt-1 text-xs text-red-600">{errors.firstName.message}</p>
                         )}
                     </div>
                     <div>
-                        <input {...register("lastName")} placeholder="Last Name *" className={fieldClass("lastName")} />
+                        <input {...register("lastName")} placeholder="Last Name *" aria-label="Last name" aria-invalid={!!errors?.lastName} className={fieldClass("lastName")} />
                         {errors.lastName && (
                             <p className="mt-1 text-xs text-red-600">{errors.lastName.message}</p>
                         )}
                     </div>
                     <div>
-                        <input {...register("email")} type="email" placeholder="Email *" className={fieldClass("email")} />
+                        <input {...register("email")} type="email" placeholder="Email *" aria-label="Email address" aria-invalid={!!errors?.email} className={fieldClass("email")} />
                         {errors.email && (
                             <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>
                         )}
                     </div>
                     <div>
-                        <input {...register("phone")} placeholder="Phone *" className={fieldClass("phone")} />
+                        <input {...register("phone")} placeholder="Phone *" aria-label="Phone number" aria-invalid={!!errors?.phone} className={fieldClass("phone")} />
                         {errors.phone && (
                             <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>
                         )}
                     </div>
                     <div className="sm:col-span-2">
-                        <input {...register("address1")} placeholder="Address Line 1 *" className={fieldClass("address1")} />
+                        <input {...register("address1")} placeholder="Address Line 1 *" aria-label="Street address" aria-invalid={!!errors?.address1} className={fieldClass("address1")} />
                         {errors.address1 && (
                             <p className="mt-1 text-xs text-red-600">{errors.address1.message}</p>
                         )}
@@ -234,11 +234,12 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
                         <input
                             {...register("address2")}
                             placeholder="Address Line 2 (Optional)"
+                            aria-label="Address line 2"
                             className={fieldClass("address2")}
                         />
                     </div>
                     <div>
-                        <input {...register("city")} placeholder="City *" className={fieldClass("city")} />
+                        <input {...register("city")} placeholder="City *" aria-label="City" aria-invalid={!!errors?.city} className={fieldClass("city")} />
                         {errors.city && (
                             <p className="mt-1 text-xs text-red-600">{errors.city.message}</p>
                         )}
@@ -253,6 +254,7 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
                                     onChange={field.onChange}
                                     options={STATE_OPTIONS}
                                     placeholder="State (Optional)"
+                                    aria-label="State"
                                     hasError={!!errors.state}
                                 />
                             )}
@@ -262,7 +264,7 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
                         )}
                     </div>
                     <div>
-                        <input {...register("postCode")} placeholder="Post Code *" className={fieldClass("postCode")} />
+                        <input {...register("postCode")} placeholder="Post Code *" aria-label="Postal code" aria-invalid={!!errors?.postCode} className={fieldClass("postCode")} />
                         {errors.postCode && (
                             <p className="mt-1 text-xs text-red-600">{errors.postCode.message}</p>
                         )}
@@ -272,19 +274,19 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
 
             {/* Payment */}
             <div className="store-surface p-6">
-                <h2 className="store-display mb-4 text-lg text-[#131313]">Payment Method</h2>
+                <h2 className="store-display mb-4 text-lg text-slate-900">Payment Method</h2>
                 <div className="space-y-2.5">
                     <label
                         className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition ${
                             paymentMethod === "cod"
-                                ? "border-[#4250d5] bg-[rgba(66,80,213,0.04)]"
+                                ? "border-primary-600 bg-[rgba(66,80,213,0.04)]"
                                 : "border-slate-200 hover:border-slate-300"
                         }`}
                     >
-                        <input type="radio" value="cod" {...register("paymentMethod")} className="accent-[#4250d5]" />
+                        <input type="radio" value="cod" {...register("paymentMethod")} className="accent-primary-600" />
                         <span className="text-xl">&#x1F69A;</span>
                         <div>
-                            <p className="text-sm font-semibold text-[#1f1f1f]">Cash on Delivery</p>
+                            <p className="text-sm font-semibold text-slate-800">Cash on Delivery</p>
                             <p className="text-xs text-slate-500">Pay when your order arrives</p>
                         </div>
                     </label>
@@ -308,7 +310,7 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
                                     <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z" />
                                 </svg>
                                 <div>
-                                    <p className="text-sm font-semibold text-[#1f1f1f]">Pay with Card</p>
+                                    <p className="text-sm font-semibold text-slate-800">Pay with Card</p>
                                     <p className="text-xs text-slate-500">Visa, Mastercard, Amex &mdash; secured by Stripe</p>
                                 </div>
                                 <span className="ml-auto rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700">
@@ -327,6 +329,7 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
                     {...register("notes")}
                     rows={3}
                     placeholder="Order notes (optional)"
+                    aria-label="Order notes"
                     className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(66,80,213,0.25)]"
                 />
             </div>
@@ -421,8 +424,8 @@ const CheckoutPage = () => {
         return (
             <div className="flex min-h-[60vh] items-center justify-center">
                 <div className="store-surface p-10 text-center">
-                    <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[#d2dff9] border-t-[#4250d5]" />
-                    <p className="store-display text-sm text-[#212191]">Loading checkout...</p>
+                    <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600" />
+                    <p className="store-display text-sm text-primary-800">Loading checkout...</p>
                 </div>
             </div>
         );
@@ -433,7 +436,7 @@ const CheckoutPage = () => {
             <div className="flex min-h-[60vh] items-center justify-center p-4">
                 <div className="store-surface p-10 text-center">
                     <div className="mb-3 text-5xl">&#x1F6D2;</div>
-                    <h2 className="store-display mb-2 text-xl text-[#212191]">Your cart is empty</h2>
+                    <h2 className="store-display mb-2 text-xl text-primary-800">Your cart is empty</h2>
                     <button
                         onClick={() => navigate("/cart")}
                         className="store-btn-primary tap-bounce mt-4 rounded-2xl px-8 py-3 text-sm font-bold"
@@ -449,7 +452,7 @@ const CheckoutPage = () => {
         <div className="mx-auto max-w-5xl px-4 pb-16 sm:px-6 lg:px-8">
             <div className="mb-8">
                 <p className="store-eyebrow mb-1">Secure Checkout</p>
-                <h1 className="store-display text-2xl text-[#131313] sm:text-3xl">Complete Your Order</h1>
+                <h1 className="store-display text-2xl text-slate-900 sm:text-3xl">Complete Your Order</h1>
             </div>
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-2">
@@ -462,15 +465,15 @@ const CheckoutPage = () => {
                 </div>
                 <div className="lg:col-span-1">
                     <div className="store-surface sticky top-28 p-5">
-                        <h2 className="store-display mb-4 text-base text-[#131313]">Order Summary</h2>
+                        <h2 className="store-display mb-4 text-base text-slate-900">Order Summary</h2>
                         <div className="space-y-2.5 text-sm">
                             {cart.items.map((item) => (
                                 <div key={item._id} className="flex items-start justify-between gap-2">
-                                    <span className="flex-1 truncate text-[#444]">
+                                    <span className="flex-1 truncate text-slate-600">
                                         {item.product?.title || "Product"}{" "}
-                                        <span className="text-[#888]">x{item.quantity}</span>
+                                        <span className="text-slate-400">x{item.quantity}</span>
                                     </span>
-                                    <span className="font-semibold text-[#1f1f1f]">
+                                    <span className="font-semibold text-slate-800">
                                         {formatMoney(item.amount || 0)}
                                     </span>
                                 </div>
@@ -492,7 +495,7 @@ const CheckoutPage = () => {
                                     )}
                                 </span>
                             </div>
-                            <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-bold text-[#131313]">
+                            <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-bold text-slate-900">
                                 <span>Total</span>
                                 <span>{formatMoney(cart.summary?.totalAmount || 0)}</span>
                             </div>

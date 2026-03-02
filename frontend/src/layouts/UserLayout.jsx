@@ -88,11 +88,11 @@ const UserLayout = () => {
                             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                         </button>
                         <Link to="/account" className="flex items-center gap-2.5">
-                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-sm font-black text-white">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-600 text-sm font-black text-white">
                                 {userInitial}
                             </span>
                             <div className="hidden sm:block">
-                                <span className="block text-[11px] font-bold uppercase tracking-widest text-blue-600">My Account</span>
+                                <span className="block text-[11px] font-bold uppercase tracking-widest text-primary-600">My Account</span>
                                 <span className="block text-sm font-semibold text-slate-800">{userName}</span>
                             </div>
                         </Link>
@@ -129,14 +129,14 @@ const UserLayout = () => {
                 >
                     <div className="h-full overflow-y-auto px-3 py-5">
                         {/* User card */}
-                        <div className="mb-5 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 p-4 text-white">
+                        <div className="mb-5 rounded-2xl bg-gradient-to-br from-primary-600 to-primary-700 p-4 text-white">
                             <div className="flex items-center gap-3">
                                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/20 text-lg font-bold">
                                     {userInitial}
                                 </span>
                                 <div className="min-w-0">
                                     <p className="truncate text-sm font-bold">{userName}</p>
-                                    <p className="truncate text-[11px] text-blue-200">{userEmail}</p>
+                                    <p className="truncate text-[11px] text-primary-200">{userEmail}</p>
                                     <span className="mt-1 inline-block rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
                                         Customer
                                     </span>
@@ -155,8 +155,8 @@ const UserLayout = () => {
                                         to={item.path}
                                         className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
                                             active
-                                                ? 'bg-blue-600 text-white shadow-sm'
-                                                : 'text-slate-600 hover:bg-blue-50 hover:text-blue-700'
+                                                ? 'bg-primary-600 text-white shadow-sm'
+                                                : 'text-slate-600 hover:bg-primary-50 hover:text-primary-700'
                                         }`}
                                         aria-current={active ? 'page' : undefined}
                                     >

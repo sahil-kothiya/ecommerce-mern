@@ -118,7 +118,7 @@ const StoreHeader = () => {
     return (
         <header className="store-header fixed left-0 right-0 top-0 z-50">
             {/* Top announcement bar */}
-            <div className="hidden sm:flex items-center justify-center bg-gradient-to-r from-[#0a2156] via-[#212191] to-[#0a2156] py-1.5 text-xs font-semibold tracking-wide text-[#d2dff9]">
+            <div className="hidden sm:flex items-center justify-center bg-gradient-to-r from-slate-900 via-primary-900 to-slate-900 py-1.5 text-xs font-semibold tracking-wide text-primary-200">
                 {topbarMessage}
             </div>
 
@@ -136,7 +136,7 @@ const StoreHeader = () => {
                         </span>
                         <span className="hidden sm:block">
                             <span className="store-eyebrow block">{siteTagline || 'Creator Store'}</span>
-                            <span className="store-display block text-[15px] text-[#131313]">{siteName}</span>
+                            <span className="store-display block text-[15px] text-slate-900">{siteName}</span>
                         </span>
                     </Link>
 
@@ -150,9 +150,10 @@ const StoreHeader = () => {
                                 onFocus={() => setIsSearchFocused(true)}
                                 onBlur={() => setIsSearchFocused(false)}
                                 placeholder="Search products, brands, categories..."
-                                className={`store-input w-full py-2.5 pl-10 pr-4 text-sm transition-all ${isSearchFocused ? 'shadow-[0_0_0_3px_rgba(165,187,252,0.3)]' : ''}`}
+                                aria-label="Search products"
+                                className={`store-input w-full py-2.5 pl-10 pr-4 text-sm transition-all ${isSearchFocused ? 'ring-2 ring-primary-500/20' : ''}`}
                             />
-                            <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4250d5]">
+                            <button type="submit" aria-label="Search" className="absolute left-3 top-1/2 -translate-y-1/2 text-primary-600">
                                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
@@ -166,8 +167,9 @@ const StoreHeader = () => {
                         <div className="relative">
                             <Link
                                 to={isAuthenticated ? '/wishlist' : '/login'}
-                                className="glass-panel hover-glow tap-bounce flex h-9 w-9 items-center justify-center rounded-xl text-[#4250d5] transition"
+                                className="glass-panel hover-glow tap-bounce flex h-9 w-9 items-center justify-center rounded-xl text-primary-600 transition"
                                 title="Wishlist"
+                                aria-label="Wishlist"
                             >
                                 <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -180,8 +182,9 @@ const StoreHeader = () => {
                         <div className="relative">
                             <Link
                                 to={isAuthenticated ? '/cart' : '/login'}
-                                className="glass-panel hover-glow tap-bounce flex h-9 w-9 items-center justify-center rounded-xl text-[#4250d5] transition"
+                                className="glass-panel hover-glow tap-bounce flex h-9 w-9 items-center justify-center rounded-xl text-primary-600 transition"
                                 title="Cart"
+                                aria-label="Cart"
                             >
                                 <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m1.6 8L5.4 5M7 13l-1.5 7h13M9 20a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z" />
@@ -196,12 +199,14 @@ const StoreHeader = () => {
                                 <>
                                     <button
                                         onClick={() => setIsUserMenuOpen((p) => !p)}
-                                        className="glass-panel hover-glow tap-bounce flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-[#212191] transition"
+                                        aria-label="User menu"
+                                        aria-expanded={isUserMenuOpen}
+                                        className="glass-panel hover-glow tap-bounce flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-primary-800 transition"
                                     >
-                                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#4250d5] via-[#6a88e2] to-[#ffa336] text-xs font-bold text-white">
+                                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-primary-600 via-primary-500 to-secondary-400 text-xs font-bold text-white">
                                             {userInitial}
                                         </span>
-                                        <span className="hidden sm:block text-[#131313]">{currentUser?.name?.split(' ')[0] || 'Account'}</span>
+                                        <span className="hidden sm:block text-slate-900">{currentUser?.name?.split(' ')[0] || 'Account'}</span>
                                         <svg className={`h-3 w-3 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                         </svg>
@@ -209,24 +214,24 @@ const StoreHeader = () => {
                                     {isUserMenuOpen && (
                                         <div className="absolute right-0 top-full mt-2 w-48 store-surface z-50 py-1">
                                             {authService.isAdmin() && (
-                                                <Link to="/admin" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-[#4250d5] hover:bg-[rgba(66,80,213,0.08)] transition-colors rounded-lg mx-1">
+                                                <Link to="/admin" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-primary-600 hover:bg-primary-50 transition-colors rounded-lg mx-1">
                                                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317a1 1 0 011.35-.936l1.612.806a1 1 0 001.184-.21l1.24-1.24a1 1 0 011.414 0l1.414 1.414a1 1 0 010 1.414l-1.24 1.24a1 1 0 00-.21 1.184l.806 1.612a1 1 0 01-.936 1.35H17a1 1 0 00-.95.684l-.538 1.614a1 1 0 01-.949.684h-2.126a1 1 0 01-.949-.684l-.538-1.614A1 1 0 0010 10H8.001a1 1 0 01-.936-1.35l.806-1.612a1 1 0 00-.21-1.184l-1.24-1.24a1 1 0 010-1.414l1.414-1.414a1 1 0 011.414 0l1.24 1.24a1 1 0 001.184.21l1.612-.806z" /></svg>
                                                     Admin Panel
                                                 </Link>
                                             )}
-                                            <Link to="/account" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-[#1f1f1f] hover:bg-[rgba(165,187,252,0.12)] transition-colors rounded-lg mx-1">
-                                                <svg className="h-4 w-4 text-[#4250d5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                            <Link to="/account" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-primary-50 transition-colors rounded-lg mx-1">
+                                                <svg className="h-4 w-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                                                 My Account
                                             </Link>
-                                            <Link to="/cart" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-[#1f1f1f] hover:bg-[rgba(165,187,252,0.12)] transition-colors rounded-lg mx-1">
-                                                <svg className="h-4 w-4 text-[#4250d5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m1.6 8L5.4 5M7 13l-1.5 7h13" /></svg>
+                                            <Link to="/cart" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-primary-50 transition-colors rounded-lg mx-1">
+                                                <svg className="h-4 w-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m1.6 8L5.4 5M7 13l-1.5 7h13" /></svg>
                                                 My Cart
                                             </Link>
-                                            <Link to="/wishlist" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-[#1f1f1f] hover:bg-[rgba(165,187,252,0.12)] transition-colors rounded-lg mx-1">
-                                                <svg className="h-4 w-4 text-[#4250d5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                                            <Link to="/wishlist" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-primary-50 transition-colors rounded-lg mx-1">
+                                                <svg className="h-4 w-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
                                                 Wishlist
                                             </Link>
-                                            <hr className="my-1 border-[rgba(165,187,252,0.3)]" />
+                                            <hr className="my-1 border-slate-100" />
                                             <button
                                                 onClick={handleLogout}
                                                 className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors rounded-lg mx-1"
@@ -251,7 +256,9 @@ const StoreHeader = () => {
                         {/* Mobile menu toggle */}
                         <button
                             onClick={() => setIsMobileMenuOpen((p) => !p)}
-                            className="glass-panel tap-bounce flex h-9 w-9 items-center justify-center rounded-xl text-[#4250d5] transition md:hidden"
+                            aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+                            aria-expanded={isMobileMenuOpen}
+                            className="glass-panel tap-bounce flex h-9 w-9 items-center justify-center rounded-xl text-primary-600 transition md:hidden"
                         >
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMobileMenuOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'} />
@@ -279,7 +286,7 @@ const StoreHeader = () => {
                     ))}
                     <Link
                         to="/products?sort=popular"
-                        className={`store-nav-link whitespace-nowrap px-2.5 py-1 text-sm lg:text-xs text-[#f9730c] border-[rgba(249,115,12,0.25)] ${activeSort === 'popular' ? 'active' : ''}`}
+                        className={`store-nav-link whitespace-nowrap px-2.5 py-1 text-sm lg:text-xs text-secondary-500 border-secondary-200 ${activeSort === 'popular' ? 'active' : ''}`}
                     >
                         Featured
                     </Link>
@@ -297,9 +304,10 @@ const StoreHeader = () => {
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Search products..."
+                                aria-label="Search products"
                                 className="store-input w-full py-2.5 pl-10 pr-4 text-sm"
                             />
-                            <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4250d5]">
+                            <button type="submit" aria-label="Search" className="absolute left-3 top-1/2 -translate-y-1/2 text-primary-600">
                                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                             </button>
                         </div>

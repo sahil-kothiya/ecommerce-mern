@@ -109,13 +109,13 @@ const SearchableSelect = ({ value, onChange, options, placeholder, hasError, dis
                             onMouseDown={(e) => { e.preventDefault(); handleSelect(opt); }}
                             className={`flex cursor-pointer items-center gap-2 px-4 py-2.5 text-sm transition hover:bg-[rgba(66,80,213,0.06)] ${
                                 opt.value === value
-                                    ? "bg-[rgba(66,80,213,0.08)] font-semibold text-[#4250d5]"
-                                    : "text-[#1f1f1f]"
+                                    ? "bg-[rgba(66,80,213,0.08)] font-semibold text-primary-600"
+                                    : "text-slate-800"
                             }`}
                         >
                             <span className="flex-1">{opt.label}</span>
                             {opt.value === value && (
-                                <svg className="h-3.5 w-3.5 flex-shrink-0 text-[#4250d5]" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="h-3.5 w-3.5 flex-shrink-0 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                             )}
@@ -138,7 +138,7 @@ const SearchableSelect = ({ value, onChange, options, placeholder, hasError, dis
                     hasError ? "border-red-400 bg-red-50" : "border-slate-300 bg-white"
                 } ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
             >
-                <span className={selectedLabel ? "text-[#1f1f1f]" : "text-slate-400"}>
+                <span className={selectedLabel ? "text-slate-800" : "text-slate-400"}>
                     {selectedLabel || placeholder}
                 </span>
                 <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center">

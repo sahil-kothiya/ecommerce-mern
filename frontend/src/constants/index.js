@@ -192,12 +192,12 @@ export const SEO_CONFIG = {
 
 export const THEME_CONFIG = {
   COLORS: {
-    PRIMARY: "#3B82F6",
-    SECONDARY: "#6B7280",
+    PRIMARY: "#6366f1",
+    SECONDARY: "#f97316",
     SUCCESS: "#10B981",
     WARNING: "#F59E0B",
     ERROR: "#EF4444",
-    INFO: "#3B82F6",
+    INFO: "#6366f1",
   },
   ANIMATIONS: {
     FAST: "150ms",

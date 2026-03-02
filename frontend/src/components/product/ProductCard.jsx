@@ -46,11 +46,11 @@ const ProductCard = ({
         <Link 
             to={`/products/${product._id}`} 
             style={{ animationDelay: `${animDelay}ms` }} 
-            className="store-product-card animate-fade-up group flex flex-col overflow-hidden bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-cyan-300 transition-all duration-300"
+            className="store-product-card animate-fade-up group flex flex-col overflow-hidden bg-white rounded-xl border border-slate-200 shadow-card hover:shadow-card-hover hover:border-primary-300 transition-all duration-300"
             onMouseEnter={() => onHover(product)} 
             onMouseLeave={() => onLeave(product)}
         >
-            <div className="relative overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50">
+            <div className="relative overflow-hidden bg-gradient-to-br from-slate-50 to-primary-50">
                 <LazyImage
                     src={currentImage}
                     alt={product.title}
@@ -58,7 +58,7 @@ const ProductCard = ({
                     className="h-56 w-full object-cover transition-transform duration-500 group-hover:scale-110"
                     onImageError={onImageError}
                     fallback={
-                        <div className="flex h-56 w-full items-center justify-center bg-gradient-to-br from-slate-100 to-blue-100">
+                        <div className="flex h-56 w-full items-center justify-center bg-gradient-to-br from-slate-100 to-primary-100">
                             <svg className="h-10 w-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
@@ -67,7 +67,7 @@ const ProductCard = ({
                 />
                 
                 {product.condition && (
-                    <span className="absolute left-3 top-3 rounded-full bg-gradient-to-r from-[#4250d5] to-[#f9730c] px-2.5 py-1 text-[10px] font-bold text-white shadow-md z-10">
+                    <span className="absolute left-3 top-3 rounded-full bg-gradient-to-r from-primary-600 to-secondary-500 px-2.5 py-1 text-[10px] font-bold text-white shadow-md z-10">
                         {product.condition === PRODUCT_CONDITIONS.HOT && '🔥 Hot'}
                         {product.condition === PRODUCT_CONDITIONS.NEW && '✨ New'}
                         {product.condition === PRODUCT_CONDITIONS.DEFAULT && '⭐ Trending'}
@@ -76,7 +76,7 @@ const ProductCard = ({
                 
                 <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
                     {hasDiscount && (
-                        <span className="rounded-full border border-orange-300 bg-orange-500 px-2.5 py-1 text-[10px] font-bold text-white shadow-md">
+                        <span className="rounded-full border border-secondary-300 bg-secondary-500 px-2.5 py-1 text-[10px] font-bold text-white shadow-md">
                             {Math.round(pricing.discount)}% OFF
                         </span>
                     )}
@@ -110,7 +110,7 @@ const ProductCard = ({
             
             <div className="flex flex-1 flex-col gap-2 p-4">
                 <div className="flex items-center justify-between gap-2">
-                    <span className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 truncate">
+                    <span className="rounded-lg border border-primary-200 bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700 truncate">
                         {product.brand?.title || 'Brand'}
                     </span>
                     {product.ratings?.count > 0 && (
@@ -125,7 +125,7 @@ const ProductCard = ({
                     )}
                 </div>
                 
-                <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-tight text-slate-900 transition-colors group-hover:text-blue-600">
+                <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-tight text-slate-900 transition-colors group-hover:text-primary-600">
                     {product.title}
                 </h3>
                 
@@ -157,7 +157,7 @@ const ProductCard = ({
                         className={`w-full rounded-lg py-2.5 px-4 text-sm font-bold transition-all flex items-center justify-center gap-2 ${
                             isOutOfStock
                                 ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700 active:scale-95 shadow-md hover:shadow-lg'
+                                : 'bg-gradient-to-r from-primary-600 to-primary-500 text-white hover:from-primary-700 hover:to-primary-600 active:scale-95 shadow-md hover:shadow-lg'
                         }`}
                         aria-label={isOutOfStock ? 'Out of stock' : 'Add to cart'}
                     >

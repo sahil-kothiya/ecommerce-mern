@@ -4,6 +4,8 @@ import authService from '../services/authService';
 import { useSiteSettings } from '../context/useSiteSettings';
 import { resolveImageUrl } from '../utils/imageUrl';
 
+const MOBILE_BREAKPOINT = 768;
+
 const MENU_ITEMS = [
     { key: 'dashboard', path: '/admin', label: 'Dashboard', exact: true },
     { key: 'products', path: '/admin/products', label: 'Products' },
@@ -72,9 +74,25 @@ const AdminLayout = () => {
     const { settings } = useSiteSettings();
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isMobile, setIsMobile] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
     const [expandedMenus, setExpandedMenus] = useState({ variants: false });
+
+    useEffect(() => {
+        const checkMobile = () => {
+            const mobile = window.innerWidth < MOBILE_BREAKPOINT;
+            setIsMobile(mobile);
+            if (mobile) setIsSidebarOpen(false);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    useEffect(() => {
+        if (isMobile) setIsSidebarOpen(false);
+    }, [location.pathname, isMobile]);
 
     useEffect(() => {
         try {
@@ -151,8 +169,8 @@ const AdminLayout = () => {
                                 )}
                             </span>
                             <span className="hidden sm:block">
-                                <span className="block text-[11px] font-bold uppercase tracking-[0.24em] text-[#4250d5]">{siteTagline || 'Creator Console'}</span>
-                                <span className="admin-display block text-base text-[#131313]">{siteName}</span>
+                                <span className="block text-[11px] font-bold uppercase tracking-[0.24em] text-primary-600">{siteTagline || 'Creator Console'}</span>
+                                <span className="admin-display block text-base text-slate-900">{siteName}</span>
                             </span>
                         </Link>
                     </div>
@@ -160,15 +178,15 @@ const AdminLayout = () => {
                     <div className="flex items-center gap-3">
                         <Link to="/" className="admin-button-secondary hidden rounded-full px-4 py-2 text-sm font-semibold sm:block">View Site</Link>
                         <div className="admin-surface interactive-card hover-glow flex items-center gap-2 rounded-2xl px-3 py-2">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#4250d5] via-[#6a88e2] to-[#ffa336] text-sm font-bold text-white">{userInitial}</span>
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary-600 via-primary-500 to-secondary-400 text-sm font-bold text-white">{userInitial}</span>
                             <div className="hidden text-left md:block">
-                                <p className="text-sm font-semibold text-[#131313]">{userName}</p>
-                                <p className="text-xs text-[#666666]">{userEmail}</p>
+                                <p className="text-sm font-semibold text-slate-900">{userName}</p>
+                                <p className="text-xs text-slate-500">{userEmail}</p>
                             </div>
                             <button
                                 onClick={handleLogout}
                                 disabled={isLoggingOut}
-                                className="rounded-xl p-2 text-[#666666] transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
+                                className="rounded-xl p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
                                 title="Logout"
                                 aria-label="Logout"
                             >
@@ -180,6 +198,14 @@ const AdminLayout = () => {
             </header>
 
             <div className="flex pt-16">
+                {isMobile && isSidebarOpen && (
+                    <div
+                        className="fixed inset-0 z-20 bg-slate-900/50 backdrop-blur-sm transition-opacity"
+                        onClick={() => setIsSidebarOpen(false)}
+                        aria-hidden="true"
+                    />
+                )}
+
                 <aside
                     className={`admin-sidebar fixed left-0 top-16 z-30 h-[calc(100vh-4rem)] overflow-hidden text-slate-200 shadow-2xl transition-all duration-300 ${
                         isSidebarOpen ? UI_CONFIG.SIDEBAR_OPEN : UI_CONFIG.SIDEBAR_CLOSED
@@ -189,8 +215,8 @@ const AdminLayout = () => {
                 >
                     <div className="h-full overflow-y-auto px-4 py-5">
                         <div className="admin-nav-panel interactive-card hover-glow mb-4 rounded-2xl p-4">
-                            <p className="text-[11px] uppercase tracking-[0.22em] text-[#d5e2ff]">Navigation</p>
-                            <p className="mt-1 text-sm font-semibold text-[#fafcff]">Run ops faster, ship updates smarter</p>
+                            <p className="text-[11px] uppercase tracking-[0.22em] text-primary-200">Navigation</p>
+                            <p className="mt-1 text-sm font-semibold text-white">Run ops faster, ship updates smarter</p>
                         </div>
 
                         <nav className="space-y-2" role="navigation">
@@ -214,7 +240,7 @@ const AdminLayout = () => {
                                                     </span>
                                                     <span className="font-semibold">{item.label}</span>
                                                 </span>
-                                                <span className={`text-xs font-bold ${isExpanded ? 'text-[#ffa336]' : 'text-slate-300'}`}>{isExpanded ? 'v' : '>'}</span>
+                                                <span className={`text-xs font-bold ${isExpanded ? 'text-secondary-400' : 'text-slate-300'}`}>{isExpanded ? 'v' : '>'}</span>
                                             </button>
 
                                             {isExpanded && (
@@ -262,7 +288,7 @@ const AdminLayout = () => {
                     </div>
                 </aside>
 
-                <main className={`min-w-0 flex-1 transition-all duration-300 ${isSidebarOpen ? 'ml-72' : 'ml-0'}`} role="main">
+                <main className={`min-w-0 flex-1 transition-all duration-300 ${isSidebarOpen && !isMobile ? 'md:ml-72' : 'ml-0'}`} role="main">
                     <div className="p-4 sm:p-6 lg:p-7">
                         <Outlet />
                     </div>

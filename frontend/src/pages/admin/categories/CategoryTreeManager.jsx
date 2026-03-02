@@ -483,9 +483,9 @@ const toggleStatus = async (categoryId, currentStatus) => {
 
     return (
         <div className="space-y-8">
-            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-6 text-white shadow-lg sm:p-8">
-                <div className="absolute -right-10 -top-20 h-48 w-48 rounded-full bg-indigo-400/20 blur-3xl" />
-                <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-blue-300/20 blur-3xl" />
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 text-white shadow-lg sm:p-8">
+                <div className="absolute -right-10 -top-20 h-48 w-48 rounded-full bg-primary-400/20 blur-3xl" />
+                <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-primary-300/20 blur-3xl" />
                 <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-200/80">Admin Console</p>
@@ -509,7 +509,7 @@ const toggleStatus = async (categoryId, currentStatus) => {
                         </button>
                         <button
                             onClick={() => handleAddCategory(null)}
-                            className="flex items-center gap-2 rounded-xl bg-indigo-300 px-5 py-3 font-bold text-slate-900 transition-colors hover:bg-indigo-200"
+                            className="flex items-center gap-2 rounded-xl bg-primary-300 px-5 py-3 font-bold text-slate-900 transition-colors hover:bg-primary-200"
                         >
                             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
@@ -519,7 +519,7 @@ const toggleStatus = async (categoryId, currentStatus) => {
                         {hasChanges && (
                             <button
                                 onClick={handleSaveChanges}
-                                className="rounded-xl bg-indigo-300 px-5 py-3 font-bold text-slate-900 transition-colors hover:bg-indigo-200"
+                                className="rounded-xl bg-primary-300 px-5 py-3 font-bold text-slate-900 transition-colors hover:bg-primary-200"
                             >
                                 Save Changes
                             </button>
@@ -541,9 +541,9 @@ const toggleStatus = async (categoryId, currentStatus) => {
                     <p className="text-xs uppercase tracking-widest text-amber-700">Inactive</p>
                     <p className="mt-2 text-3xl font-black text-amber-800">{stats.inactive}</p>
                 </div>
-                <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-5 shadow-sm">
-                    <p className="text-xs uppercase tracking-widest text-blue-700">Max Depth</p>
-                    <p className="mt-2 text-3xl font-black text-blue-800">{stats.maxDepth}</p>
+                <div className="rounded-2xl border border-primary-200 bg-gradient-to-br from-primary-50 to-white p-5 shadow-sm">
+                    <p className="text-xs uppercase tracking-widest text-primary-700">Max Depth</p>
+                    <p className="mt-2 text-3xl font-black text-primary-800">{stats.maxDepth}</p>
                 </div>
                 <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-5 shadow-sm">
                     <p className="text-xs uppercase tracking-widest text-violet-700">Featured</p>
@@ -556,7 +556,7 @@ const toggleStatus = async (categoryId, currentStatus) => {
                     <div className="flex flex-wrap items-center gap-2">
                         <button
                             onClick={expandAll}
-                            className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+                            className="rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100"
                         >
                             Expand All
                         </button>
@@ -586,7 +586,7 @@ const toggleStatus = async (categoryId, currentStatus) => {
                 <div className="p-6">
                     {isLoading ? (
                         <div className="flex items-center justify-center h-64">
-                            <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-indigo-600"></div>
+                            <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary-600"></div>
                         </div>
                     ) : categories.length === 0 ? (
                         <div className="text-center py-12">
@@ -598,7 +598,7 @@ const toggleStatus = async (categoryId, currentStatus) => {
                             <p className="mb-4 text-lg text-slate-500">No categories found yet</p>
                             <button
                                 onClick={() => handleAddCategory(null)}
-                                className="rounded-xl bg-indigo-500 px-6 py-3 font-semibold text-white transition-colors hover:bg-indigo-400"
+                                className="rounded-xl bg-primary-500 px-6 py-3 font-semibold text-white transition-colors hover:bg-primary-400"
                             >
                                 Create Your First Category
                             </button>
@@ -630,8 +630,8 @@ const toggleStatus = async (categoryId, currentStatus) => {
                             </div>
                             <DragOverlay>
                                 {activeId ? (
-                                    <div className="rounded-xl border-2 border-indigo-400 bg-indigo-50 p-4 shadow-lg">
-                                        <span className="font-semibold text-indigo-900">
+                                    <div className="rounded-xl border-2 border-primary-400 bg-primary-50 p-4 shadow-lg">
+                                        <span className="font-semibold text-primary-900">
                                             {findCategoryById(categories, activeId)?.title}
                                         </span>
                                     </div>

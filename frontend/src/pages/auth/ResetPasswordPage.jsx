@@ -73,8 +73,8 @@ const ResetPasswordPage = () => {
 
                 return (
                     <div className="relative min-h-screen overflow-hidden bg-slate-950 p-4">
-                        <div className="absolute -left-10 top-10 h-56 w-56 rounded-full bg-indigo-500/20 blur-3xl" />
-                        <div className="absolute -right-10 bottom-10 h-56 w-56 rounded-full bg-fuchsia-500/20 blur-3xl" />
+                        <div className="absolute -left-10 top-10 h-56 w-56 rounded-full bg-primary-500/20 blur-3xl" />
+                        <div className="absolute -right-10 bottom-10 h-56 w-56 rounded-full bg-accent-500/20 blur-3xl" />
                         <div className="mx-auto flex min-h-screen w-full max-w-5xl items-center justify-center py-8">
                             <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/95 p-8 shadow-2xl backdrop-blur">
                 
@@ -82,13 +82,13 @@ const ResetPasswordPage = () => {
                     {logoUrl && (
                         <img src={logoUrl} alt={siteName} className="mx-auto mb-3 h-10 w-10 rounded-lg object-cover" />
                     )}
-                    <div className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-full bg-indigo-100">
-                        <svg className="h-7 w-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary-100">
+                        <svg className="h-7 w-7 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
                     </div>
-                    <h1 className="mb-1 text-3xl font-bold text-gray-900">Reset Password</h1>
-                    <p className="text-sm text-gray-500">Create a new password for your account.</p>
+                    <h1 className="mb-1 text-3xl font-bold text-slate-900">Reset Password</h1>
+                    <p className="text-sm text-slate-500">Create a new password for your account.</p>
                 </div>
 
 {isCompleted ? (
@@ -123,7 +123,7 @@ const ResetPasswordPage = () => {
 
 {!initialToken && (
                                 <div>
-                                    <label className="mb-2 block text-sm font-semibold text-gray-700">
+                                    <label className="mb-2 block text-sm font-semibold text-slate-700">
                                         Reset Token
                                     </label>
                                     <input
@@ -138,7 +138,7 @@ const ResetPasswordPage = () => {
                             )}
 
                             <div>
-                                    <label className="mb-2 block text-sm font-semibold text-gray-700">
+                                    <label className="mb-2 block text-sm font-semibold text-slate-700">
                                     New Password
                                 </label>
                                 <input
@@ -150,14 +150,14 @@ const ResetPasswordPage = () => {
                                 />
                                 <FieldError error={getFieldError(errors, {}, 'newPassword')} />
                                 {!getFieldError(errors, {}, 'newPassword') && (
-                                    <p className="mt-1 text-xs text-gray-500">
+                                    <p className="mt-1 text-xs text-slate-500">
                                         Must be between 8 and 128 characters
                                     </p>
                                 )}
                             </div>
 
                             <div>
-                                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                                <label className="mb-2 block text-sm font-semibold text-slate-700">
                                     Confirm New Password
                                 </label>
                                 <input
@@ -173,7 +173,7 @@ const ResetPasswordPage = () => {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full rounded-xl bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 py-3 font-semibold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="w-full rounded-xl bg-gradient-to-r from-primary-600 to-primary-500 py-3 font-semibold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {isLoading ? 'Resetting...' : 'Reset Password'}
                             </button>
@@ -182,9 +182,9 @@ const ResetPasswordPage = () => {
                 )}
 
 <div className="mt-6 text-center">
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-slate-600">
                         Back to{' '}
-                        <Link to="/login" className="font-semibold text-indigo-600 hover:text-indigo-700">
+                        <Link to="/login" className="font-semibold text-primary-600 hover:text-primary-700">
                             Sign in
                         </Link>
                     </p>

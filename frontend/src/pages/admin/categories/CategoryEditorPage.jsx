@@ -52,7 +52,7 @@ const CategoryEditorPage = () => {
     const watchStatus = watch('status', 'active');
 
     const fc = (field) =>
-        `w-full rounded-xl border px-4 py-2.5 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${
+        `w-full rounded-xl border px-4 py-2.5 focus:border-primary-400 focus:ring-2 focus:ring-primary-200 ${
             errors[field] ? 'border-red-400 bg-red-50 focus:ring-red-100' : 'border-slate-300'
         }`;
 
@@ -266,11 +266,11 @@ const CategoryEditorPage = () => {
 
     return (
         <div className="relative w-full space-y-8 px-4">
-            <div className="pointer-events-none absolute right-8 top-16 h-40 w-40 rounded-full bg-indigo-300/20 blur-3xl" />
-            <div className="pointer-events-none absolute bottom-20 left-8 h-44 w-44 rounded-full bg-blue-300/20 blur-3xl" />
+            <div className="pointer-events-none absolute right-8 top-16 h-40 w-40 rounded-full bg-primary-300/20 blur-3xl" />
+            <div className="pointer-events-none absolute bottom-20 left-8 h-44 w-44 rounded-full bg-primary-300/20 blur-3xl" />
 
             <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-violet-900 p-6 text-white shadow-[0_20px_60px_rgba(15,23,42,0.35)] sm:p-8">
-                <div className="absolute -right-10 -top-20 h-48 w-48 rounded-full bg-indigo-400/20 blur-3xl" />
+                <div className="absolute -right-10 -top-20 h-48 w-48 rounded-full bg-primary-400/20 blur-3xl" />
                 <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-sky-300/20 blur-3xl" />
                 <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div>
@@ -317,7 +317,7 @@ const CategoryEditorPage = () => {
                         <div className="media-card">
                             <div className="mb-4 flex items-center justify-between">
                                 <h2 className="text-xl font-black text-slate-900">Category Media</h2>
-                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200 bg-gradient-to-br from-indigo-100 to-blue-100 text-indigo-700">
+                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary-200 bg-gradient-to-br from-primary-100 to-primary-100 text-primary-700">
                                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
                                     </svg>
@@ -353,7 +353,7 @@ const CategoryEditorPage = () => {
                                         <button
                                             type="button"
                                             onClick={() => setIsBrandPickerOpen((prev) => !prev)}
-                                            className="flex w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
+                                            className="flex w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                                         >
                                             <span className="truncate">
                                                 {selectedBrandTitles.length > 0 ? selectedBrandTitles.join(', ') : 'Select associated brands'}
@@ -370,7 +370,7 @@ const CategoryEditorPage = () => {
                                                     value={brandSearchTerm}
                                                     onChange={(e) => setBrandSearchTerm(e.target.value)}
                                                     placeholder="Search brands..."
-                                                    className="mb-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
+                                                    className="mb-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                                                 />
                                                 <div className="max-h-56 overflow-y-auto rounded-lg border border-slate-200">
                                                     {filteredBrands.length === 0 ? (
@@ -416,7 +416,7 @@ const CategoryEditorPage = () => {
                                                         type="checkbox"
                                                         checked={(watchFilterIds || []).includes(String(filter._id))}
                                                         onChange={() => toggleArrayValue('filterIds', String(filter._id))}
-                                                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                        className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                                                     />
                                                     {filter.title}
                                                 </label>
@@ -432,7 +432,7 @@ const CategoryEditorPage = () => {
                         <div className="space-y-6 rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all hover:shadow-[0_20px_40px_rgba(15,23,42,0.12)] sm:p-7">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-xl font-black text-slate-900">Category Details</h2>
-                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200 bg-gradient-to-br from-indigo-100 to-sky-100 text-indigo-700">
+                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary-200 bg-gradient-to-br from-primary-100 to-sky-100 text-primary-700">
                                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z" />
                                     </svg>
@@ -504,7 +504,7 @@ const CategoryEditorPage = () => {
                                         <input
                                             {...register('isFeatured')}
                                             type="checkbox"
-                                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                            className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                                         />
                                         <span className="text-sm font-semibold text-slate-700">Featured Category</span>
                                     </label>
@@ -539,7 +539,7 @@ const CategoryEditorPage = () => {
                                         <input
                                             {...register('codeLocked')}
                                             type="checkbox"
-                                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                            className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                                         />
                                         <span className="text-sm font-semibold text-slate-700">Prevent automatic code changes</span>
                                     </label>
@@ -560,7 +560,7 @@ const CategoryEditorPage = () => {
                     <button
                         type="submit"
                         disabled={isSaving}
-                        className="w-full rounded-xl bg-indigo-400 px-6 py-3 font-bold text-slate-900 transition-colors hover:bg-indigo-300 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-1"
+                        className="w-full rounded-xl bg-primary-400 px-6 py-3 font-bold text-slate-900 transition-colors hover:bg-primary-300 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-1"
                     >
                         {isSaving ? 'Saving...' : isEdit ? 'Update Category' : 'Create Category'}
                     </button>

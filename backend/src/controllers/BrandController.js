@@ -48,10 +48,10 @@ export class BrandController extends BaseController {
     });
   });
 
-    show = this.catchAsync(async (req, res) => {
+  show = this.catchAsync(async (req, res) => {
     const { slug } = req.params;
 
-        let brand;
+    let brand;
     if (mongoose.Types.ObjectId.isValid(slug)) {
       brand = await Brand.findById(slug).lean();
     }
@@ -66,18 +66,18 @@ export class BrandController extends BaseController {
     this.sendSuccess(res, brand);
   });
 
-    getProducts = this.catchAsync(async (req, res) => {
+  getProducts = this.catchAsync(async (req, res) => {
     const { slug } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-        const brand = await Brand.findOne({ slug, status: "active" }).lean();
+    const brand = await Brand.findOne({ slug, status: "active" }).lean();
     if (!brand) {
       throw new AppError("Brand not found", 404);
     }
 
-        const products = await Product.find({
+    const products = await Product.find({
       "brand.id": brand._id,
       status: "active",
     })
@@ -107,18 +107,18 @@ export class BrandController extends BaseController {
     });
   });
 
-    store = this.catchAsync(async (req, res) => {
+  store = this.catchAsync(async (req, res) => {
     const { title, description, status } = req.body;
 
-let logo = null;
+    let logo = null;
     let banners = [];
 
     if (req.files) {
-            if (req.files.logo && req.files.logo.length > 0) {
+      if (req.files.logo && req.files.logo.length > 0) {
         logo = `uploads/brands/${req.files.logo[0].filename}`;
       }
 
-            if (req.files.banners && req.files.banners.length > 0) {
+      if (req.files.banners && req.files.banners.length > 0) {
         banners = req.files.banners.map(
           (file) => `uploads/brands/${file.filename}`,
         );
@@ -140,12 +140,12 @@ let logo = null;
     this.sendSuccess(res, brand, 201, "Brand created successfully");
   });
 
-    update = this.catchAsync(async (req, res) => {
+  update = this.catchAsync(async (req, res) => {
     const { id } = req.params;
     const { title, description, status, existingBanners, keepExistingLogo } =
       req.body;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       throw new AppError("Invalid brand ID", 400);
     }
 
@@ -155,28 +155,28 @@ let logo = null;
       throw new AppError("Brand not found", 404);
     }
 
-        const updateData = {
+    const updateData = {
       title: title || brand.title,
       description: description || brand.description,
       status: status || brand.status,
     };
 
-        if (req.files && req.files.logo && req.files.logo.length > 0) {
-            updateData.logo = `uploads/brands/${req.files.logo[0].filename}`;
+    if (req.files && req.files.logo && req.files.logo.length > 0) {
+      updateData.logo = `uploads/brands/${req.files.logo[0].filename}`;
 
-            if (brand.logo) {
+      if (brand.logo) {
         await deleteUploadedFile(brand.logo);
       }
     } else if (keepExistingLogo === "false") {
-            updateData.logo = null;
+      updateData.logo = null;
       if (brand.logo) {
         await deleteUploadedFile(brand.logo);
       }
     } else {
-            updateData.logo = brand.logo;
+      updateData.logo = brand.logo;
     }
 
-        let existingBannersArray = [];
+    let existingBannersArray = [];
     if (existingBanners) {
       try {
         existingBannersArray =
@@ -191,36 +191,36 @@ let logo = null;
       }
     }
 
-        const newBanners =
+    const newBanners =
       req.files && req.files.banners && req.files.banners.length > 0
         ? req.files.banners.map((file) => `uploads/brands/${file.filename}`)
         : [];
 
     updateData.banners = [...existingBannersArray, ...newBanners];
 
-        const updatedBrand = await this.service.updateBrand(id, updateData);
+    const updatedBrand = await this.service.updateBrand(id, updateData);
 
     logger.info(`Brand updated: ${updatedBrand.title}`);
 
     this.sendSuccess(res, updatedBrand, 200, "Brand updated successfully");
   });
 
-    destroy = this.catchAsync(async (req, res) => {
+  destroy = this.catchAsync(async (req, res) => {
     const { id } = req.params;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       throw new AppError("Invalid brand ID", 400);
     }
 
-        const brand = await Brand.findById(id);
+    const brand = await Brand.findById(id);
 
     if (!brand) {
       throw new AppError("Brand not found", 404);
     }
 
-        await this.service.deleteBrand(id);
+    await this.service.deleteBrand(id);
 
-        if (brand.logo) {
+    if (brand.logo) {
       await deleteUploadedFile(brand.logo);
     }
 

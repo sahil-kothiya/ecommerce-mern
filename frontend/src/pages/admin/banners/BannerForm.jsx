@@ -45,7 +45,7 @@ const BannerForm = () => {
         mode: 'onBlur',
     });
 
-    const fc = (field) => `w-full rounded-xl border px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 ${errors[field] ? 'border-red-400 focus:ring-red-100 bg-red-50' : 'border-slate-300 focus:border-indigo-400 focus:ring-indigo-200'}`;
+    const fc = (field) => `w-full rounded-xl border px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 ${errors[field] ? 'border-red-400 focus:ring-red-100 bg-red-50' : 'border-slate-300 focus:border-primary-400 focus:ring-primary-200'}`;
 
     const watchLinkType = watch('linkType', '');
     const watchStatus = watch('status', 'inactive');
@@ -222,12 +222,12 @@ const BannerForm = () => {
 
     return (
         <div className="relative w-full space-y-8 px-4">
-            <div className="pointer-events-none absolute right-8 top-16 h-40 w-40 rounded-full bg-indigo-300/20 blur-3xl" />
+            <div className="pointer-events-none absolute right-8 top-16 h-40 w-40 rounded-full bg-primary-300/20 blur-3xl" />
             <div className="pointer-events-none absolute bottom-20 left-8 h-44 w-44 rounded-full bg-sky-300/20 blur-3xl" />
 
-            <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-6 text-white shadow-[0_20px_60px_rgba(15,23,42,0.35)] sm:p-8">
-                <div className="absolute -right-10 -top-20 h-48 w-48 rounded-full bg-indigo-400/20 blur-3xl" />
-                <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-blue-300/20 blur-3xl" />
+            <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 text-white shadow-[0_20px_60px_rgba(15,23,42,0.35)] sm:p-8">
+                <div className="absolute -right-10 -top-20 h-48 w-48 rounded-full bg-primary-400/20 blur-3xl" />
+                <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-primary-300/20 blur-3xl" />
                 <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-200/80">Banner Studio</p>
@@ -243,7 +243,7 @@ const BannerForm = () => {
                         watchStatus === 'active'
                             ? 'border-emerald-200 bg-emerald-100 text-emerald-800'
                             : watchStatus === 'scheduled'
-                                ? 'border-blue-200 bg-blue-100 text-blue-800'
+                                ? 'border-primary-200 bg-primary-100 text-primary-800'
                                 : 'border-amber-200 bg-amber-100 text-amber-800'
                     }`}>
                         {watchStatus || 'inactive'}
@@ -272,7 +272,7 @@ const BannerForm = () => {
                         <div className="media-card">
                             <div className="mb-4 flex items-center justify-between">
                                 <h2 className="text-xl font-black text-slate-900">Banner Image</h2>
-                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200 bg-gradient-to-br from-indigo-100 to-blue-100 text-indigo-700">
+                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary-200 bg-gradient-to-br from-primary-100 to-primary-100 text-primary-700">
                                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
                                     </svg>
@@ -325,7 +325,7 @@ const BannerForm = () => {
                         <div className="space-y-6 rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all hover:shadow-[0_20px_40px_rgba(15,23,42,0.12)] sm:p-7">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-xl font-black text-slate-900">Campaign Details</h2>
-                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-indigo-200 bg-gradient-to-br from-indigo-100 to-sky-100 text-indigo-700">
+                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary-200 bg-gradient-to-br from-primary-100 to-sky-100 text-primary-700">
                                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z" />
                                     </svg>
@@ -352,7 +352,7 @@ const BannerForm = () => {
                                     {...register('description')}
                                     rows="4"
                                     maxLength="500"
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200"
+                                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                                     placeholder="Write a short campaign description"
                                 />
                                 <p className="mt-1 text-sm text-slate-500">{watchDescription.length}/500</p>
@@ -384,7 +384,7 @@ const BannerForm = () => {
                                         <select
                                             value={selectedDiscountId}
                                             onChange={(e) => { setSelectedDiscountId(e.target.value); setDiscountError(''); }}
-                                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 ${discountError ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
+                                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-primary-400 focus:ring-2 focus:ring-primary-200 ${discountError ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
                                         >
                                             <option value="">-- Select Discount --</option>
                                             {discountOptions.map((discount) => (
@@ -435,27 +435,27 @@ const BannerForm = () => {
                         </div>
 
                         {watchStatus === 'scheduled' && (
-                            <div className="rounded-3xl border border-blue-200 bg-blue-50/70 p-6 sm:p-7">
-                                <h3 className="text-lg font-black text-blue-900">Schedule Window</h3>
-                                <p className="mt-1 text-sm text-blue-700">Define when this banner should automatically run.</p>
+                            <div className="rounded-3xl border border-primary-200 bg-primary-50/70 p-6 sm:p-7">
+                                <h3 className="text-lg font-black text-primary-900">Schedule Window</h3>
+                                <p className="mt-1 text-sm text-primary-700">Define when this banner should automatically run.</p>
                                 <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <div>
-                                        <label className="mb-2 block text-sm font-semibold text-blue-900">
+                                        <label className="mb-2 block text-sm font-semibold text-primary-900">
                                             Start Date & Time <span className="text-rose-500">*</span>
                                         </label>
                                         <input
                                             {...register('startDate')}
                                             type="datetime-local"
-                                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 ${errors.startDate ? 'border-red-400 bg-red-50' : 'border-blue-200'}`}
+                                            className={`w-full rounded-xl border px-4 py-3 text-slate-900 focus:border-primary-400 focus:ring-2 focus:ring-primary-200 ${errors.startDate ? 'border-red-400 bg-red-50' : 'border-primary-200'}`}
                                         />
                                         {errors.startDate && <p className="mt-1 text-sm text-red-600">{errors.startDate.message}</p>}
                                     </div>
                                     <div>
-                                        <label className="mb-2 block text-sm font-semibold text-blue-900">End Date & Time</label>
+                                        <label className="mb-2 block text-sm font-semibold text-primary-900">End Date & Time</label>
                                         <input
                                             {...register('endDate')}
                                             type="datetime-local"
-                                            className="w-full rounded-xl border border-blue-200 px-4 py-3 text-slate-900 focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+                                            className="w-full rounded-xl border border-primary-200 px-4 py-3 text-slate-900 focus:border-primary-400 focus:ring-2 focus:ring-primary-200"
                                         />
                                     </div>
                                 </div>
@@ -475,7 +475,7 @@ const BannerForm = () => {
                     <button
                         type="submit"
                         disabled={isSaving}
-                        className="w-full rounded-xl bg-indigo-400 px-6 py-3 font-bold text-slate-900 transition-colors hover:bg-indigo-300 disabled:opacity-50 sm:flex-1"
+                        className="w-full rounded-xl bg-primary-400 px-6 py-3 font-bold text-slate-900 transition-colors hover:bg-primary-300 disabled:opacity-50 sm:flex-1"
                     >
                         {isSaving ? 'Saving...' : isEdit ? 'Update Banner' : 'Create Banner'}
                     </button>

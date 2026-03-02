@@ -90,8 +90,8 @@ const RegisterPage = () => {
 
                 return (
         <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4 py-6">
-            <div className="absolute left-8 top-6 h-52 w-52 rounded-full bg-fuchsia-500/20 blur-3xl" />
-            <div className="absolute bottom-8 right-8 h-52 w-52 rounded-full bg-cyan-500/20 blur-3xl" />
+            <div className="absolute left-8 top-6 h-52 w-52 rounded-full bg-accent-500/20 blur-3xl" />
+            <div className="absolute bottom-8 right-8 h-52 w-52 rounded-full bg-primary-500/20 blur-3xl" />
 
             <div className="interactive-card relative mx-auto grid w-full max-w-6xl overflow-hidden rounded-3xl border border-white/10 bg-white/95 shadow-2xl backdrop-blur md:grid-cols-2">
                 <section className="p-6 sm:p-8 md:p-10">
@@ -223,7 +223,7 @@ const RegisterPage = () => {
                     <div className="mt-6 text-center">
                         <p className="text-slate-600">
                             Already have an account?{' '}
-                            <Link to="/login" className="font-semibold text-blue-600 hover:text-blue-700">
+                            <Link to="/login" className="font-semibold text-primary-600 hover:text-primary-700">
                                 Sign in
                             </Link>
                         </p>
