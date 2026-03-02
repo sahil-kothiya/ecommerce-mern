@@ -1,4 +1,11 @@
-import { afterEach, beforeAll, describe, expect, jest, test } from "@jest/globals";
+import {
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  jest,
+  test,
+} from "@jest/globals";
 
 const constructEventMock = jest.fn();
 const stripeConstructorMock = jest.fn(() => ({
@@ -59,9 +66,11 @@ describe("Stripe webhook security", () => {
     await handleStripeWebhook(req, res);
 
     expect(res.status).toHaveBeenCalledWith(503);
+    // [FIX] Project standard uses { success, message } not { error }; controller is correct
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: expect.stringMatching(/webhook secret is required/i),
+        success: false,
+        message: expect.stringMatching(/webhook secret is required/i),
       }),
     );
     expect(updateSpy).not.toHaveBeenCalled();
@@ -83,9 +92,11 @@ describe("Stripe webhook security", () => {
     await handleStripeWebhook(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
+    // [FIX] Project standard uses { success, message } not { error }
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: expect.stringMatching(/missing stripe signature/i),
+        success: false,
+        message: expect.stringMatching(/missing stripe signature/i),
       }),
     );
     expect(updateSpy).not.toHaveBeenCalled();
@@ -111,9 +122,11 @@ describe("Stripe webhook security", () => {
     await handleStripeWebhook(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
+    // [FIX] Project standard uses { success, message } not { error }
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: expect.stringMatching(/signature error/i),
+        success: false,
+        message: expect.stringMatching(/signature error/i),
       }),
     );
     expect(updateSpy).not.toHaveBeenCalled();
@@ -143,6 +156,10 @@ describe("Stripe webhook security", () => {
       { transactionId: "pi_123" },
       { $set: { paymentStatus: "paid" } },
     );
-    expect(res.json).toHaveBeenCalledWith({ received: true });
+    // [FIX] Controller wraps result in { success: true, data: ... } per project standard
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      data: { received: true },
+    });
   });
 });

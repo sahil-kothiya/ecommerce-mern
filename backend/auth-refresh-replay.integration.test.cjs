@@ -3,6 +3,18 @@ const request = require("supertest");
 const runDbIntegration = process.env.RUN_DB_INTEGRATION_TESTS === "true";
 const describeIfEnabled = runDbIntegration ? describe : describe.skip;
 
+// [FIX] Helper to obtain a fresh CSRF token from the server before each protected POST
+const getCsrfToken = async (appInstance) => {
+  const res = await request(appInstance).get("/api/auth/csrf-token");
+  const setCookieArr = res.headers["set-cookie"];
+  const arr = Array.isArray(setCookieArr)
+    ? setCookieArr
+    : setCookieArr
+      ? [setCookieArr]
+      : [];
+  return getCookieValue(arr, "csrfToken");
+};
+
 const getCookieValue = (setCookieHeader, cookieName) => {
   if (!Array.isArray(setCookieHeader)) {
     return null;
@@ -70,10 +82,16 @@ describeIfEnabled("Refresh token replay protection (integration)", () => {
     );
     expect(firstRefreshToken).toBeTruthy();
 
+    // [FIX] CSRF protection is active on all /api routes; must send csrfToken cookie + x-csrf-token header
+    const csrfToken1 = await getCsrfToken(app);
     const firstRefreshResponse = await request(app)
       .post("/api/auth/refresh-token")
-      .set("Cookie", [`refreshToken=${firstRefreshToken}`])
-      .send({ refreshToken: firstRefreshToken });
+      .set("Cookie", [
+        `refreshToken=${firstRefreshToken}`,
+        `csrfToken=${csrfToken1}`,
+      ])
+      .set("x-csrf-token", csrfToken1)
+      .send();
 
     expect(firstRefreshResponse.status).toBe(200);
     expect(firstRefreshResponse.body?.data?.refreshToken).toBeUndefined();
@@ -85,10 +103,16 @@ describeIfEnabled("Refresh token replay protection (integration)", () => {
     expect(rotatedRefreshToken).toBeTruthy();
     expect(rotatedRefreshToken).not.toBe(firstRefreshToken);
 
+    // [FIX] Replay also needs CSRF to reach the auth logic (expected to fail with 401, not 403)
+    const csrfToken2 = await getCsrfToken(app);
     const replayResponse = await request(app)
       .post("/api/auth/refresh-token")
-      .set("Cookie", [`refreshToken=${firstRefreshToken}`])
-      .send({ refreshToken: firstRefreshToken });
+      .set("Cookie", [
+        `refreshToken=${firstRefreshToken}`,
+        `csrfToken=${csrfToken2}`,
+      ])
+      .set("x-csrf-token", csrfToken2)
+      .send();
 
     expect(replayResponse.status).toBe(401);
     expect(replayResponse.body.success).toBe(false);
@@ -133,19 +157,29 @@ describeIfEnabled("Refresh token replay protection (integration)", () => {
     );
     expect(accessToken).toBeTruthy();
 
+    // [FIX] Logout sends session cookies so CSRF protection applies
+    const csrfTokenLogout = await getCsrfToken(app);
     const logoutResponse = await request(app)
       .post("/api/auth/logout")
       .set("Cookie", [
         `accessToken=${accessToken}`,
         `refreshToken=${refreshToken}`,
-      ]);
+        `csrfToken=${csrfTokenLogout}`,
+      ])
+      .set("x-csrf-token", csrfTokenLogout);
 
     expect(logoutResponse.status).toBe(200);
     expect(logoutResponse.body.success).toBe(true);
 
+    // [FIX] Reuse-after-logout also needs CSRF to reach the auth check (expected to fail with 401)
+    const csrfTokenReuse = await getCsrfToken(app);
     const reusedTokenResponse = await request(app)
       .post("/api/auth/refresh-token")
-      .set("Cookie", [`refreshToken=${refreshToken}`]);
+      .set("Cookie", [
+        `refreshToken=${refreshToken}`,
+        `csrfToken=${csrfTokenReuse}`,
+      ])
+      .set("x-csrf-token", csrfTokenReuse);
 
     expect(reusedTokenResponse.status).toBe(401);
     expect(reusedTokenResponse.body.success).toBe(false);
