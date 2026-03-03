@@ -39,14 +39,23 @@ export const addRecentlyViewed = (product) => {
       title: product.title || product.name,
       slug: product.slug,
       images: product.images || [],
+      // preserve all pricing fields getProductDisplayPricing relies on
       price: product.price,
       salePrice: product.salePrice,
+      basePrice: product.basePrice,
+      finalPrice: product.finalPrice,
+      discount: product.discount,
+      baseStock: product.baseStock,
+      stock: product.stock,
       hasVariants: product.hasVariants,
       variants: product.variants || [],
       brand: product.brand,
       category: product.category,
+      ratings: product.ratings,
       rating: product.rating,
       reviewCount: product.reviewCount,
+      isFeatured: product.isFeatured,
+      condition: product.condition,
       status: product.status,
       timestamp: Date.now(),
     };
@@ -75,7 +84,24 @@ export const getRecentlyViewed = (limit = MAX_RECENT_PRODUCTS) => {
     const parsed = JSON.parse(stored);
     const valid = Array.isArray(parsed) ? parsed : [];
 
-    return valid.slice(0, limit).filter((p) => p?._id);
+    return valid.slice(0, limit).filter((p) => {
+      if (!p?._id) return false;
+      // Filter out stale entries with incomplete pricing (old cache format)
+      if (p.hasVariants) {
+        const variants = Array.isArray(p.variants) ? p.variants : [];
+        return variants.some(
+          (v) =>
+            Number(v?.price) > 0 ||
+            Number(v?.salePrice) > 0 ||
+            Number(v?.finalPrice) > 0,
+        );
+      }
+      return (
+        Number(p.basePrice) > 0 ||
+        Number(p.price) > 0 ||
+        Number(p.finalPrice) > 0
+      );
+    });
   } catch (error) {
     logger.error("Failed to get recently viewed products", {
       error: error.message,

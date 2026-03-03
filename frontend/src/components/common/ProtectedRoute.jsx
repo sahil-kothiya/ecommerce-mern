@@ -11,7 +11,7 @@ const PageLoader = () => (
     </div>
 );
 
-const ProtectedRoute = ({ children, requireAdmin = false }) => {
+const ProtectedRoute = ({ children, requireAdmin = false, customerOnly = false }) => {
     const location = useLocation();
     const [isAuthChecking, setIsAuthChecking] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -52,6 +52,10 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
 
     if (requireAdmin && !isAdmin) {
         return <Navigate to="/account" replace />;
+    }
+
+    if (customerOnly && isAdmin) {
+        return <Navigate to="/admin" replace />;
     }
 
     return children;

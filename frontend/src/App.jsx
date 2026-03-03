@@ -118,18 +118,18 @@ function App() {
             <Route path="/products/:id" element={<ProductDetailPage />} />
             <Route path="/categories" element={<ProductsPage />} />
             <Route path="/cart" element={
-                <ProtectedRoute>
+                <ProtectedRoute customerOnly>
                     <CartPage />
                 </ProtectedRoute>
             } />
             <Route path="/checkout" element={
-                <ProtectedRoute>
+                <ProtectedRoute customerOnly>
                     <CheckoutPage />
                 </ProtectedRoute>
             } />
             <Route path="/categories/:slug" element={<CategoryPage />} />
             <Route path="/wishlist" element={
-                <ProtectedRoute>
+                <ProtectedRoute customerOnly>
                     <WishlistPage />
                 </ProtectedRoute>
             } />
@@ -187,7 +187,7 @@ function App() {
 
             {/* User account panel — authenticated users only */}
             <Route path="/account" element={
-                <ProtectedRoute>
+                <ProtectedRoute customerOnly>
                     <SiteSettingsProvider>
                         <UserLayout />
                     </SiteSettingsProvider>

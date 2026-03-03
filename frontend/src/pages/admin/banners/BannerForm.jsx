@@ -395,17 +395,46 @@ const BannerForm = () => {
                                         </select>
                                         {discountError && <p className="mt-1 text-sm text-red-600">{discountError}</p>}
                                     </div>
-                                ) : watchLinkType ? (
+                                ) : watchLinkType === 'product' ? (
                                     <div>
                                         <label className="mb-2 block text-sm font-semibold text-slate-700">
-                                            Redirect URL / SKU <span className="text-rose-500">*</span>
+                                            Product SKU or Slug <span className="text-rose-500">*</span>
                                         </label>
                                         <input
                                             {...register('link')}
                                             type="text"
                                             className={fc('link')}
-                                            placeholder="e.g. /product/sku-123 OR /category/electronics OR https://example.com"
+                                            placeholder="e.g. PROD-101-RED or wireless-headphones"
                                         />
+                                        <p className="mt-1.5 text-xs text-slate-500">Enter the product SKU (e.g. <strong>PROD-101-RED</strong>) or product slug. The banner will open that product&apos;s detail page.</p>
+                                        {errors.link && <p className="mt-1 text-sm text-red-600">{errors.link.message}</p>}
+                                    </div>
+                                ) : watchLinkType === 'category' ? (
+                                    <div>
+                                        <label className="mb-2 block text-sm font-semibold text-slate-700">
+                                            Category Slug <span className="text-rose-500">*</span>
+                                        </label>
+                                        <input
+                                            {...register('link')}
+                                            type="text"
+                                            className={fc('link')}
+                                            placeholder="e.g. electronics or men-fashion"
+                                        />
+                                        <p className="mt-1.5 text-xs text-slate-500">Enter the category slug (e.g. <strong>electronics</strong>). The banner will open the products page filtered by that category.</p>
+                                        {errors.link && <p className="mt-1 text-sm text-red-600">{errors.link.message}</p>}
+                                    </div>
+                                ) : watchLinkType === 'url' ? (
+                                    <div>
+                                        <label className="mb-2 block text-sm font-semibold text-slate-700">
+                                            Redirect URL <span className="text-rose-500">*</span>
+                                        </label>
+                                        <input
+                                            {...register('link')}
+                                            type="text"
+                                            className={fc('link')}
+                                            placeholder="e.g. https://example.com/sale or /products?discount=summer"
+                                        />
+                                        <p className="mt-1.5 text-xs text-slate-500">Enter a full URL (external) or a relative path (internal) for this banner&apos;s click action.</p>
                                         {errors.link && <p className="mt-1 text-sm text-red-600">{errors.link.message}</p>}
                                     </div>
                                 ) : null}

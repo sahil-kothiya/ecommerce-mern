@@ -299,13 +299,22 @@ export class ProductController {
   async show(req, res) {
     try {
       const { slug } = req.params;
-      const byIdQuery =
-        mongoose.Types.ObjectId.isValid(slug) && slug.length === 24
-          ? { _id: slug }
-          : null;
-      const query = byIdQuery || { slug };
+
+      // Build lookup query: ObjectId → slug → baseSku / variant SKU
+      const isObjectId =
+        mongoose.Types.ObjectId.isValid(slug) && slug.length === 24;
+      const identifierQuery = isObjectId
+        ? { _id: slug }
+        : {
+            $or: [
+              { slug },
+              { baseSku: slug.toUpperCase() },
+              { "variants.sku": slug.toUpperCase() },
+            ],
+          };
+
       const product = await Product.findOneAndUpdate(
-        { ...query, status: "active" },
+        { ...identifierQuery, status: "active" },
         { $inc: { viewCount: 1 } },
         { new: true },
       );

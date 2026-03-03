@@ -10,6 +10,7 @@ const ProductCard = ({
     currentImage, 
     isHovered, 
     inWishlist, 
+    isAdmin = false,
     onHover, 
     onLeave, 
     onAddToCart, 
@@ -50,7 +51,7 @@ const ProductCard = ({
             onMouseEnter={() => onHover(product)} 
             onMouseLeave={() => onLeave(product)}
         >
-            <div className="relative overflow-hidden bg-gradient-to-br from-slate-50 to-primary-50">
+            <div className="relative h-56 isolate overflow-hidden rounded-t-xl bg-gradient-to-br from-slate-50 to-primary-50">
                 <LazyImage
                     src={currentImage}
                     alt={product.title}
@@ -67,20 +68,21 @@ const ProductCard = ({
                 />
                 
                 {product.condition && (
-                    <span className="absolute left-3 top-3 rounded-full bg-gradient-to-r from-primary-600 to-secondary-500 px-2.5 py-1 text-[10px] font-bold text-white shadow-md z-10">
+                    <span className="absolute left-3 top-3 rounded-full bg-gradient-to-r from-primary-600 to-secondary-500 px-2.5 py-1 text-[10px] font-bold text-white shadow-md">
                         {product.condition === PRODUCT_CONDITIONS.HOT && '🔥 Hot'}
                         {product.condition === PRODUCT_CONDITIONS.NEW && '✨ New'}
                         {product.condition === PRODUCT_CONDITIONS.DEFAULT && '⭐ Trending'}
                     </span>
                 )}
                 
-                <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
+                <div className="absolute right-3 top-3 flex items-center gap-2">
                     {hasDiscount && (
                         <span className="rounded-full border border-secondary-300 bg-secondary-500 px-2.5 py-1 text-[10px] font-bold text-white shadow-md">
                             {Math.round(pricing.discount)}% OFF
                         </span>
                     )}
 
+                    {!isAdmin && (
                     <button
                         type="button"
                         onClick={(e) => {
@@ -105,6 +107,7 @@ const ProductCard = ({
                             </svg>
                         )}
                     </button>
+                    )}
                 </div>
             </div>
             
@@ -146,6 +149,7 @@ const ProductCard = ({
                         )}
                     </div>
                     
+                    {!isAdmin && (
                     <button 
                         type="button" 
                         onClick={(e) => { 
@@ -177,6 +181,7 @@ const ProductCard = ({
                             </>
                         )}
                     </button>
+                    )}
                 </div>
             </div>
         </Link>

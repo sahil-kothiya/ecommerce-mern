@@ -44,9 +44,9 @@ const AccountAddresses = () => {
     useEffect(() => {
         const load = async () => {
             try {
-                const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.AUTH}/me`);
-                const payload = data?.data?.user || data?.user || {};
-                setAddresses(Array.isArray(payload?.data?.user?.addresses) ? payload.data.user.addresses : []);
+                const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.AUTH}/addresses`);
+                const addresses = data?.data?.addresses ?? data?.addresses ?? [];
+                setAddresses(Array.isArray(addresses) ? addresses : []);
             } catch {
                 notify.error('Failed to load addresses');
             } finally {

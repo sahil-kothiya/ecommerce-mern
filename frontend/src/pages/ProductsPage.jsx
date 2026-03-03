@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { API_CONFIG } from '../constants';
-import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
-import { getPrimaryProductImage, resolveImageUrl } from '../utils/imageUrl';
+import { formatPrice } from '../utils/productUtils';
+import { getImageSource, getPrimaryProductImage, resolveImageUrl } from '../utils/imageUrl';
 import authService from '../services/authService';
+import notify from '../utils/notify';
 import StoreNav from '../components/common/StoreNav';
 import LazyImage from '../components/common/LazyImage';
 import { useSiteSettings } from '../context/useSiteSettings';
 import { resolveBannerAction } from '../utils/bannerLink';
+import ProductCard from '../components/product/ProductCard';
 
 const RECENT_SEARCHES_KEY = 'products_recent_searches';
 const SAVED_FILTERS_KEY = 'products_saved_filters';
@@ -181,6 +183,7 @@ const areFiltersEqual = (left, right) => (
 const ProductsPage = () => {
     const { settings } = useSiteSettings();
     const currencyCode = String(settings?.currencyCode || 'USD').toUpperCase();
+    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const initialFilters = buildFiltersFromSearchParams(searchParams);
     const initialPage = parsePositiveInt(searchParams.get('page'), 1);
@@ -196,8 +199,16 @@ const ProductsPage = () => {
     const [saveName, setSaveName] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [message, setMessage] = useState('');
+    const [priceError, setPriceError] = useState('');
+    const searchDebounceRef = useRef(null);
+    const [debouncedSearch, setDebouncedSearch] = useState(initialFilters.search);
+    const messageTimerRef = useRef(null);
     const [prefsReady, setPrefsReady] = useState(false);
     const [canSyncPreferences, setCanSyncPreferences] = useState(false);
+    const [wishlistItems, setWishlistItems] = useState([]);
+    const [hoveredProduct, setHoveredProduct] = useState(null);
+    const [currentImageIndex, setCurrentImageIndex] = useState({});
+    const hoverIntervalsRef = useRef({});
     const [page, setPage] = useState(initialPage);
     const [pageSize, setPageSize] = useState(initialPageSize);
     const [pagination, setPagination] = useState({
@@ -210,6 +221,119 @@ const ProductsPage = () => {
     });
 
     const isAuthenticated = authService.isAuthenticated();
+
+    const loadWishlist = useCallback(async () => {
+        if (!authService.isAuthenticated()) { setWishlistItems([]); return; }
+        try {
+            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, {
+                headers: authService.getAuthHeaders(),
+                credentials: 'include',
+            });
+            if (!res.ok) { setWishlistItems([]); return; }
+            const data = await res.json();
+            setWishlistItems((Array.isArray(data?.data?.items) ? data.data.items : []).map((i) => i.productId).filter(Boolean));
+        } catch { setWishlistItems([]); }
+    }, []);
+
+    const addToCart = async (product) => {
+        if (!authService.isAuthenticated()) { navigate('/login'); return; }
+        if (authService.isAdmin()) { notify.info('Admins cannot add items to cart'); return; }
+        const activeVariants = Array.isArray(product?.variants)
+            ? product.variants.filter(v => !v.status || v.status === 'active')
+            : [];
+        if (product?.hasVariants === true && activeVariants.length > 0) {
+            notify.info('Redirecting to select your preferred options...');
+            navigate(`/products/${product._id}`);
+            return;
+        }
+        try {
+            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
+                method: 'POST',
+                headers: authService.getAuthHeaders(),
+                credentials: 'include',
+                body: JSON.stringify({ productId: product._id, quantity: 1 }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data?.success) throw new Error(data?.message || 'Failed');
+            window.dispatchEvent(new Event('cart:changed'));
+            notify.success(`"${product.title.slice(0, 30)}" added to cart`);
+        } catch (error) { notify.error(error, 'Failed to add to cart'); }
+    };
+
+    const toggleWishlist = async (product) => {
+        if (!authService.isAuthenticated()) { navigate('/login'); return; }
+        if (authService.isAdmin()) { notify.info('Admins cannot manage wishlist'); return; }
+        const inList = wishlistItems.some((i) => i._id === product._id);
+        if (inList) {
+            setWishlistItems((prev) => prev.filter((i) => i._id !== product._id));
+            try {
+                const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { headers: authService.getAuthHeaders(), credentials: 'include' });
+                if (!res.ok) return;
+                const data = await res.json();
+                const matched = (Array.isArray(data?.data?.items) ? data.data.items : []).find((i) => i.productId?._id === product._id || i.productId === product._id);
+                if (matched?._id) {
+                    await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${matched._id}`, { method: 'DELETE', headers: authService.getAuthHeaders(), credentials: 'include' });
+                    window.dispatchEvent(new Event('wishlist:changed'));
+                }
+            } catch { /* ignore */ }
+        } else {
+            setWishlistItems((prev) => prev.some((i) => i._id === product._id) ? prev : [...prev, product]);
+            try {
+                await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { method: 'POST', headers: authService.getAuthHeaders(), credentials: 'include', body: JSON.stringify({ productId: product._id }) });
+                window.dispatchEvent(new Event('wishlist:changed'));
+            } catch { /* ignore */ }
+        }
+    };
+
+    const getProductImage = (product) => {
+        const images = [
+            ...(Array.isArray(product?.images) ? product.images : []),
+        ].filter(Boolean);
+        const primary = getPrimaryProductImage(product);
+        const src = resolveImageUrl(getImageSource(primary), { placeholder: null });
+        if (src) {
+            const idx = (currentImageIndex[product._id] || 0) % Math.max(1, images.length);
+            const rotated = images[idx];
+            return resolveImageUrl(getImageSource(rotated), { placeholder: null }) || src;
+        }
+        return resolveImageUrl(getImageSource(primary));
+    };
+
+    const handleProductHover = (product) => {
+        setHoveredProduct(product._id);
+        const images = Array.isArray(product?.images) ? product.images : [];
+        if (images.length < 2 || hoverIntervalsRef.current[product._id]) return;
+        hoverIntervalsRef.current[product._id] = setInterval(() => {
+            setCurrentImageIndex((prev) => {
+                const nextIdx = ((prev[product._id] || 0) + 1) % images.length;
+                return { ...prev, [product._id]: nextIdx };
+            });
+        }, 900);
+    };
+
+    const handleProductLeave = (product) => {
+        setHoveredProduct(null);
+        clearInterval(hoverIntervalsRef.current[product._id]);
+        delete hoverIntervalsRef.current[product._id];
+        setCurrentImageIndex((prev) => ({ ...prev, [product._id]: 0 }));
+    };
+
+    const formatCurrency = (price) => formatPrice(price || 0, currencyCode);
+
+    const cardProps = (product) => ({
+        product,
+        currentImage: getProductImage(product),
+        isHovered: hoveredProduct === product._id,
+        inWishlist: wishlistItems.some((i) => i._id === product._id),
+        isAdmin: authService.isAdmin(),
+        onHover: handleProductHover,
+        onLeave: handleProductLeave,
+        onAddToCart: addToCart,
+        onWishlistToggle: toggleWishlist,
+        onImageError: () => {},
+        formatCurrency,
+        currencyCode,
+    });
 
     const loadLocalPreferences = useCallback(() => {
         const storedRecent = JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || '[]');
@@ -237,6 +361,13 @@ const ProductsPage = () => {
         localStorage.setItem(SAVED_FILTERS_KEY, JSON.stringify(nextSavedFilters));
         localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(nextRecentSearches));
     }, [canSyncPreferences]);
+
+    useEffect(() => {
+        loadWishlist();
+        const handleWishlistChanged = () => loadWishlist();
+        window.addEventListener('wishlist:changed', handleWishlistChanged);
+        return () => window.removeEventListener('wishlist:changed', handleWishlistChanged);
+    }, [loadWishlist]);
 
     useEffect(() => {
         const loadTaxonomy = async () => {
@@ -312,12 +443,12 @@ const ProductsPage = () => {
         persistPreferences(savedFilters, recentSearches);
     }, [persistPreferences, prefsReady, recentSearches, savedFilters]);
 
+    // Track recent searches only after debounce settles (avoids storing partial keystrokes)
     useEffect(() => {
-        const query = filters.search.trim();
+        const query = debouncedSearch.trim();
         if (query.length < 2) return;
-
         setRecentSearches((prev) => [query, ...prev.filter((item) => item !== query)].slice(0, MAX_RECENT_SEARCHES));
-    }, [filters.search]);
+    }, [debouncedSearch]);
 
     useEffect(() => {
         const params = new URLSearchParams();
@@ -344,6 +475,12 @@ const ProductsPage = () => {
         setPageSize((prev) => (prev === nextPageSize ? prev : nextPageSize));
     }, [searchParams]);
 
+    // Compose the effective search term: use debouncedSearch so typing doesn't fire on every keystroke
+    const effectiveFilters = useMemo(() => ({
+        ...filters,
+        search: debouncedSearch,
+    }), [filters, debouncedSearch]);
+
     useEffect(() => {
         const loadProducts = async () => {
             try {
@@ -352,15 +489,15 @@ const ProductsPage = () => {
                 const params = new URLSearchParams({
                     limit: String(pageSize),
                     page: String(page),
-                    sort: filters.sort,
+                    sort: effectiveFilters.sort,
                     status: 'active',
                 });
 
-                if (filters.search.trim()) params.set('search', filters.search.trim());
-                if (filters.category !== 'all') params.set('category', filters.category);
-                if (filters.brand !== 'all') params.set('brand', filters.brand);
-                if (String(filters.minPrice).trim()) params.set('minPrice', String(filters.minPrice).trim());
-                if (String(filters.maxPrice).trim()) params.set('maxPrice', String(filters.maxPrice).trim());
+                if (effectiveFilters.search.trim()) params.set('search', effectiveFilters.search.trim());
+                if (effectiveFilters.category !== 'all') params.set('category', effectiveFilters.category);
+                if (effectiveFilters.brand !== 'all') params.set('brand', effectiveFilters.brand);
+                if (String(effectiveFilters.minPrice).trim()) params.set('minPrice', String(effectiveFilters.minPrice).trim());
+                if (String(effectiveFilters.maxPrice).trim()) params.set('maxPrice', String(effectiveFilters.maxPrice).trim());
 
                 const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}?${params.toString()}`);
                 const payload = await response.json();
@@ -394,23 +531,74 @@ const ProductsPage = () => {
         };
 
         loadProducts();
-    }, [filters, page, pageSize]);
+    }, [effectiveFilters, page, pageSize]);
+
+    const showMessage = (msg) => {
+        setMessage(msg);
+        clearTimeout(messageTimerRef.current);
+        messageTimerRef.current = setTimeout(() => setMessage(''), 3000);
+    };
+
+    const parsePriceInt = (raw) => {
+        const n = parseInt(raw, 10);
+        return Number.isFinite(n) && n >= 0 ? n : '';
+    };
 
     const onFilterChange = (key, value) => {
+        if (key === 'search') {
+            setFilters((prev) => ({ ...prev, search: value }));
+            clearTimeout(searchDebounceRef.current);
+            searchDebounceRef.current = setTimeout(() => setDebouncedSearch(value), 400);
+            setPage(1);
+            return;
+        }
+
+        if (key === 'minPrice') {
+            const parsed = parsePriceInt(value);
+            setFilters((prev) => {
+                const max = prev.maxPrice !== '' ? Number(prev.maxPrice) : Infinity;
+                if (parsed !== '' && Number(parsed) > max) {
+                    setPriceError('Min price cannot exceed Max price');
+                    return prev;
+                }
+                setPriceError('');
+                return { ...prev, minPrice: parsed === '' ? '' : String(parsed) };
+            });
+            setPage(1);
+            return;
+        }
+
+        if (key === 'maxPrice') {
+            const parsed = parsePriceInt(value);
+            setFilters((prev) => {
+                const min = prev.minPrice !== '' ? Number(prev.minPrice) : 0;
+                if (parsed !== '' && Number(parsed) < min) {
+                    setPriceError('Max price cannot be less than Min price');
+                    return prev;
+                }
+                setPriceError('');
+                return { ...prev, maxPrice: parsed === '' ? '' : String(parsed) };
+            });
+            setPage(1);
+            return;
+        }
+
         setFilters((prev) => ({ ...prev, [key]: value }));
         setPage(1);
     };
 
     const resetFilters = () => {
         setFilters(defaultFilters);
+        setDebouncedSearch('');
+        setPriceError('');
         setPage(1);
-        setMessage('Filters reset');
+        showMessage('Filters reset');
     };
 
     const saveCurrentFilter = () => {
         const name = saveName.trim();
         if (!name) {
-            setMessage('Enter a filter preset name first');
+            showMessage('Enter a filter preset name first');
             return;
         }
 
@@ -421,13 +609,16 @@ const ProductsPage = () => {
 
         setSavedFilters(nextSaved);
         setSaveName('');
-        setMessage(`Saved filter preset: ${name}`);
+        showMessage(`Saved: "${name}"`);
     };
 
     const applySavedFilter = (entry) => {
-        setFilters(entry.filters || defaultFilters);
+        const f = entry.filters || defaultFilters;
+        setFilters(f);
+        setDebouncedSearch(f.search || '');
+        setPriceError('');
         setPage(1);
-        setMessage(`Applied saved filter: ${entry.name}`);
+        showMessage(`Applied: "${entry.name}"`);
     };
 
     const removeSavedFilter = (name) => {
@@ -447,166 +638,194 @@ const ProductsPage = () => {
     }
 
     return (
-        <div className="mx-auto max-w-[90rem] px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[90rem] px-4 py-6 sm:px-6 lg:px-8">
             <HeroBanner banners={banners} />
-            <div className="mb-6 flex flex-col gap-3">
-                <h1 className="text-2xl font-bold text-slate-900">Products Discovery</h1>
-                <p className="text-sm text-slate-600">
-                    Use filters and sorting to quickly find the right products.
-                </p>
+
+            {/* Page header + nav */}
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <h1 className="text-lg font-bold text-slate-900">Products Discovery</h1>
+                </div>
                 <StoreNav />
-                {message && (
-                    <div className="rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm text-primary-800">
-                        {message}
-                    </div>
-                )}
             </div>
 
-            <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <input
-                    type="text"
-                    value={filters.search}
-                    onChange={(event) => onFilterChange('search', event.target.value)}
-                    placeholder="Search products..."
-                    aria-label="Search products"
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-primary-500 focus:ring"
-                />
-                <select
-                    value={filters.category}
-                    onChange={(event) => onFilterChange('category', event.target.value)}
-                    aria-label="Filter by category"
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
-                    <option value="all">All Categories</option>
-                    {categories.map((category) => (
-                        <option key={category._id || category.slug} value={category.slug}>
-                            {category.title}
-                        </option>
-                    ))}
-                </select>
-                <select
-                    value={filters.brand}
-                    onChange={(event) => onFilterChange('brand', event.target.value)}
-                    aria-label="Filter by brand"
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
-                    <option value="all">All Brands</option>
-                    {brands.map((brand) => (
-                        <option key={brand._id || brand.slug} value={brand.slug}>
-                            {brand.title}
-                        </option>
-                    ))}
-                </select>
-                <input
-                    type="number"
-                    value={filters.minPrice}
-                    onChange={(event) => onFilterChange('minPrice', event.target.value)}
-                    placeholder="Min Price"
-                    aria-label="Minimum price"
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                />
-                <input
-                    type="number"
-                    value={filters.maxPrice}
-                    onChange={(event) => onFilterChange('maxPrice', event.target.value)}
-                    placeholder="Max Price"
-                    aria-label="Maximum price"
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                />
-            </div>
+            {(message || priceError) && (
+                <div className={`mb-2 rounded border px-3 py-1.5 text-xs ${
+                    priceError
+                        ? 'border-rose-200 bg-rose-50 text-rose-700'
+                        : 'border-primary-200 bg-primary-50 text-primary-800'
+                }`}>
+                    {priceError || message}
+                </div>
+            )}
 
-            <div className="mb-6 flex flex-wrap items-center gap-3">
-                <select
-                    value={filters.sort}
-                    onChange={(event) => onFilterChange('sort', event.target.value)}
-                    aria-label="Sort by"
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
-                    <option value="newest">Newest</option>
-                    <option value="popular">Most Popular</option>
-                    <option value="rating">Best Rated</option>
-                    <option value="price-low">Price Low to High</option>
-                    <option value="price-high">Price High to Low</option>
-                </select>
-                <select
-                    value={pageSize}
-                    onChange={(event) => onPageSizeChange(event.target.value)}
-                    aria-label="Items per page"
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
-                    {PAGE_SIZE_OPTIONS.map((size) => (
-                        <option key={size} value={size}>
-                            {size} per page
-                        </option>
-                    ))}
-                </select>
-                <button
-                    onClick={resetFilters}
-                    className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
-                >
-                    Reset Filters
-                </button>
-            </div>
-
-            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="rounded-lg border border-slate-200 bg-white p-4">
-                    <h2 className="mb-2 text-sm font-semibold text-slate-900">Recent Searches</h2>
-                    {recentSearches.length === 0 ? (
-                        <p className="text-xs text-slate-500">No recent searches yet.</p>
-                    ) : (
-                        <div className="flex flex-wrap gap-2">
-                            {recentSearches.map((item) => (
-                                <button
-                                    key={item}
-                                    onClick={() => onFilterChange('search', item)}
-                                    className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700 hover:bg-slate-200"
-                                >
-                                    {item}
-                                </button>
-                            ))}
-                        </div>
-                    )}
+            {/* Compact filter bar */}
+            <div className="mb-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                    <input
+                        type="text"
+                        value={filters.search}
+                        onChange={(event) => onFilterChange('search', event.target.value)}
+                        placeholder="Search products..."
+                        aria-label="Search products"
+                        className="h-8 min-w-[160px] flex-1 rounded-md border border-slate-300 px-2.5 text-xs outline-none ring-primary-500 focus:ring"
+                    />
+                    <select
+                        value={filters.category}
+                        onChange={(event) => onFilterChange('category', event.target.value)}
+                        aria-label="Filter by category"
+                        className="h-8 rounded-md border border-slate-300 px-2 text-xs"
+                    >
+                        <option value="all">All Categories</option>
+                        {categories.map((category) => (
+                            <option key={category._id || category.slug} value={category.slug}>
+                                {category.title}
+                            </option>
+                        ))}
+                    </select>
+                    <select
+                        value={filters.brand}
+                        onChange={(event) => onFilterChange('brand', event.target.value)}
+                        aria-label="Filter by brand"
+                        className="h-8 rounded-md border border-slate-300 px-2 text-xs"
+                    >
+                        <option value="all">All Brands</option>
+                        {brands.map((brand) => (
+                            <option key={brand._id || brand.slug} value={brand.slug}>
+                                {brand.title}
+                            </option>
+                        ))}
+                    </select>
+                    <input
+                        type="number"
+                        value={filters.minPrice}
+                        onChange={(event) => onFilterChange('minPrice', event.target.value)}
+                        onKeyDown={(e) => ['-', '+', '.', 'e'].includes(e.key) && e.preventDefault()}
+                        placeholder="Min $"
+                        aria-label="Minimum price"
+                        min="0"
+                        step="1"
+                        className={`h-8 w-20 rounded-md border px-2 text-xs ${
+                            priceError ? 'border-rose-400 bg-rose-50' : 'border-slate-300'
+                        }`}
+                    />
+                    <input
+                        type="number"
+                        value={filters.maxPrice}
+                        onChange={(event) => onFilterChange('maxPrice', event.target.value)}
+                        onKeyDown={(e) => ['-', '+', '.', 'e'].includes(e.key) && e.preventDefault()}
+                        placeholder="Max $"
+                        aria-label="Maximum price"
+                        min={filters.minPrice !== '' ? String(filters.minPrice) : '0'}
+                        step="1"
+                        className={`h-8 w-20 rounded-md border px-2 text-xs ${
+                            priceError ? 'border-rose-400 bg-rose-50' : 'border-slate-300'
+                        }`}
+                    />
+                    <div className="mx-0.5 h-5 w-px bg-slate-200" />
+                    <select
+                        value={filters.sort}
+                        onChange={(event) => onFilterChange('sort', event.target.value)}
+                        aria-label="Sort by"
+                        className="h-8 rounded-md border border-slate-300 px-2 text-xs"
+                    >
+                        <option value="newest">Newest</option>
+                        <option value="popular">Most Popular</option>
+                        <option value="rating">Best Rated</option>
+                        <option value="price-low">Price ↑</option>
+                        <option value="price-high">Price ↓</option>
+                    </select>
+                    <select
+                        value={pageSize}
+                        onChange={(event) => onPageSizeChange(event.target.value)}
+                        aria-label="Items per page"
+                        className="h-8 rounded-md border border-slate-300 px-2 text-xs"
+                    >
+                        {PAGE_SIZE_OPTIONS.map((size) => (
+                            <option key={size} value={size}>{size}/page</option>
+                        ))}
+                    </select>
+                    <button
+                        onClick={resetFilters}
+                        className="h-8 rounded-md bg-slate-100 px-3 text-xs font-medium text-slate-600 hover:bg-slate-200"
+                    >
+                        Reset
+                    </button>
                 </div>
 
-                <div className="rounded-lg border border-slate-200 bg-white p-4">
-                    <h2 className="mb-2 text-sm font-semibold text-slate-900">Saved Filters</h2>
-                    <div className="mb-3 flex gap-2">
+                {/* Recent searches + saved filters – compact inline row */}
+                {(recentSearches.length > 0 || savedFilters.length > 0) && (
+                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-slate-100 pt-2">
+                        {recentSearches.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Recent:</span>
+                                {recentSearches.map((item) => (
+                                    <button
+                                        key={item}
+                                        onClick={() => onFilterChange('search', item)}
+                                        className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-200"
+                                    >
+                                        {item}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {savedFilters.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Saved:</span>
+                                {savedFilters.map((entry) => (
+                                    <span key={entry.name} className="flex items-center gap-0.5">
+                                        <button
+                                            onClick={() => applySavedFilter(entry)}
+                                            className="rounded-full bg-primary-50 px-2 py-0.5 text-[11px] text-primary-700 hover:bg-primary-100"
+                                        >
+                                            {entry.name}
+                                        </button>
+                                        <button
+                                            onClick={() => removeSavedFilter(entry.name)}
+                                            className="text-[10px] text-rose-400 hover:text-rose-600"
+                                            aria-label={`Remove ${entry.name}`}
+                                        >
+                                            ×
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                        <div className="ml-auto flex items-center gap-1.5">
+                            <input
+                                value={saveName}
+                                onChange={(event) => setSaveName(event.target.value)}
+                                placeholder="Save preset…"
+                                className="h-6 rounded border border-slate-300 px-2 text-[11px] w-28"
+                            />
+                            <button
+                                onClick={saveCurrentFilter}
+                                className="h-6 rounded bg-primary-600 px-2.5 text-[11px] font-medium text-white hover:bg-primary-700"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Save preset row when no recent/saved yet */}
+                {recentSearches.length === 0 && savedFilters.length === 0 && (
+                    <div className="mt-2 flex items-center justify-end gap-1.5 border-t border-slate-100 pt-2">
                         <input
                             value={saveName}
                             onChange={(event) => setSaveName(event.target.value)}
-                            placeholder="Preset name"
-                            className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            placeholder="Save current filter…"
+                            className="h-6 rounded border border-slate-300 px-2 text-[11px] w-36"
                         />
                         <button
                             onClick={saveCurrentFilter}
-                            className="rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700"
+                            className="h-6 rounded bg-primary-600 px-2.5 text-[11px] font-medium text-white hover:bg-primary-700"
                         >
                             Save
                         </button>
                     </div>
-                    {savedFilters.length === 0 ? (
-                        <p className="text-xs text-slate-500">No saved filters yet.</p>
-                    ) : (
-                        <div className="space-y-2">
-                            {savedFilters.map((entry) => (
-                                <div key={entry.name} className="flex items-center justify-between rounded bg-slate-50 px-3 py-2">
-                                    <button
-                                        onClick={() => applySavedFilter(entry)}
-                                        className="text-sm font-medium text-slate-800 hover:text-primary-700"
-                                    >
-                                        {entry.name}
-                                    </button>
-                                    <button
-                                        onClick={() => removeSavedFilter(entry.name)}
-                                        className="text-xs text-rose-600 hover:text-rose-700"
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                )}
             </div>
 
             {isLoading ? (
@@ -669,59 +888,13 @@ const ProductsPage = () => {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-                        {products.map((product) => {
-                            const pricing = getProductDisplayPricing(product);
-                            const hasDiscount = pricing.hasDiscount;
-
-                            const showFromLabel = pricing.isRange;
-                            const finalPriceLabel = pricing.isRange
-                                ? formatPrice(pricing.minPrice, currencyCode)
-                                : formatPrice(pricing.finalPrice, currencyCode);
-                            const imgUrl = resolveImageUrl(getPrimaryProductImage(product));
-                            return (
-                                <Link
-                                    key={product._id}
-                                    to={`/products/${product.slug || product._id}`}
-                                    className="product-card-wrap group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-primary-300 hover:shadow-md"
-                                >
-                                    <LazyImage
-                                        src={imgUrl}
-                                        alt={product.title}
-                                        wrapperClassName="h-56 w-full bg-gradient-to-br from-slate-50 to-primary-50"
-                                        className="h-56 w-full object-cover group-hover:scale-105"
-                                        fallback={
-                                            <div className="flex h-56 w-full items-center justify-center bg-gradient-to-br from-slate-100 to-primary-100">
-                                                <svg className="h-12 w-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                </svg>
-                                            </div>
-                                        }
-                                    />
-                                    {hasDiscount && (
-                                        <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-[#f9730c] px-2 py-0.5 text-[10px] font-bold text-white">
-                                            -{Math.round(pricing.discount)}%
-                                        </span>
-                                    )}
-                                    <div className="p-4">
-                                        <p className="text-[11px] font-semibold text-[#4250d5]">{product.brand?.title || 'Brand'}</p>
-                                        <h2 className="mt-1 line-clamp-2 text-sm font-semibold text-slate-900 group-hover:text-[#212191]">{product.title}</h2>
-                                        <div className="mt-2 flex items-center gap-2">
-                                            {showFromLabel && <span className="text-xs text-slate-500 font-medium">From</span>}
-                                            <span className="text-sm font-bold text-slate-800">{finalPriceLabel}</span>
-                                            {hasDiscount && !pricing.isRange && (
-                                                <span className="text-xs text-slate-400 line-through">{formatPrice(pricing.basePrice, currencyCode)}</span>
-                                            )}
-                                        </div>
-                                        {product.ratings?.count > 0 && (
-                                            <div className="mt-1 flex items-center gap-1">
-                                                <span className="text-[11px] text-[#ffa336]">{'★'.repeat(Math.min(5, Math.floor(product.ratings.average || 0)))}</span>
-                                                <span className="text-[10px] text-slate-400">({product.ratings.count})</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </Link>
-                            );
-                        })}
+                        {products.map((product, i) => (
+                            <ProductCard
+                                key={product._id}
+                                {...cardProps(product)}
+                                animDelay={Math.min(i * 45, 700)}
+                            />
+                        ))}
                     </div>
                 </div>
             )}

@@ -48,6 +48,7 @@ export const resolveBannerAction = (banner) => {
 
   if (linkType === "product") {
     if (rawLink) {
+      // Already a full path
       if (rawLink.startsWith("/products/")) {
         return { href: rawLink, target, external: false };
       }
@@ -61,8 +62,9 @@ export const resolveBannerAction = (banner) => {
       if (rawLink.startsWith("/")) {
         return { href: rawLink, target, external: false };
       }
+      // Bare SKU or slug — backend resolves by id / slug / baseSku / variant sku
       return {
-        href: `/products/${encodeURIComponent(rawLink)}`,
+        href: `/products/${rawLink}`,
         target,
         external: false,
       };
@@ -72,6 +74,7 @@ export const resolveBannerAction = (banner) => {
 
   if (linkType === "category") {
     if (rawLink) {
+      // Already a full path
       if (
         rawLink.startsWith("/categories") ||
         rawLink.startsWith("/products")
@@ -88,6 +91,7 @@ export const resolveBannerAction = (banner) => {
       if (rawLink.startsWith("/")) {
         return { href: rawLink, target, external: false };
       }
+      // Bare category slug — filter products page by category
       return {
         href: `/products?category=${encodeURIComponent(rawLink)}`,
         target,

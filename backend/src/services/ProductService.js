@@ -162,6 +162,15 @@ export class ProductService extends BaseService {
         product = await this.model.findOne({ slug: identifier }).lean();
       }
 
+      // SKU lookup: support baseSku (non-variant) or variant-level SKU
+      if (!product) {
+        product = await this.model
+          .findOne({
+            $or: [{ baseSku: identifier }, { "variants.sku": identifier }],
+          })
+          .lean();
+      }
+
       if (!product) {
         throw new AppError("Product not found", 404);
       }

@@ -461,6 +461,7 @@ const ProductDetailPage = () => {
 
     const handleAddToCart = async () => {
         if (!authService.isAuthenticated()) { navigate('/login'); return false; }
+        if (isAdmin) { navigate('/admin'); return false; }
         if (product?.hasVariants && !selectedVariant) { notify.error('Please select all options'); return false; }
         try {
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
@@ -481,6 +482,7 @@ const ProductDetailPage = () => {
 
     const handleSimilarProductAddToCart = async (similarProduct) => {
         if (!authService.isAuthenticated()) { navigate('/login'); return; }
+        if (isAdmin) { notify.info('Admins cannot add items to cart'); return; }
         if (similarProduct?.hasVariants) { navigate(`/products/${similarProduct._id}`); return; }
         try {
             const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
@@ -498,6 +500,7 @@ const ProductDetailPage = () => {
 
     const handleWishlistToggle = async (productId) => {
         if (!authService.isAuthenticated()) { navigate('/login'); return; }
+        if (isAdmin) { notify.info('Admins cannot manage wishlist'); return; }
         const inWishlist = wishlistItems.includes(productId);
         try {
             if (inWishlist) {
@@ -687,6 +690,21 @@ const ProductDetailPage = () => {
                     )}
 
                     {/* Quantity */}
+                    {isAdmin ? (
+                        <div className="space-y-3">
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                                <p className="text-sm font-medium text-amber-800">You are logged in as an admin. Shopping features are disabled.</p>
+                            </div>
+                            <Link
+                                to={`/admin/products/${product._id}/edit`}
+                                className="store-btn-primary tap-bounce flex w-full items-center justify-center gap-2 rounded-xl py-4 text-base font-bold"
+                            >
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                Edit Product
+                            </Link>
+                        </div>
+                    ) : (
+                        <>
                     <div>
                         <p className="mb-2 text-sm font-semibold text-slate-800">Quantity</p>
                         <div className="flex items-center gap-3">
@@ -719,6 +737,8 @@ const ProductDetailPage = () => {
                             </svg>
                         </button>
                     </div>
+                        </>
+                    )}
 
                     {/* Trust badges */}
                     <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[rgba(165,187,252,0.25)]">
@@ -1017,7 +1037,7 @@ const ProductDetailPage = () => {
             {/* Specifications */}
             <div className="store-surface p-7 mb-8">
                 <h2 className="store-display mb-5 text-xl text-slate-900">Specifications</h2>
-                <div className="grid grid-cols-1 gap-0 md:grid-cols-2">
+                <div className="divide-y divide-slate-100">
                     {[
                         ['Brand', product.brand?.title || 'N/A'],
                         ['Category', product.category?.title || 'N/A'],
@@ -1025,9 +1045,9 @@ const ProductDetailPage = () => {
                         ['Availability', isInStock ? 'In Stock' : 'Out of Stock'],
                         ...(selectedVariant ? [['SKU', selectedVariant.sku || 'N/A'], ['Variant', selectedVariant.displayName || 'N/A']] : []),
                     ].map(([k, v]) => (
-                        <div key={k} className="flex justify-between border-b border-[rgba(165,187,252,0.2)] py-3">
-                            <span className="font-medium text-slate-500">{k}</span>
-                            <span className={`font-semibold ${k === 'Availability' ? (isInStock ? 'text-success-600' : 'text-red-500') : 'text-slate-800'}`}>{v}</span>
+                        <div key={k} className="grid grid-cols-[160px_1fr] items-center gap-4 py-3 sm:grid-cols-[200px_1fr]">
+                            <span className="text-sm font-medium text-slate-500">{k}</span>
+                            <span className={`text-sm font-semibold ${k === 'Availability' ? (isInStock ? 'text-success-600' : 'text-red-500') : 'text-slate-800'}`}>{v}</span>
                         </div>
                     ))}
                 </div>
@@ -1051,7 +1071,7 @@ const ProductDetailPage = () => {
                 {similarProductsLoading && (
                     <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
                         {Array.from({ length: 6 }).map((_, i) => (
-                            <div key={i} className="flex-shrink-0 w-[200px] space-y-3 animate-pulse">
+                            <div key={i} className="flex-shrink-0 w-[300px] space-y-3 animate-pulse">
                                 <div className="aspect-square bg-slate-200 rounded-xl" />
                                 <div className="h-4 bg-slate-200 rounded w-full" />
                                 <div className="h-4 w-2/3 bg-slate-200 rounded" />
@@ -1066,7 +1086,7 @@ const ProductDetailPage = () => {
                     <div className="relative group">
                         <div 
                             id="similar-products-scroll"
-                            className="flex gap-4 overflow-x-auto pb-4 scroll-smooth snap-x snap-mandatory"
+                            className="flex gap-4 overflow-x-auto pt-2 pb-4 scroll-smooth snap-x snap-mandatory"
                             style={{
                                 scrollbarWidth: 'thin',
                                 scrollbarColor: '#d1d5db transparent',
@@ -1074,12 +1094,13 @@ const ProductDetailPage = () => {
                             }}
                         >
                             {similarProducts.map((item, index) => (
-                                <div key={item._id} className="flex-shrink-0 w-[200px] snap-start">
+                                <div key={item._id} className="flex-shrink-0 w-[300px] snap-start">
                                     <ProductCard 
                                         product={item}
                                         currentImage={getSimilarProductImage(item)}
                                         isHovered={hoveredProduct === item._id}
                                         inWishlist={wishlistItems.includes(item._id)}
+                                        isAdmin={isAdmin}
                                         onHover={() => setHoveredProduct(item._id)}
                                         onLeave={() => setHoveredProduct(null)}
                                         onAddToCart={() => handleSimilarProductAddToCart(item)}
@@ -1174,11 +1195,12 @@ const ProductDetailPage = () => {
                                     : getRandomProductImage();
 
                                 return (
-                                    <div key={prod._id} className="flex-shrink-0 w-[200px] snap-start">
+                                    <div key={prod._id} className="flex-shrink-0 w-[300px] snap-start">
                                         <ProductCard
                                             product={prod}
                                             currentImage={recentProductImage}
                                             inWishlist={wishlistItems.includes(prod._id)}
+                                            isAdmin={isAdmin}
                                             onWishlistToggle={() => handleWishlistToggle(prod._id)}
                                             onAddToCart={() => handleSimilarProductAddToCart(prod)}
                                             isHovered={hoveredProduct === prod._id}

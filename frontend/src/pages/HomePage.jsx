@@ -338,6 +338,7 @@ const HomePage = () => {
 
     const addToCart = async (product) => {
         if (!authService.isAuthenticated()) { navigate('/login'); return; }
+        if (authService.isAdmin()) { notify.info('Admins cannot add items to cart'); return; }
         
         const activeVariants = Array.isArray(product?.variants)
             ? product.variants.filter(v => !v.status || v.status === 'active')
@@ -364,6 +365,7 @@ const HomePage = () => {
 
     const toggleWishlist = async (product) => {
         if (!authService.isAuthenticated()) { navigate('/login'); return; }
+        if (authService.isAdmin()) { notify.info('Admins cannot manage wishlist'); return; }
         const inList = wishlistItems.some((i) => i._id === product._id);
         if (inList) {
             setWishlistItems((prev) => prev.filter((i) => i._id !== product._id));
@@ -465,6 +467,7 @@ const HomePage = () => {
         currentImage: getProductImage(product),
         isHovered: hoveredProduct === product._id,
         inWishlist: wishlistItems.some((i) => i._id === product._id),
+        isAdmin: authService.isAdmin(),
         onHover: handleProductHover, onLeave: handleProductLeave,
         onAddToCart: addToCart, onWishlistToggle: toggleWishlist,
         onImageError: (failedSrc) => markProductImageFailed(product, failedSrc),
@@ -627,6 +630,7 @@ const HomePage = () => {
                                             product={prod}
                                             currentImage={displayImage}
                                             inWishlist={wishlistItems.includes(prod._id)}
+                                            isAdmin={authService.isAdmin()}
                                             onWishlistToggle={() => toggleWishlist(prod)}
                                             onAddToCart={() => addToCart(prod)}
                                             isHovered={hoveredProduct === prod._id}
