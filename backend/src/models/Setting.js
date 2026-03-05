@@ -38,15 +38,11 @@ const settingSchema = new Schema(
     smtpHost: { type: String, default: "" },
     smtpPort: { type: Number, default: 587 },
     smtpUser: { type: String, default: "" },
-    smtpPassword: { type: String, default: "" },
     smtpFrom: { type: String, default: "" },
 
     stripePublicKey: { type: String, default: "" },
-    stripeSecretKey: { type: String, default: "" },
-    stripeWebhookSecret: { type: String, default: "" },
     stripeEnabled: { type: Boolean, default: false },
     paypalClientId: { type: String, default: "" },
-    paypalClientSecret: { type: String, default: "" },
 
     updatedBy: {
       type: Schema.Types.ObjectId,

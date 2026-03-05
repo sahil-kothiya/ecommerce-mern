@@ -12,8 +12,18 @@ import { Order } from "./src/models/Order.js";
 import { Review } from "./src/models/Review.js";
 import { VariantType } from "./src/models/VariantType.js";
 import { VariantOption } from "./src/models/VariantOption.js";
+import { Banner } from "./src/models/Banner.js";
+import { Coupon } from "./src/models/Coupon.js";
+import { Discount } from "./src/models/Discount.js";
+import { Filter } from "./src/models/Filter.js";
+import { Setting } from "./src/models/Setting.js";
+import { Shipping } from "./src/models/Shipping.js";
+import { Cart } from "./src/models/Cart.js";
+import { Wishlist } from "./src/models/Wishlist.js";
 
 dotenv.config();
+
+const PRODUCT_BATCH_SIZE = 500;
 
 const DEFAULTS = Object.freeze({
   categories: 16,
@@ -22,6 +32,9 @@ const DEFAULTS = Object.freeze({
   products: 200,
   orders: 120,
   reviews: 180,
+  banners: 8,
+  coupons: 10,
+  discounts: 6,
   variantRatio: 0.98,
 });
 
@@ -110,6 +123,21 @@ export function parseCliArgs(args) {
         1,
         Number.parseInt(next, 10) || DEFAULTS.reviews,
       );
+    if (arg === "--banners")
+      counts.banners = Math.max(
+        1,
+        Number.parseInt(next, 10) || DEFAULTS.banners,
+      );
+    if (arg === "--coupons")
+      counts.coupons = Math.max(
+        1,
+        Number.parseInt(next, 10) || DEFAULTS.coupons,
+      );
+    if (arg === "--discounts")
+      counts.discounts = Math.max(
+        1,
+        Number.parseInt(next, 10) || DEFAULTS.discounts,
+      );
   }
 
   return { mode, counts };
@@ -153,10 +181,20 @@ export async function destroyData() {
   await Promise.all([
     Review.deleteMany({}),
     Order.deleteMany({}),
+    Cart.deleteMany({}),
+    Wishlist.deleteMany({}),
     Product.deleteMany({}),
+    Discount.deleteMany({}),
+    Banner.deleteMany({}),
+    Coupon.deleteMany({}),
     User.deleteMany({}),
     Category.deleteMany({}),
     Brand.deleteMany({}),
+    Filter.deleteMany({}),
+    Shipping.deleteMany({}),
+    Setting.deleteMany({}),
+    VariantOption.deleteMany({}),
+    VariantType.deleteMany({}),
   ]);
   console.log("[Seeder] Data destruction complete");
 }
@@ -236,57 +274,58 @@ function pickTags(title, brandTitle) {
   );
 }
 
-function buildProductTitleForCategory(categoryTitle) {
+function buildProductTitleForCategory(categoryTitle, brandTitle) {
   const normalized = String(categoryTitle || "").toLowerCase();
   const adjective = faker.commerce.productAdjective();
+  const brandPrefix = brandTitle ? `${brandTitle} ` : "";
 
   if (normalized.includes("mobile") || normalized.includes("phone")) {
-    return `${adjective} Smartphone`;
+    return `${brandPrefix}${adjective} Smartphone`;
   }
   if (normalized.includes("television") || normalized.includes("tv")) {
-    return `${adjective} Smart TV`;
+    return `${brandPrefix}${adjective} Smart TV`;
   }
   if (normalized.includes("laptop")) {
-    return `${adjective} Laptop`;
+    return `${brandPrefix}${adjective} Laptop`;
   }
   if (normalized.includes("tablet")) {
-    return `${adjective} Tablet`;
+    return `${brandPrefix}${adjective} Tablet`;
   }
   if (normalized.includes("watch")) {
-    return `${adjective} Smart Watch`;
+    return `${brandPrefix}${adjective} Smart Watch`;
   }
   if (normalized.includes("headphone")) {
-    return `${adjective} Headphones`;
+    return `${brandPrefix}${adjective} Headphones`;
   }
   if (normalized.includes("camera")) {
-    return `${adjective} Camera`;
+    return `${brandPrefix}${adjective} Camera`;
   }
   if (normalized.includes("gaming") || normalized.includes("console")) {
-    return `${adjective} Gaming Console`;
+    return `${brandPrefix}${adjective} Gaming Console`;
   }
   if (normalized.includes("kitchen") || normalized.includes("appliance")) {
-    return `${adjective} Kitchen Appliance`;
+    return `${brandPrefix}${adjective} Kitchen Appliance`;
   }
   if (normalized.includes("shoe")) {
-    return `${adjective} Shoes`;
+    return `${brandPrefix}${adjective} Shoes`;
   }
   if (normalized.includes("clothing")) {
-    return `${adjective} Apparel`;
+    return `${brandPrefix}${adjective} Apparel`;
   }
   if (normalized.includes("furniture")) {
-    return `${adjective} Furniture`;
+    return `${brandPrefix}${adjective} Furniture`;
   }
   if (normalized.includes("beauty")) {
-    return `${adjective} Beauty Product`;
+    return `${brandPrefix}${adjective} Beauty Product`;
   }
   if (normalized.includes("book")) {
-    return `${adjective} Book`;
+    return `${brandPrefix}${adjective} Book`;
   }
   if (normalized.includes("sports")) {
-    return `${adjective} Sports Gear`;
+    return `${brandPrefix}${adjective} Sports Gear`;
   }
 
-  return `${adjective} ${faker.commerce.product()}`;
+  return `${brandPrefix}${adjective} ${faker.commerce.product()}`;
 }
 
 function buildProductImages(slug) {
@@ -382,47 +421,60 @@ async function ensureVariantCatalog() {
     ],
   };
 
+  const typeBulkOps = requiredTypes.map((rt, index) => ({
+    updateOne: {
+      filter: { name: rt.name },
+      update: {
+        $setOnInsert: {
+          name: rt.name,
+          displayName: rt.displayName,
+          sortOrder: index + 1,
+        },
+        $set: { status: STATUS_ACTIVE },
+      },
+      upsert: true,
+    },
+  }));
+  await VariantType.bulkWrite(typeBulkOps);
+
   const typeByName = {};
-  for (const [index, requiredType] of requiredTypes.entries()) {
-    let typeDoc = await VariantType.findOne({ name: requiredType.name });
-    if (!typeDoc) {
-      typeDoc = await VariantType.create({
-        ...requiredType,
-        status: STATUS_ACTIVE,
-        sortOrder: index + 1,
+  const allTypes = await VariantType.find({
+    name: { $in: requiredTypes.map((rt) => rt.name) },
+  }).lean();
+  for (const typeDoc of allTypes) {
+    typeByName[typeDoc.name] = typeDoc;
+  }
+
+  const optionBulkOps = [];
+  for (const requiredType of requiredTypes) {
+    const typeDoc = typeByName[requiredType.name];
+    const requiredOptions = requiredOptionsByType[requiredType.name] || [];
+    for (const [index, option] of requiredOptions.entries()) {
+      optionBulkOps.push({
+        updateOne: {
+          filter: { variantTypeId: typeDoc._id, value: option.value },
+          update: {
+            $setOnInsert: {
+              variantTypeId: typeDoc._id,
+              value: option.value,
+              displayValue: option.displayValue,
+              hexColor: option.hexColor || null,
+              sortOrder: index + 1,
+            },
+            $set: { status: STATUS_ACTIVE },
+          },
+          upsert: true,
+        },
       });
-    } else if (typeDoc.status !== STATUS_ACTIVE) {
-      typeDoc.status = STATUS_ACTIVE;
-      await typeDoc.save();
     }
-    typeByName[requiredType.name] = typeDoc;
+  }
+  if (optionBulkOps.length > 0) {
+    await VariantOption.bulkWrite(optionBulkOps);
   }
 
   const optionsByType = {};
   for (const requiredType of requiredTypes) {
     const typeDoc = typeByName[requiredType.name];
-    const requiredOptions = requiredOptionsByType[requiredType.name] || [];
-
-    for (const [index, option] of requiredOptions.entries()) {
-      let optionDoc = await VariantOption.findOne({
-        variantTypeId: typeDoc._id,
-        value: option.value,
-      });
-      if (!optionDoc) {
-        optionDoc = await VariantOption.create({
-          variantTypeId: typeDoc._id,
-          value: option.value,
-          displayValue: option.displayValue,
-          hexColor: option.hexColor || null,
-          status: STATUS_ACTIVE,
-          sortOrder: index + 1,
-        });
-      } else if (optionDoc.status !== STATUS_ACTIVE) {
-        optionDoc.status = STATUS_ACTIVE;
-        await optionDoc.save();
-      }
-    }
-
     const activeOptions = await VariantOption.find({
       variantTypeId: typeDoc._id,
       status: STATUS_ACTIVE,
@@ -435,7 +487,6 @@ async function ensureVariantCatalog() {
         `Variant type '${requiredType.name}' must have at least 2 active options for seeding.`,
       );
     }
-
     optionsByType[requiredType.name] = activeOptions;
   }
 
@@ -445,10 +496,7 @@ async function ensureVariantCatalog() {
       .join(", ")}`,
   );
 
-  return {
-    types: typeByName,
-    options: optionsByType,
-  };
+  return { types: typeByName, options: optionsByType };
 }
 
 function pickCategoryVariantTypeNames(categoryTitle, variantCatalog) {
@@ -704,12 +752,13 @@ async function seedProducts(count, categories, brands, variantCatalog) {
     Math.floor(count * DEFAULTS.variantRatio),
   );
   const withoutVariantCount = count - withVariantCount;
-  const products = [];
+  let totalInserted = 0;
+  let batch = [];
 
   for (let index = 0; index < count; index += 1) {
     const category = faker.helpers.arrayElement(categories);
     const brand = faker.helpers.arrayElement(brands);
-    const title = buildProductTitleForCategory(category.title);
+    const title = buildProductTitleForCategory(category.title, brand.title);
     const slug = buildSlug(`${title}-${brand.slug}-${index + 1}`, takenSlugs);
     const productSerial = String(index + 1).padStart(6, "0");
     const hasVariants = index < withVariantCount;
@@ -769,10 +818,18 @@ async function seedProducts(count, categories, brands, variantCatalog) {
       productDoc.variants = [];
     }
 
-    products.push(productDoc);
+    batch.push(productDoc);
+
+    if (batch.length >= PRODUCT_BATCH_SIZE || index === count - 1) {
+      await Product.insertMany(batch, { ordered: false });
+      totalInserted += batch.length;
+      console.log(
+        `[Seeder] Products progress: ${totalInserted}/${count} inserted`,
+      );
+      batch = [];
+    }
   }
 
-  await Product.insertMany(products, { ordered: false });
   const created = await Product.find({ status: STATUS_ACTIVE }).lean();
   if (created.length !== count) {
     throw new Error(
@@ -821,6 +878,7 @@ function pickOrderItem(product) {
 async function seedOrders(count, users, products) {
   console.log("[Seeder] Seeding orders...");
   const orders = [];
+  const ORDER_STATUSES = ["new", "process", "delivered", "cancelled"];
 
   for (let index = 0; index < count; index += 1) {
     const user = faker.helpers.arrayElement(users);
@@ -841,6 +899,11 @@ async function seedOrders(count, users, products) {
 
     const firstName = defaultAddress?.firstName || faker.person.firstName();
     const lastName = defaultAddress?.lastName || faker.person.lastName();
+    const orderStatus = faker.helpers.arrayElement(ORDER_STATUSES);
+    const paymentStatus =
+      orderStatus === "delivered"
+        ? "paid"
+        : faker.helpers.arrayElement(["paid", "unpaid"]);
 
     orders.push({
       userId: user._id,
@@ -861,7 +924,8 @@ async function seedOrders(count, users, products) {
       postCode: defaultAddress?.postCode || faker.location.zipCode(),
       country: defaultAddress?.country || faker.location.country(),
       paymentMethod: faker.helpers.arrayElement(["cod", "stripe", "paypal"]),
-      paymentStatus: faker.helpers.arrayElement(["paid", "unpaid"]),
+      paymentStatus,
+      status: orderStatus,
       idempotencyKey: `seed-${user._id.toString()}-${index + 1}-${faker.string.alphanumeric(8).toLowerCase()}`,
       notes: faker.lorem.sentence(),
     });
@@ -877,15 +941,35 @@ async function seedReviews(count, users, products, orders) {
   console.log("[Seeder] Seeding reviews...");
   const reviews = [];
   const pairSet = new Set();
+  const maxPossiblePairs = users.length * products.length;
+  const targetCount = Math.min(count, maxPossiblePairs);
+  let attempts = 0;
+  const maxAttempts = targetCount * 5;
 
-  while (reviews.length < count) {
+  const ordersByUser = new Map();
+  for (const order of orders) {
+    const userId = order.userId.toString();
+    if (!ordersByUser.has(userId)) {
+      ordersByUser.set(userId, []);
+    }
+    ordersByUser.get(userId).push(order);
+  }
+
+  while (reviews.length < targetCount && attempts < maxAttempts) {
+    attempts += 1;
     const user = faker.helpers.arrayElement(users);
     const product = faker.helpers.arrayElement(products);
     const pairKey = `${user._id.toString()}:${product._id.toString()}`;
     if (pairSet.has(pairKey)) continue;
     pairSet.add(pairKey);
 
-    const relatedOrder = faker.helpers.arrayElement(orders);
+    const userOrders = ordersByUser.get(user._id.toString()) || [];
+    const relatedOrder = userOrders.find((order) =>
+      order.items?.some(
+        (item) => item.productId?.toString() === product._id.toString(),
+      ),
+    );
+
     reviews.push({
       productId: product._id,
       userId: user._id,
@@ -893,14 +977,371 @@ async function seedReviews(count, users, products, orders) {
       rating: faker.number.int({ min: 3, max: 5 }),
       title: faker.lorem.sentence({ min: 3, max: 6 }),
       comment: faker.lorem.paragraph({ min: 1, max: 2 }),
+      isVerifiedPurchase: Boolean(relatedOrder),
       status: STATUS_ACTIVE,
       helpful: faker.number.int({ min: 0, max: 50 }),
     });
   }
 
-  await Review.insertMany(reviews, { ordered: false });
+  if (reviews.length > 0) {
+    await Review.insertMany(reviews, { ordered: false });
+  }
   const created = await Review.find({ status: STATUS_ACTIVE }).lean();
-  console.log(`[Seeder] Reviews seeded: ${created.length}`);
+  console.log(
+    `[Seeder] Reviews seeded: ${created.length} (requested: ${count}, max pairs: ${maxPossiblePairs})`,
+  );
+}
+
+async function seedSettings() {
+  console.log("[Seeder] Seeding settings...");
+  await Setting.findOneAndUpdate(
+    { key: "main" },
+    {
+      $setOnInsert: {
+        key: "main",
+        siteName: "Enterprise E-Commerce",
+        siteTagline: "Your one-stop shop for everything",
+        siteUrl: "http://localhost:5173",
+        websiteEmail: "info@enterprise-ecommerce.com",
+        supportEmail: "support@enterprise-ecommerce.com",
+        phone: "+1-555-0100",
+        whatsapp: "+1-555-0100",
+        address: "123 Commerce St, Tech City, TC 10001",
+        currencyCode: "USD",
+        currencySymbol: "$",
+        timezone: "UTC",
+        maintenanceMode: false,
+        metaTitle: "Enterprise E-Commerce - Premium Online Shopping",
+        metaDescription:
+          "Shop millions of products with fast delivery and secure payments.",
+        facebook: "https://facebook.com/enterprise-ecommerce",
+        instagram: "https://instagram.com/enterprise-ecommerce",
+        twitter: "https://twitter.com/enterprise-ecom",
+        youtube: "https://youtube.com/@enterprise-ecommerce",
+      },
+    },
+    { upsert: true, new: true },
+  );
+  console.log("[Seeder] Settings seeded");
+}
+
+async function seedFilters() {
+  console.log("[Seeder] Seeding filters...");
+  const filterPresets = [
+    {
+      name: "price-range",
+      title: "Price Range",
+      description: "Filter products by price range",
+    },
+    { name: "brand", title: "Brand", description: "Filter products by brand" },
+    { name: "color", title: "Color", description: "Filter products by color" },
+    { name: "size", title: "Size", description: "Filter products by size" },
+    {
+      name: "rating",
+      title: "Rating",
+      description: "Filter products by customer rating",
+    },
+    {
+      name: "availability",
+      title: "Availability",
+      description: "Filter products by stock availability",
+    },
+    {
+      name: "condition",
+      title: "Condition",
+      description: "Filter by product condition",
+    },
+    {
+      name: "discount",
+      title: "Discount",
+      description: "Filter products on sale",
+    },
+  ];
+
+  const filters = filterPresets.map((preset) => ({
+    ...preset,
+    status: STATUS_ACTIVE,
+  }));
+
+  await Filter.insertMany(filters, { ordered: false });
+  const created = await Filter.find({ status: STATUS_ACTIVE }).lean();
+  console.log(`[Seeder] Filters seeded: ${created.length}`);
+  return created;
+}
+
+async function seedShipping() {
+  console.log("[Seeder] Seeding shipping methods...");
+  const shippingPresets = [
+    {
+      type: "Standard Shipping",
+      price: 5.99,
+      estimatedDays: 7,
+      description: "Standard delivery within 5-7 business days",
+      sortOrder: 0,
+    },
+    {
+      type: "Express Shipping",
+      price: 12.99,
+      estimatedDays: 3,
+      description: "Express delivery within 2-3 business days",
+      sortOrder: 1,
+    },
+    {
+      type: "Next Day Delivery",
+      price: 24.99,
+      estimatedDays: 1,
+      description: "Guaranteed next business day delivery",
+      sortOrder: 2,
+    },
+    {
+      type: "Free Shipping",
+      price: 0,
+      estimatedDays: 10,
+      description: "Free delivery on orders over $50 (7-10 business days)",
+      sortOrder: 3,
+    },
+  ];
+
+  const methods = shippingPresets.map((preset) => ({
+    ...preset,
+    status: STATUS_ACTIVE,
+  }));
+
+  await Shipping.insertMany(methods, { ordered: false });
+  const created = await Shipping.find({ status: STATUS_ACTIVE }).lean();
+  console.log(`[Seeder] Shipping methods seeded: ${created.length}`);
+  return created;
+}
+
+async function seedBanners(count, categories) {
+  console.log("[Seeder] Seeding banners...");
+  const now = new Date();
+  const bannerPresets = [
+    {
+      title: "Summer Sale - Up to 50% Off",
+      linkType: "category",
+      status: "active",
+    },
+    { title: "New Arrivals This Week", linkType: "category", status: "active" },
+    {
+      title: "Free Shipping on Orders Over $50",
+      linkType: "page",
+      status: "active",
+    },
+    {
+      title: "Flash Deal - Limited Time Offer",
+      linkType: "category",
+      status: "active",
+    },
+    {
+      title: "Clearance Sale - Last Chance",
+      linkType: "category",
+      status: "active",
+    },
+    {
+      title: "Holiday Special Collection",
+      linkType: "category",
+      status: "scheduled",
+    },
+    {
+      title: "Back to School Essentials",
+      linkType: "category",
+      status: "scheduled",
+    },
+    { title: "Premium Brands Week", linkType: "page", status: "active" },
+  ];
+
+  const banners = Array.from(
+    { length: Math.min(count, bannerPresets.length) },
+    (_, index) => {
+      const preset = bannerPresets[index];
+      const category = faker.helpers.arrayElement(categories);
+      const isScheduled = preset.status === "scheduled";
+
+      return {
+        title: preset.title,
+        description: faker.commerce.productDescription(),
+        image: `https://picsum.photos/seed/banner-${index + 1}/1920/600`,
+        link:
+          preset.linkType === "category"
+            ? `/category/${category.slug}`
+            : "/shop",
+        linkType: preset.linkType,
+        linkTarget: "_self",
+        sortOrder: index,
+        status: preset.status,
+        startDate: isScheduled
+          ? new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+          : null,
+        endDate: isScheduled
+          ? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+          : null,
+        clickCount: isScheduled ? 0 : faker.number.int({ min: 10, max: 500 }),
+        viewCount: isScheduled ? 0 : faker.number.int({ min: 200, max: 5000 }),
+      };
+    },
+  );
+
+  await Banner.insertMany(banners, { ordered: false });
+  const created = await Banner.find({}).lean();
+  console.log(`[Seeder] Banners seeded: ${created.length}`);
+  return created;
+}
+
+async function seedCoupons(count) {
+  console.log("[Seeder] Seeding coupons...");
+  const now = new Date();
+  const couponPresets = [
+    {
+      code: "WELCOME10",
+      type: "percent",
+      value: 10,
+      description: "Welcome discount - 10% off your first order",
+    },
+    {
+      code: "FLAT20",
+      type: "fixed",
+      value: 20,
+      description: "Flat $20 off on orders above $100",
+    },
+    {
+      code: "SUMMER25",
+      type: "percent",
+      value: 25,
+      description: "Summer sale 25% discount",
+    },
+    {
+      code: "FREESHIP",
+      type: "fixed",
+      value: 5.99,
+      description: "Free shipping coupon",
+    },
+    {
+      code: "VIP30",
+      type: "percent",
+      value: 30,
+      description: "VIP members exclusive 30% off",
+    },
+    {
+      code: "SAVE15",
+      type: "percent",
+      value: 15,
+      description: "Save 15% on selected items",
+    },
+    {
+      code: "MEGA50",
+      type: "fixed",
+      value: 50,
+      description: "Mega sale $50 off on $200+",
+    },
+    {
+      code: "HOLIDAY20",
+      type: "percent",
+      value: 20,
+      description: "Holiday special 20% off",
+    },
+    {
+      code: "FLASH10",
+      type: "fixed",
+      value: 10,
+      description: "Flash sale $10 off",
+    },
+    {
+      code: "LOYAL5",
+      type: "percent",
+      value: 5,
+      description: "Loyalty reward 5% off",
+    },
+  ];
+
+  const coupons = Array.from(
+    { length: Math.min(count, couponPresets.length) },
+    (_, index) => {
+      const preset = couponPresets[index];
+      const isExpired = index > 7;
+
+      return {
+        code: preset.code,
+        type: preset.type,
+        value: preset.value,
+        description: preset.description,
+        minPurchase:
+          preset.type === "fixed"
+            ? preset.value * 3
+            : faker.number.int({ min: 20, max: 100 }),
+        maxDiscount:
+          preset.type === "percent"
+            ? faker.number.int({ min: 30, max: 100 })
+            : undefined,
+        usageLimit: faker.number.int({ min: 50, max: 500 }),
+        usedCount: faker.number.int({ min: 0, max: 20 }),
+        startDate: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+        expiryDate: isExpired
+          ? new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000)
+          : new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000),
+        status: isExpired ? "inactive" : STATUS_ACTIVE,
+      };
+    },
+  );
+
+  await Coupon.insertMany(coupons, { ordered: false });
+  const created = await Coupon.find({}).lean();
+  console.log(`[Seeder] Coupons seeded: ${created.length}`);
+  return created;
+}
+
+async function seedDiscounts(count, categories, products) {
+  console.log("[Seeder] Seeding discounts...");
+  const now = new Date();
+  const discountPresets = [
+    { title: "Summer Electronics Sale", type: "percentage", value: 15 },
+    { title: "Clearance Flat Discount", type: "fixed", value: 25 },
+    { title: "Weekend Flash Deal", type: "percentage", value: 20 },
+    { title: "New Year Special", type: "percentage", value: 10 },
+    { title: "Premium Bundle Discount", type: "fixed", value: 50 },
+    { title: "Member Exclusive Offer", type: "percentage", value: 30 },
+  ];
+
+  const discounts = Array.from(
+    { length: Math.min(count, discountPresets.length) },
+    (_, index) => {
+      const preset = discountPresets[index];
+      const useCategories = index % 2 === 0;
+      const startsAt = new Date(
+        now.getTime() -
+          faker.number.int({ min: 1, max: 15 }) * 24 * 60 * 60 * 1000,
+      );
+      const endsAt = new Date(
+        now.getTime() +
+          faker.number.int({ min: 15, max: 60 }) * 24 * 60 * 60 * 1000,
+      );
+
+      return {
+        title: preset.title,
+        type: preset.type,
+        value: preset.value,
+        startsAt,
+        endsAt,
+        isActive: true,
+        priority: index,
+        categories: useCategories
+          ? faker.helpers
+              .arrayElements(categories, { min: 1, max: 3 })
+              .map((cat) => cat._id)
+          : [],
+        products: useCategories
+          ? []
+          : faker.helpers
+              .arrayElements(products, { min: 2, max: 6 })
+              .map((prod) => prod._id),
+      };
+    },
+  );
+
+  await Discount.insertMany(discounts, { ordered: false });
+  const created = await Discount.find({}).lean();
+  console.log(`[Seeder] Discounts seeded: ${created.length}`);
+  return created;
 }
 
 /**
@@ -912,10 +1353,14 @@ export async function importData(counts = DEFAULTS) {
   await destroyData();
 
   console.log(
-    "[Seeder] Starting import order: Categories -> Users -> Products -> Orders -> Reviews",
+    "[Seeder] Starting import: Settings -> Filters -> Categories -> Brands -> Shipping -> Users -> VariantCatalog -> Products -> Discounts -> Banners -> Coupons -> Orders -> Reviews",
   );
+
+  await seedSettings();
+  await seedFilters();
   const categories = await seedCategories(counts.categories);
   const brands = await seedBrands(counts.brands);
+  await seedShipping();
   const users = await seedUsers(counts.users);
   const variantCatalog = await ensureVariantCatalog();
   const products = await seedProducts(
@@ -924,8 +1369,12 @@ export async function importData(counts = DEFAULTS) {
     brands,
     variantCatalog,
   );
+  await seedDiscounts(counts.discounts, categories, products);
+  await seedBanners(counts.banners, categories);
+  await seedCoupons(counts.coupons);
   const orders = await seedOrders(counts.orders, users, products);
   await seedReviews(counts.reviews, users, products, orders);
+
   console.log("[Seeder] Import complete");
 }
 

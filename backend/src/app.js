@@ -12,6 +12,7 @@ import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
 import { mongoSanitizeMiddleware } from "./middleware/mongoSanitize.js";
 import { csrfProtection } from "./middleware/csrf.js";
+import mongoose from "mongoose";
 
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
@@ -98,7 +99,7 @@ app.post(
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(cookieParser());
-app.use(compression());
+app.use(compression({ level: 6, threshold: 1024 }));
 app.use("/api", rateLimiter);
 app.use("/api", csrfProtection);
 
@@ -163,11 +164,27 @@ app.get("/", (req, res) => {
 });
 
 app.get("/health", (req, res) => {
+  const memoryUsage = process.memoryUsage();
+  const dbState = mongoose.connection.readyState;
+  const dbStatusMap = {
+    0: "disconnected",
+    1: "connected",
+    2: "connecting",
+    3: "disconnecting",
+  };
   res.status(200).json({
     success: true,
     message: "Server is running",
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv,
+    version: "1.0.0",
+    uptime: Math.round(process.uptime()),
+    memory: {
+      rss: `${Math.round(memoryUsage.rss / 1024 / 1024)}MB`,
+      heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB`,
+      heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB`,
+    },
+    database: { status: dbStatusMap[dbState] || "unknown" },
   });
 });
 

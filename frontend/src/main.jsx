@@ -1,17 +1,14 @@
 
 
 import ReactDOM from 'react-dom/client';
-import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import App from './App';
 import ErrorBoundary from './components/common/ErrorBoundary.jsx';
-import { store } from './store';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <ErrorBoundary>
-        <Provider store={store}>
             <BrowserRouter
                 future={{
                     v7_startTransition: true,
@@ -44,6 +41,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                     }}
                 />
             </BrowserRouter>
-        </Provider>
     </ErrorBoundary>
 );

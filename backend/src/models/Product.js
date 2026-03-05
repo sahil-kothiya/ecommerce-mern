@@ -449,13 +449,14 @@ productSchema.methods.getVariantBySku = function (sku) {
 };
 
 productSchema.statics.findBySlug = function (slug) {
-  return this.findOne({ slug, status: "active" });
+  return this.findOne({ slug, status: "active" }).lean();
 };
 
 productSchema.statics.findFeatured = function (limit = 10) {
   return this.find({ status: "active", isFeatured: true })
     .sort({ createdAt: -1 })
-    .limit(limit);
+    .limit(limit)
+    .lean();
 };
 
 productSchema.statics.findByCategory = function (categoryId, options = {}) {
@@ -465,7 +466,8 @@ productSchema.statics.findByCategory = function (categoryId, options = {}) {
   return this.find({ "category.id": categoryId, status: "active" })
     .sort(sort)
     .skip(skip)
-    .limit(limit);
+    .limit(limit)
+    .lean();
 };
 
 productSchema.statics.searchProducts = async function (query, filters = {}) {
