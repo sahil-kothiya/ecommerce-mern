@@ -15,6 +15,10 @@ export class AppError extends Error {
 
 export class ApiResponse {
   static success(res, data, statusCode = 200, message = null) {
+    if (typeof statusCode === "string") {
+      message = statusCode;
+      statusCode = 200;
+    }
     const response = { success: true };
     if (message) response.message = message;
     response.data = data;

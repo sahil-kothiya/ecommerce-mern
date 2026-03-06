@@ -84,6 +84,7 @@ describe("CouponController update field sync", () => {
     };
 
     const response = {
+      status: jest.fn().mockReturnThis(),
       json: jest.fn(),
     };
 
