@@ -44,7 +44,7 @@ All of the following are welcome:
 ### Prerequisites
 
 ```
-Node.js  >= 25.6.0
+Node.js  >= 22.0.0
 MongoDB  >= 6.0  (local) or a MongoDB Atlas connection string
 npm      >= 9.0.0
 Git
@@ -55,14 +55,14 @@ Redis    (optional — required only for background job queue)
 
 ```bash
 # Fork the repo on GitHub, then:
-git clone https://github.com/YOUR_USERNAME/mern-ecommerce.git
-cd mern-ecommerce
+git clone https://github.com/YOUR_USERNAME/ecommerce-mern.git
+cd ecommerce-mern
 ```
 
 ### 2. Add the upstream remote
 
 ```bash
-git remote add upstream https://github.com/yourusername/mern-ecommerce.git
+git remote add upstream https://github.com/sahil-kothiya/ecommerce-mern.git
 ```
 
 ### 3. Backend setup
@@ -303,7 +303,7 @@ feat(auth): add email verification step on registration
 
 ## Reporting Bugs
 
-Use [GitHub Issues](https://github.com/yourusername/mern-ecommerce/issues/new?template=bug_report.md) with the **Bug Report** template.
+Use [GitHub Issues](https://github.com/sahil-kothiya/ecommerce-mern/issues/new?template=bug_report.md) with the **Bug Report** template.
 
 A good bug report includes:
 
@@ -323,7 +323,7 @@ A good bug report includes:
 
 ## Requesting Features
 
-Use [GitHub Issues](https://github.com/yourusername/mern-ecommerce/issues/new?template=feature_request.md) with the **Feature Request** template.
+Use [GitHub Issues](https://github.com/sahil-kothiya/ecommerce-mern/issues/new?template=feature_request.md) with the **Feature Request** template.
 
 A good feature request includes:
 
@@ -336,7 +336,7 @@ A good feature request includes:
 
 ## Questions?
 
-For general questions about the project (not bugs), use [GitHub Discussions](https://github.com/yourusername/mern-ecommerce/discussions). This keeps the Issues tracker focused on actionable bugs and features.
+For general questions about the project (not bugs), use [GitHub Discussions](https://github.com/sahil-kothiya/ecommerce-mern/discussions). This keeps the Issues tracker focused on actionable bugs and features.
 
 ---
 

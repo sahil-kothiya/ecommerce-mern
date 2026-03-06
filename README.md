@@ -4,12 +4,12 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Node Version](https://img.shields.io/badge/node-%3E%3D25.6.0-brightgreen)]()
+[![Node Version](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen)]()
 [![MongoDB](https://img.shields.io/badge/MongoDB-6.0+-green)]()
 [![React](https://img.shields.io/badge/React-19+-blue)]()
 [![Express](https://img.shields.io/badge/Express-5.x-lightgrey)]()
 
-**Live Demo:** _Add your deployment URL here_
+**Live Demo:** _Coming soon_
 
 ---
 
@@ -19,15 +19,7 @@ A feature-rich e-commerce application suitable for production deployment. It inc
 
 ## 📸 Screenshots
 
-> Add screenshots to the `images/` folder and update the paths below.
-
-| Home Page                | Product Page                   |
-| ------------------------ | ------------------------------ |
-| ![Home](images/home.png) | ![Product](images/product.png) |
-
-| Admin Dashboard            | Mobile View                  |
-| -------------------------- | ---------------------------- |
-| ![Admin](images/admin.png) | ![Mobile](images/mobile.png) |
+> Screenshots will be added soon.
 
 ---
 
@@ -101,7 +93,7 @@ A feature-rich e-commerce application suitable for production deployment. It inc
 ## 📁 Project Structure
 
 ```
-mern-ecommerce/
+ecommerce-mern/
 ├── backend/                        # Node.js / Express API (port 5001)
 │   ├── src/
 │   │   ├── app.js                  # Express app, middleware registration
@@ -162,7 +154,7 @@ mern-ecommerce/
 ### Prerequisites
 
 ```
-Node.js  >= 25.6.0   https://nodejs.org
+Node.js  >= 22.0.0   https://nodejs.org
 MongoDB  >= 6.0      https://www.mongodb.com/try/download/community
 npm      >= 9.0.0    (bundled with Node.js)
 Git                  https://git-scm.com
@@ -173,8 +165,8 @@ Git                  https://git-scm.com
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/mern-ecommerce.git
-cd mern-ecommerce
+git clone https://github.com/sahil-kothiya/ecommerce-mern.git
+cd ecommerce-mern
 ```
 
 ### 2. Backend Setup
@@ -376,10 +368,10 @@ MIT — see [LICENSE](LICENSE).
 
 ## 📬 Contact & Support
 
-- **Author:** [Your Name](https://github.com/yourusername)
-- **Email:** your.email@example.com
-- **Issues:** [GitHub Issues](https://github.com/yourusername/mern-ecommerce/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/yourusername/mern-ecommerce/discussions)
+- **Author:** [Sahil Kothiya](https://github.com/sahil-kothiya)
+- **Email:** sahilk.itpath@gmail.com
+- **Issues:** [GitHub Issues](https://github.com/sahil-kothiya/ecommerce-mern/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/sahil-kothiya/ecommerce-mern/discussions)
 
 ---
 

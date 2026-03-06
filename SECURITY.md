@@ -19,7 +19,7 @@ Publicly disclosing a security issue before a fix is available puts all users at
 
 ### How to report
 
-Email the security team at: **security@yourproject.com** _(replace with your real security contact email)_
+Email the security team at: **sahilk.itpath@gmail.com**
 
 Use the subject line: `[SECURITY] Brief description of the vulnerability`
 
