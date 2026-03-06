@@ -7,8 +7,8 @@
         "dev": "vite",
         "build": "vite build",
         "preview": "vite preview",
-        "lint": "eslint . --ext js,jsx --report-unused-disable-directives",
-        "lint:fix": "eslint . --ext js,jsx --fix",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
         "test": "vitest run",
         "test:watch": "vitest",
         "format": "prettier --write \"src/**/*.{js,jsx,css}\"",
@@ -54,7 +54,7 @@
         "not op_mini all"
     ],
     "engines": {
-        "node": ">=25.6.1",
+        "node": ">=22.0.0",
         "npm": ">=9.0.0"
     },
     "keywords": [

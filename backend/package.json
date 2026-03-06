@@ -9,8 +9,8 @@
         "start": "node src/server.js",
         "test": "node --no-warnings --experimental-vm-modules ../node_modules/jest/bin/jest.js --coverage",
         "test:watch": "node --no-warnings --experimental-vm-modules ../node_modules/jest/bin/jest.js --watch",
-        "lint": "eslint . --ext .js",
-        "lint:fix": "eslint . --ext .js --fix",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
         "format": "prettier --write \"src/**/*.js\"",
         "seed": "node seeder.js --import",
         "seed:destroy": "node seeder.js --destroy",
@@ -54,7 +54,7 @@
         "winston": "^3.15.0"
     },
     "engines": {
-        "node": ">=25.6.1",
+        "node": ">=22.0.0",
         "npm": ">=9.0.0"
     },
     "devDependencies": {
