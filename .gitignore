@@ -1,57 +1,75 @@
-# Dependencies
+# ─── Dependencies ─────────────────────────────────────────────────────────────
 node_modules/
+.pnp
+.pnp.js
 
-# Production builds
+# ─── Build outputs ────────────────────────────────────────────────────────────
 dist/
 build/
 .next/
 out/
+*.tgz
 
-# Environment files
+# ─── Environment variables ────────────────────────────────────────────────────
+# Never commit real env files — use .env.example as the template
 .env
 .env.local
-.env.*.local
+.env.development.local
+.env.test.local
 .env.production
+.env.production.local
+.env.*.local
 
-# Logs
+# ─── Logs ─────────────────────────────────────────────────────────────────────
 logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 
-# IDE
+# ─── Testing & coverage ───────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+*.test.js.snap
+*.spec.js.snap
+
+# ─── IDE & editor ─────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+
+# ─── OS specific ──────────────────────────────────────────────────────────────
 .DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Testing
-coverage/
-.nyc_output/
-*.test.js.snap
-
-# Temporary files
+# ─── Temporary files ──────────────────────────────────────────────────────────
 tmp/
 temp/
 *.tmp
+*.temp
 
-# MongoDB
-data/
+# ─── Database ─────────────────────────────────────────────────────────────────
+data/        # local MongoDB data directory
+dump.rdb     # Redis snapshot
 
-# Redis
-dump.rdb
+# ─── Security — never commit private keys or certificates ─────────────────────
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
 
-# Uploads
+# ─── Uploads (user-generated content is not tracked in git) ───────────────────
 backend/uploads/*
 !backend/uploads/.gitkeep
 frontend/public/uploads/*
 !frontend/public/uploads/.gitkeep
 images/
-
-# OS files
-Thumbs.db
-.DS_Store
