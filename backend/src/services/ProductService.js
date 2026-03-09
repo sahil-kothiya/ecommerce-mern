@@ -10,6 +10,7 @@ import {
   setCachedResponse,
   invalidateCacheByPrefix,
 } from "../utils/requestCache.js";
+import { imageProcessingService } from "./ImageProcessingService.js";
 import mongoose from "mongoose";
 
 const MAX_PAGE_SIZE = 100;
@@ -331,17 +332,24 @@ export class ProductService extends BaseService {
     return product;
   }
 
-  extractImages(files = []) {
+  async extractImages(files = []) {
     const productImgFiles = files.filter((f) => f.fieldname === "images");
-    return productImgFiles.map((file, index) => ({
-      path: `products/${file.filename}`,
-      url: `/uploads/products/${file.filename}`,
+    const results = await imageProcessingService.processAndSaveMany(
+      productImgFiles,
+      "product",
+      "products",
+      "product-",
+    );
+    return results.map((r, index) => ({
+      path: r.path,
+      url: `/uploads/${r.path}`,
+      thumbnailPath: r.thumbnailPath ? `/uploads/${r.thumbnailPath}` : null,
       isPrimary: index === 0,
       sortOrder: index,
     }));
   }
 
-  mergeVariantImages(files = [], variants = []) {
+  async mergeVariantImages(files = [], variants = []) {
     const variantImgFiles = files.filter((f) =>
       /^variantImages_\d+$/.test(f.fieldname),
     );
@@ -349,8 +357,14 @@ export class ProductService extends BaseService {
       const idx = parseInt(file.fieldname.split("_")[1], 10);
       if (variants[idx]) {
         if (!variants[idx].images) variants[idx].images = [];
+        const result = await imageProcessingService.processAndSave(
+          file,
+          "product",
+          "products",
+          "variant-",
+        );
         variants[idx].images.push({
-          path: `products/${file.filename}`,
+          path: result.path,
           isPrimary: variants[idx].images.length === 0,
           sortOrder: variants[idx].images.length,
         });
@@ -412,13 +426,13 @@ export class ProductService extends BaseService {
     if (!title) throw new AppError("Title is required", 400);
 
     const isVariant = parseBoolean(hasVariants);
-    const parsedVariants = this.mergeVariantImages(
+    const parsedVariants = await this.mergeVariantImages(
       files,
       this.parseJsonField(variants),
     );
     const parsedSize = this.parseJsonField(size);
     const parsedTags = this.parseJsonField(tags);
-    const images = this.extractImages(files);
+    const images = await this.extractImages(files);
 
     if (isVariant && (!parsedVariants || parsedVariants.length === 0)) {
       throw new AppError(
@@ -514,7 +528,7 @@ export class ProductService extends BaseService {
       }
     }
 
-    const parsedVariants = this.mergeVariantImages(
+    const parsedVariants = await this.mergeVariantImages(
       files,
       this.parseJsonField(variants),
     );
@@ -522,14 +536,20 @@ export class ProductService extends BaseService {
     const parsedTags = this.parseJsonField(tags);
 
     if (files.length > 0) {
-      const newImages = files
-        .filter((f) => f.fieldname === "images")
-        .map((file, i) => ({
-          path: `products/${file.filename}`,
-          url: `/uploads/products/${file.filename}`,
-          isPrimary: images.length === 0 && i === 0,
-          sortOrder: images.length + i,
-        }));
+      const newImageFiles = files.filter((f) => f.fieldname === "images");
+      const processedImages = await imageProcessingService.processAndSaveMany(
+        newImageFiles,
+        "product",
+        "products",
+        "product-",
+      );
+      const newImages = processedImages.map((r, i) => ({
+        path: r.path,
+        url: `/uploads/${r.path}`,
+        thumbnailPath: r.thumbnailPath ? `/uploads/${r.thumbnailPath}` : null,
+        isPrimary: images.length === 0 && i === 0,
+        sortOrder: images.length + i,
+      }));
       images = [...images, ...newImages];
     }
 
@@ -594,6 +614,52 @@ export class ProductService extends BaseService {
     }
 
     invalidateCacheByPrefix("products:index:");
+    return product;
+  }
+
+  async appendImages(productId, files = [], variantIndexMap = {}) {
+    const product = await this.model.findById(productId);
+    if (!product) throw new AppError("Product not found", 404);
+
+    const productImgFiles = files.filter((f) => f.fieldname === "images");
+    if (productImgFiles.length) {
+      const currentCount = product.images?.length || 0;
+      const processedImages = await imageProcessingService.processAndSaveMany(
+        productImgFiles,
+        "product",
+        "products",
+        "product-",
+      );
+      const newImages = processedImages.map((r, i) => ({
+        path: r.path,
+        isPrimary: currentCount === 0 && i === 0,
+        sortOrder: currentCount + i,
+      }));
+      product.images = [...(product.images || []), ...newImages];
+    }
+
+    const variantImgFiles = files.filter((f) =>
+      /^variantImages_\d+$/.test(f.fieldname),
+    );
+    for (const file of variantImgFiles) {
+      const idx = parseInt(file.fieldname.split("_")[1], 10);
+      if (product.variants?.[idx]) {
+        if (!product.variants[idx].images) product.variants[idx].images = [];
+        const result = await imageProcessingService.processAndSave(
+          file,
+          "product",
+          "products",
+          "variant-",
+        );
+        product.variants[idx].images.push({
+          path: result.path,
+          isPrimary: product.variants[idx].images.length === 0,
+          sortOrder: product.variants[idx].images.length,
+        });
+      }
+    }
+
+    await product.save();
     return product;
   }
 

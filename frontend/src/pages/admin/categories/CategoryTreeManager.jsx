@@ -62,8 +62,6 @@ const CategoryTreeManager = () => {
                 credentials: 'include',
             });
             
-            logger.info('Response status:', response.status);
-            
             if (response.status === 401) {
                 await authService.logout();
                 window.location.href = '/login';
@@ -71,17 +69,14 @@ const CategoryTreeManager = () => {
             }
 
             const data = await response.json();
-            logger.info('Categories data received:', data);
 
             if (!response.ok) {
                 throw new Error(data.message || `HTTP error! status: ${response.status}`);
             }
 
             const categoriesList = Array.isArray(data?.data) ? data.data : [];
-            logger.info('Parsed categories list:', categoriesList.length, 'categories');
             
             const tree = buildCategoryTree(categoriesList);
-            logger.info('Built tree:', tree);
             setCategories(tree);
             
                         const allParentIds = new Set();
@@ -95,7 +90,6 @@ const CategoryTreeManager = () => {
             };
             collectParentIds(tree);
             setExpandedCategories(allParentIds);
-            logger.info('Auto-expanded categories:', allParentIds.size);
             setOpenChildDropTargetId(null);
             
             setHasChanges(false);
@@ -108,13 +102,6 @@ const CategoryTreeManager = () => {
     };
 
     const buildCategoryTree = (flatList, parentId = null) => {
-        if (parentId === null) {
-            logger.info('=== All Categories Data ===');
-            flatList.forEach(cat => {
-                logger.info(`"${cat.title}" - parentId: ${cat.parentId}, _id: ${cat._id}`);
-            });
-        }
-        
         const filtered = flatList.filter(cat => {
             const catParentId = cat.parentId || null;
             return catParentId === parentId;

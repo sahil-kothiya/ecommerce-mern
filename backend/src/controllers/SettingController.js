@@ -39,6 +39,48 @@ class SettingController {
     await emailService.sendTestEmail(String(to).trim());
     res.json({ success: true, message: `Test email sent to ${to}` });
   });
+
+  getImageSettings = asyncHandler(async (req, res) => {
+    const data = await settingService.getImageSettings();
+    res.json({ success: true, data });
+  });
+
+  updateImageSettings = asyncHandler(async (req, res) => {
+    const data = await settingService.updateImageSettings(req.body);
+    res.json({
+      success: true,
+      message: "Image settings updated",
+      data,
+    });
+  });
+
+  getImageSectionSettings = asyncHandler(async (req, res) => {
+    const { sectionName } = req.params;
+    const data = await settingService.getImageSectionSettings(sectionName);
+    res.json({ success: true, data });
+  });
+
+  updateImageSectionSettings = asyncHandler(async (req, res) => {
+    const { sectionName } = req.params;
+    const data = await settingService.updateImageSectionSettings(
+      sectionName,
+      req.body,
+    );
+    res.json({
+      success: true,
+      message: `Image settings for "${sectionName}" updated`,
+      data,
+    });
+  });
+
+  resetImageSettings = asyncHandler(async (req, res) => {
+    const data = await settingService.resetImageSettings();
+    res.json({
+      success: true,
+      message: "Image settings reset to defaults",
+      data,
+    });
+  });
 }
 
 export const settingController = new SettingController();

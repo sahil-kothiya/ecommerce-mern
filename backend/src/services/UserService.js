@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { BaseService } from "../core/BaseService.js";
 import { User } from "../models/User.js";
 import { AppError } from "../middleware/errorHandler.js";
+import { imageProcessingService } from "./ImageProcessingService.js";
 
 export class UserService extends BaseService {
   constructor() {
@@ -32,9 +33,15 @@ export class UserService extends BaseService {
     return value;
   }
 
-  normalizePhoto(photo, uploadedFile = null) {
-    if (uploadedFile?.filename) {
-      return `/uploads/users/${uploadedFile.filename}`;
+  async normalizePhoto(photo, uploadedFile = null) {
+    if (uploadedFile?.buffer) {
+      const result = await imageProcessingService.processAndSave(
+        uploadedFile,
+        "avatar",
+        "users",
+        "avatar-",
+      );
+      return `/uploads/${result.path}`;
     }
     if (photo === undefined || photo === null) return null;
     const value = String(photo).trim();
@@ -107,7 +114,7 @@ export class UserService extends BaseService {
     const status = String(data.status || "active")
       .trim()
       .toLowerCase();
-    const photo = this.normalizePhoto(data.photo, uploadedFile);
+    const photo = await this.normalizePhoto(data.photo, uploadedFile);
 
     const errors = [];
     if (!name || name.length < 2) {
@@ -237,7 +244,7 @@ export class UserService extends BaseService {
     }
 
     if (data.photo !== undefined || uploadedFile) {
-      update.photo = this.normalizePhoto(data.photo, uploadedFile);
+      update.photo = await this.normalizePhoto(data.photo, uploadedFile);
     }
 
     if (errors.length > 0) {

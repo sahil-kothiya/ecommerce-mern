@@ -2,9 +2,9 @@ import { Router } from "express";
 import { BrandController } from "../controllers/BrandController.js";
 import { protect, authorize } from "../middleware/auth.js";
 import {
-  uploadBrandMultiField,
-  handleUploadError,
-} from "../middleware/uploadEnhanced.js";
+  createDynamicUpload,
+  handleDynamicUploadError,
+} from "../middleware/dynamicUpload.js";
 import {
   createBrandValidator,
   updateBrandValidator,
@@ -30,8 +30,8 @@ router.post(
   "/",
   protect,
   authorize("admin"),
-  uploadBrandMultiField,
-  handleUploadError,
+  createDynamicUpload("brand", { type: "fields", fields: [{ name: "logo", maxCount: 1 }, { name: "banners", maxCount: 3 }] }),
+  handleDynamicUploadError,
   createBrandValidator,
   validate,
   (req, res, next) => brandController.store(req, res, next),
@@ -41,8 +41,8 @@ router.put(
   "/:id",
   protect,
   authorize("admin"),
-  uploadBrandMultiField,
-  handleUploadError,
+  createDynamicUpload("brand", { type: "fields", fields: [{ name: "logo", maxCount: 1 }, { name: "banners", maxCount: 3 }] }),
+  handleDynamicUploadError,
   updateBrandValidator,
   validate,
   (req, res, next) => brandController.update(req, res, next),

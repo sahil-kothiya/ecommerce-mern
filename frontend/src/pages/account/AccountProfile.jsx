@@ -6,6 +6,7 @@ import authService from '../../services/authService';
 import apiClient from '../../services/apiClient';
 import { API_CONFIG } from '../../constants';
 import notify from '../../utils/notify';
+import SavingOverlay from '../../components/ui/SavingOverlay';
 
 const profileSchema = yup.object({
     name: yup.string().trim().required('Full name is required.').min(2, 'Name must be at least 2 characters.'),
@@ -134,6 +135,7 @@ const AccountProfile = () => {
 
     return (
         <div className="space-y-6">
+            <SavingOverlay visible={isSavingProfile || isSavingPassword} message={isSavingProfile ? 'Saving profile...' : 'Updating password...'} />
             <div>
                 <h1 className="text-xl font-bold text-slate-800">Profile & Security</h1>
                 <p className="text-sm text-slate-500">Manage your personal info and password.</p>

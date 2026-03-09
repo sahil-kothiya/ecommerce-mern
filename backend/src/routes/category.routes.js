@@ -2,9 +2,9 @@ import { Router } from "express";
 import { CategoryController } from "../controllers/CategoryController.js";
 import { protect, authorize } from "../middleware/auth.js";
 import {
-  uploadCategoryImage,
-  handleUploadError,
-} from "../middleware/uploadEnhanced.js";
+  createDynamicUpload,
+  handleDynamicUploadError,
+} from "../middleware/dynamicUpload.js";
 
 const router = Router();
 const categoryController = new CategoryController();
@@ -48,8 +48,8 @@ router.post(
   "/",
   protect,
   authorize("admin"),
-  uploadCategoryImage,
-  handleUploadError,
+  createDynamicUpload("category", { type: "single", fieldName: "photo" }),
+  handleDynamicUploadError,
   (req, res, next) => categoryController.store(req, res, next),
 );
 
@@ -61,8 +61,8 @@ router.put(
   "/:id",
   protect,
   authorize("admin"),
-  uploadCategoryImage,
-  handleUploadError,
+  createDynamicUpload("category", { type: "single", fieldName: "photo" }),
+  handleDynamicUploadError,
   (req, res, next) => categoryController.update(req, res, next),
 );
 

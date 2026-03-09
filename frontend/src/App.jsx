@@ -50,6 +50,7 @@ const CouponsList = lazy(() => import('./pages/admin/coupons/CouponsList.jsx'));
 const CouponForm = lazy(() => import('./pages/admin/coupons/CouponForm.jsx'));
 const ReviewsList = lazy(() => import('./pages/admin/reviews/ReviewsList.jsx'));
 const SettingsPage = lazy(() => import('./pages/admin/settings/SettingsPage.jsx'));
+const ImageSettingsPage = lazy(() => import('./pages/admin/settings/ImageSettingsPage.jsx'));
 const VariantTypesList = lazy(() => import('./pages/admin/variants/VariantTypesList.jsx'));
 const VariantTypeForm = lazy(() => import('./pages/admin/variants/VariantTypeForm.jsx'));
 const VariantTypeView = lazy(() => import('./pages/admin/variants/VariantTypeView.jsx'));
@@ -86,7 +87,6 @@ function App() {
                 if (authService.isAuthenticated()) {
                     try {
                         await authService.getCurrentUser();
-                        logger.info('Auth state verified on app mount');
                     } catch (authError) {
                         if (authError.status === 401) {
                             logger.warn('Session expired, clearing auth state');
@@ -183,6 +183,7 @@ function App() {
                 <Route path="orders" element={<OrdersList />} />
                 <Route path="reviews" element={<ReviewsList />} />
                 <Route path="settings" element={<SettingsPage />} />
+                <Route path="settings/images" element={<ImageSettingsPage />} />
             </Route>
 
             {/* User account panel — authenticated users only */}

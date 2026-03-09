@@ -8,6 +8,7 @@ import { ErrorAlert, FieldError } from '../../components/common';
 import { processApiError, getFieldClasses, getFieldError } from '../../utils/errorUtils';
 import { useSiteSettings } from '../../context/useSiteSettings';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import SavingOverlay from '../../components/ui/SavingOverlay';
 
 const registerSchema = yup.object().shape({
         name: yup
@@ -90,6 +91,7 @@ const RegisterPage = () => {
 
                 return (
         <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4 py-6">
+            <SavingOverlay visible={isLoading} message="Creating account..." />
             <div className="absolute left-8 top-6 h-52 w-52 rounded-full bg-accent-500/20 blur-3xl" />
             <div className="absolute bottom-8 right-8 h-52 w-52 rounded-full bg-primary-500/20 blur-3xl" />
 

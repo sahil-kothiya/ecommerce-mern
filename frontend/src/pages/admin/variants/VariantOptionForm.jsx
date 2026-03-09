@@ -7,6 +7,7 @@ import notify from '../../../utils/notify';
 import { API_CONFIG } from '../../../constants';
 import { AdminLoadingState, AdminPageHeader, AdminSurface } from '../../../components/admin/AdminTheme';
 import authFetch from '../../../utils/authFetch.js';
+import SavingOverlay from '../../../components/ui/SavingOverlay';
 
 const schema = yup.object({
     variantTypeId: yup.string().required('Variant type is required'),
@@ -121,6 +122,7 @@ const VariantOptionForm = () => {
 
     return (
         <div className="space-y-8">
+            <SavingOverlay visible={isSaving} message={isEdit ? 'Updating variant option...' : 'Creating variant option...'} />
             <AdminPageHeader
                 eyebrow="Variant Studio"
                 title={isEdit ? 'Edit Variant Option' : 'Create Variant Option'}

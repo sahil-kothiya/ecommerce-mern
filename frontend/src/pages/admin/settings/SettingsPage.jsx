@@ -6,6 +6,7 @@ import notify from '../../../utils/notify';
 import settingsService from '../../../services/settingsService';
 import { API_CONFIG } from '../../../constants';
 import { resolveImageUrl } from '../../../utils/imageUrl';
+import SavingOverlay from '../../../components/ui/SavingOverlay';
 
 const urlTest = (msg) => (v) => !v || /^https?:\/\/.+/i.test(v) || msg;
 const emailTest = (msg) => (v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || msg;
@@ -172,6 +173,7 @@ const SettingsPage = () => {
 
     return (
         <div className="space-y-8">
+            <SavingOverlay visible={isSaving} message="Saving settings..." />
             <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 text-white shadow-lg sm:p-8">
                 <div className="absolute -right-10 -top-20 h-48 w-48 rounded-full bg-primary-400/20 blur-3xl" />
                 <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-primary-300/20 blur-3xl" />

@@ -9,6 +9,7 @@ import { ErrorAlert, FieldError } from '../../components/common';
 import { processApiError, getFieldClasses, getFieldError } from '../../utils/errorUtils';
 import { useSiteSettings } from '../../context/useSiteSettings';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import SavingOverlay from '../../components/ui/SavingOverlay';
 
 const forgotPasswordSchema = yup.object().shape({
     email: yup
@@ -54,6 +55,7 @@ const ForgotPasswordPage = () => {
 
                 return (
         <div className="relative min-h-screen overflow-hidden bg-slate-950 px-4 py-10 sm:py-14">
+            <SavingOverlay visible={isLoading} message="Sending reset link..." />
             <div className="absolute -left-10 top-16 h-56 w-56 rounded-full bg-secondary-500/20 blur-3xl" />
             <div className="absolute -right-10 bottom-8 h-56 w-56 rounded-full bg-primary-500/20 blur-3xl" />
 

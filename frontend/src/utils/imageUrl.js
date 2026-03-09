@@ -12,7 +12,7 @@ export const getImageSource = (raw) => {
 
 export const resolveImageUrl = (raw, options = {}) => {
   const {
-    placeholder = "/images/404-error-cyberpunk-5120x2880-18226.jpg",
+    placeholder = "/images/404-error-cyberpunk-5120x2880-18226.webp",
     baseUrl = API_CONFIG.BASE_URL,
   } = options;
 
@@ -107,4 +107,21 @@ export const getPrimaryCartItemImage = (item) => {
 
   if (variantPrimary) return variantPrimary;
   return getPrimaryProductImage(item?.product);
+};
+
+/**
+ * Resolve thumbnail URL from an image object.
+ * Falls back to the full image URL if no thumbnail is available.
+ * @param {Object|string} raw - image object or path
+ * @param {Object} [options]
+ * @returns {string}
+ */
+export const resolveThumbnailUrl = (raw, options = {}) => {
+  if (!raw) return resolveImageUrl(raw, options);
+
+  if (typeof raw === "object" && raw.thumbnailPath) {
+    return resolveImageUrl(raw.thumbnailPath, options);
+  }
+
+  return resolveImageUrl(raw, options);
 };

@@ -7,6 +7,7 @@ import notify from '../../../utils/notify';
 import { API_CONFIG } from '../../../constants';
 import { AdminLoadingState, AdminPageHeader, AdminSurface } from '../../../components/admin/AdminTheme';
 import authFetch from '../../../utils/authFetch.js';
+import SavingOverlay from '../../../components/ui/SavingOverlay';
 
 const schema = yup.object({
     name: yup.string().trim().lowercase().required('Name is required').min(2, 'Name must be at least 2 characters').matches(/^[a-z0-9\-_\s]+$/i, 'Name can contain lowercase letters, numbers, spaces, dashes, and underscores only'),
@@ -99,6 +100,7 @@ const VariantTypeForm = () => {
 
     return (
         <div className="space-y-8">
+            <SavingOverlay visible={isSaving} message={isEdit ? 'Updating variant type...' : 'Creating variant type...'} />
             <AdminPageHeader
                 eyebrow="Variant Studio"
                 title={isEdit ? 'Edit Variant Type' : 'Create Variant Type'}

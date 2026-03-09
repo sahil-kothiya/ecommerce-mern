@@ -2,7 +2,7 @@ import { BaseController } from "../core/BaseController.js";
 import { BrandService } from "../services/BrandService.js";
 import { Brand } from "../models/Brand.js";
 import { Product } from "../models/Product.js";
-import { deleteUploadedFile } from "../middleware/uploadEnhanced.js";
+import { imageProcessingService } from "../services/ImageProcessingService.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { logger } from "../utils/logger.js";
 import mongoose from "mongoose";
@@ -115,13 +115,23 @@ export class BrandController extends BaseController {
 
     if (req.files) {
       if (req.files.logo && req.files.logo.length > 0) {
-        logo = `uploads/brands/${req.files.logo[0].filename}`;
+        const result = await imageProcessingService.processAndSave(
+          req.files.logo[0],
+          "brand",
+          "brands",
+          "brand-logo-",
+        );
+        logo = `uploads/${result.path}`;
       }
 
       if (req.files.banners && req.files.banners.length > 0) {
-        banners = req.files.banners.map(
-          (file) => `uploads/brands/${file.filename}`,
+        const results = await imageProcessingService.processAndSaveMany(
+          req.files.banners,
+          "brand",
+          "brands",
+          "brand-banner-",
         );
+        banners = results.map((r) => `uploads/${r.path}`);
       }
     }
 
@@ -162,15 +172,21 @@ export class BrandController extends BaseController {
     };
 
     if (req.files && req.files.logo && req.files.logo.length > 0) {
-      updateData.logo = `uploads/brands/${req.files.logo[0].filename}`;
+      const result = await imageProcessingService.processAndSave(
+        req.files.logo[0],
+        "brand",
+        "brands",
+        "brand-logo-",
+      );
+      updateData.logo = `uploads/${result.path}`;
 
       if (brand.logo) {
-        await deleteUploadedFile(brand.logo);
+        await imageProcessingService.deleteFile(brand.logo);
       }
     } else if (keepExistingLogo === "false") {
       updateData.logo = null;
       if (brand.logo) {
-        await deleteUploadedFile(brand.logo);
+        await imageProcessingService.deleteFile(brand.logo);
       }
     } else {
       updateData.logo = brand.logo;
@@ -193,7 +209,15 @@ export class BrandController extends BaseController {
 
     const newBanners =
       req.files && req.files.banners && req.files.banners.length > 0
-        ? req.files.banners.map((file) => `uploads/brands/${file.filename}`)
+        ? await (async () => {
+            const results = await imageProcessingService.processAndSaveMany(
+              req.files.banners,
+              "brand",
+              "brands",
+              "brand-banner-",
+            );
+            return results.map((r) => `uploads/${r.path}`);
+          })()
         : [];
 
     updateData.banners = [...existingBannersArray, ...newBanners];
@@ -221,12 +245,12 @@ export class BrandController extends BaseController {
     await this.service.deleteBrand(id);
 
     if (brand.logo) {
-      await deleteUploadedFile(brand.logo);
+      await imageProcessingService.deleteFile(brand.logo);
     }
 
     if (brand.banners && brand.banners.length > 0) {
       for (const banner of brand.banners) {
-        await deleteUploadedFile(banner);
+        await imageProcessingService.deleteFile(banner);
       }
     }
 

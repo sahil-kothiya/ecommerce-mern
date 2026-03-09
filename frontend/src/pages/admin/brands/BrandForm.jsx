@@ -7,6 +7,8 @@ import notify from '../../../utils/notify';
 import { API_CONFIG } from '../../../constants';
 import { brandService } from '../../../services/brandService';
 import { logger } from '../../../utils/logger.js';
+import SavingOverlay from '../../../components/ui/SavingOverlay';
+import useImageSettings from '../../../hooks/useImageSettings';
 
 const schema = yup.object({
     title: yup.string().trim().required('Title is required')
@@ -20,6 +22,7 @@ const schema = yup.object({
 const BrandForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { accept: imageAccept } = useImageSettings();
     const isEdit = Boolean(id);
 
     const [logo, setLogo] = useState(null);
@@ -219,6 +222,7 @@ const BrandForm = () => {
 
     return (
         <div className="w-full px-4 space-y-8 relative">
+            <SavingOverlay visible={isSaving} message={isEdit ? 'Updating brand...' : 'Creating brand...'} />
             <div className="pointer-events-none absolute top-16 right-8 h-40 w-40 rounded-full bg-primary-300/20 blur-3xl" />
             <div className="pointer-events-none absolute bottom-20 left-8 h-44 w-44 rounded-full bg-sky-300/20 blur-3xl" />
 
@@ -308,7 +312,7 @@ const BrandForm = () => {
                                         </label>
                                         <input
                                             type="file"
-                                            accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                                            accept={imageAccept}
                                             onChange={handleLogoChange}
                                             className={`media-file-input ${errors.logo ? 'border-red-400 bg-red-50' : ''}`}
                                         />
@@ -396,7 +400,7 @@ const BrandForm = () => {
                                 <input
                                     type="file"
                                     multiple
-                                    accept="image/jpeg,image/png,image/gif,image/webp"
+                                    accept={imageAccept}
                                     onChange={handleBannerChange}
                                     className={`media-file-input ${errors.banners ? 'border-red-400 bg-red-50' : ''}`}
                                 />

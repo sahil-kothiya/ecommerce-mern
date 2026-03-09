@@ -21,11 +21,6 @@ class AuthService {
     }
 
     try {
-      logger.info("AuthService.login called", {
-        email: trimmedEmail,
-        rememberMe: Boolean(rememberMe),
-      });
-
       const response = await apiClient.post(
         `${API_CONFIG.ENDPOINTS.AUTH}/login`,
         {
@@ -39,8 +34,6 @@ class AuthService {
 
       this.setUser(user);
       this._emitAuthEvent("auth:login", { user });
-
-      logger.info("Login successful", { userId: user?._id, role: user?.role });
 
       return response;
     } catch (error) {
@@ -79,8 +72,6 @@ class AuthService {
       this.setUser(user);
       this._emitAuthEvent("auth:login", { user });
 
-      logger.info("Registration successful", { userId: user?._id });
-
       return response;
     } catch (error) {
       logger.error("Registration failed", {
@@ -94,7 +85,6 @@ class AuthService {
   async logout() {
     try {
       await apiClient.post(`${API_CONFIG.ENDPOINTS.AUTH}/logout`);
-      logger.info("Logout API call successful");
     } catch (error) {
       logger.warn("Logout API call failed, clearing local data anyway", {
         error: error.message,
@@ -125,8 +115,6 @@ class AuthService {
       const user = response?.data?.user ?? response?.user;
 
       this.setUser(user);
-
-      logger.info("Current user fetched successfully", { userId: user?._id });
 
       return this.getUser();
     } catch (error) {
@@ -161,8 +149,6 @@ class AuthService {
 
       this.setUser(user);
 
-      logger.info("Profile updated successfully", { userId: user?._id });
-
       return this.getUser();
     } catch (error) {
       logger.error("Profile update failed", {
@@ -190,8 +176,6 @@ class AuthService {
           newPassword,
         },
       );
-
-      logger.info("Password changed successfully");
 
       return response;
     } catch (error) {
@@ -323,8 +307,6 @@ class AuthService {
     this._userCache = null;
     this._pendingUserFetch = null;
     localStorage.removeItem(this.USER_KEY);
-
-    logger.info("Auth state cleared");
   }
 
   clearAuth() {
@@ -342,8 +324,6 @@ class AuthService {
         `${API_CONFIG.ENDPOINTS.AUTH}/forgot-password`,
         { email: trimmedEmail },
       );
-
-      logger.info("Password reset email sent", { email: trimmedEmail });
 
       return response;
     } catch (error) {
@@ -369,8 +349,6 @@ class AuthService {
         `${API_CONFIG.ENDPOINTS.AUTH}/reset-password`,
         { token, newPassword },
       );
-
-      logger.info("Password reset successful");
 
       return response;
     } catch (error) {

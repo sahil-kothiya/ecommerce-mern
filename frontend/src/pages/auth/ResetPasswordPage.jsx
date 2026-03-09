@@ -9,6 +9,7 @@ import { ErrorAlert, FieldError } from '../../components/common';
 import { processApiError, getFieldClasses, getFieldError } from '../../utils/errorUtils';
 import { useSiteSettings } from '../../context/useSiteSettings';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import SavingOverlay from '../../components/ui/SavingOverlay';
 
 const resetPasswordSchema = yup.object().shape({
     token: yup
@@ -73,6 +74,7 @@ const ResetPasswordPage = () => {
 
                 return (
                     <div className="relative min-h-screen overflow-hidden bg-slate-950 p-4">
+                        <SavingOverlay visible={isLoading} message="Resetting password..." />
                         <div className="absolute -left-10 top-10 h-56 w-56 rounded-full bg-primary-500/20 blur-3xl" />
                         <div className="absolute -right-10 bottom-10 h-56 w-56 rounded-full bg-accent-500/20 blur-3xl" />
                         <div className="mx-auto flex min-h-screen w-full max-w-5xl items-center justify-center py-8">

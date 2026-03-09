@@ -2,7 +2,7 @@
 
 import express from 'express';
 import { BannerController } from '../controllers/BannerController.js';
-import { uploadBannerImage, handleUploadError } from '../middleware/uploadEnhanced.js';
+import { createDynamicUpload, handleDynamicUploadError } from '../middleware/dynamicUpload.js';
 import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -20,8 +20,8 @@ router.post(
     '/',
     protect,
     authorize('admin'),
-    uploadBannerImage,
-    handleUploadError,
+    createDynamicUpload('banner', { type: 'single', fieldName: 'image' }),
+    handleDynamicUploadError,
     bannerController.create.bind(bannerController)
 );
 
@@ -29,8 +29,8 @@ router.put(
     '/:id',
     protect,
     authorize('admin'),
-    uploadBannerImage,
-    handleUploadError,
+    createDynamicUpload('banner', { type: 'single', fieldName: 'image' }),
+    handleDynamicUploadError,
     bannerController.update.bind(bannerController)
 );
 

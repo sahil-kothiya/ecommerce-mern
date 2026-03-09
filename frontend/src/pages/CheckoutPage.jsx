@@ -14,6 +14,7 @@ import { useSiteSettings } from "../context/useSiteSettings";
 import SearchableSelect from "../components/checkout/SearchableSelect.jsx";
 import StripeCardSection from "../components/checkout/StripeCardSection.jsx";
 import AddressPicker from "../components/checkout/AddressPicker.jsx";
+import SavingOverlay from "../components/ui/SavingOverlay";
 
 const schema = yup.object({
     firstName: yup.string().trim().required("First name is required"),
@@ -190,6 +191,7 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <SavingOverlay visible={isPlacingOrder} message="Placing your order..." />
             {/* Shipping */}
             <div className="store-surface p-6">
                 <h2 className="store-display mb-4 text-lg text-slate-900">Shipping Information</h2>

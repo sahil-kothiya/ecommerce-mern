@@ -2,6 +2,11 @@ import { Setting } from "../models/Setting.js";
 import { BaseService } from "../core/BaseService.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { logger } from "../utils/logger.js";
+import {
+  clearImageSettingsCache,
+  DEFAULT_IMAGE_SETTINGS,
+} from "../utils/settingsCache.js";
+import { imageProcessingService } from "./ImageProcessingService.js";
 
 const PUBLIC_FIELDS = [
   "siteName",
@@ -171,10 +176,22 @@ export class SettingService extends BaseService {
     }
 
     if (files?.logo?.[0]) {
-      settings.logo = `settings/${files.logo[0].filename}`;
+      const result = await imageProcessingService.processAndSave(
+        files.logo[0],
+        "settings",
+        "settings",
+        "logo-",
+      );
+      settings.logo = result.path;
     }
     if (files?.favicon?.[0]) {
-      settings.favicon = `settings/${files.favicon[0].filename}`;
+      const result = await imageProcessingService.processAndSave(
+        files.favicon[0],
+        "settings",
+        "settings",
+        "favicon-",
+      );
+      settings.favicon = result.path;
     }
     if (body.logo === "") settings.logo = null;
     if (body.favicon === "") settings.favicon = null;
@@ -185,6 +202,175 @@ export class SettingService extends BaseService {
     logger.info("Settings updated", { updatedBy: userId });
 
     return { settings, oldLogo, oldFavicon };
+  }
+
+  async getImageSettings() {
+    const settings = await this.getOrCreate();
+    const img = settings.imageSettings || {};
+    return {
+      ...DEFAULT_IMAGE_SETTINGS,
+      ...img,
+      sections: {
+        ...DEFAULT_IMAGE_SETTINGS.sections,
+        ...(img.sections || {}),
+      },
+    };
+  }
+
+  async updateImageSettings(body) {
+    const settings = await this.getOrCreate();
+
+    const VALID_FORMATS = ["webp", "jpeg", "png", "avif"];
+    const ALL_INPUT_FORMATS = [
+      "jpg",
+      "jpeg",
+      "png",
+      "gif",
+      "webp",
+      "svg",
+      "bmp",
+      "tiff",
+      "tif",
+      "avif",
+      "heic",
+      "heif",
+      "ico",
+    ];
+
+    if (body.allowedInputFormats !== undefined) {
+      const formats = Array.isArray(body.allowedInputFormats)
+        ? body.allowedInputFormats
+        : [];
+      settings.imageSettings.allowedInputFormats = formats.filter((f) =>
+        ALL_INPUT_FORMATS.includes(f),
+      );
+    }
+
+    if (body.preferredOutputFormat !== undefined) {
+      if (!VALID_FORMATS.includes(body.preferredOutputFormat)) {
+        throw new AppError(
+          `Invalid output format. Allowed: ${VALID_FORMATS.join(", ")}`,
+          400,
+        );
+      }
+      settings.imageSettings.preferredOutputFormat = body.preferredOutputFormat;
+    }
+
+    if (body.maxFileSizeBytes !== undefined) {
+      const size = Number(body.maxFileSizeBytes);
+      if (Number.isNaN(size) || size < 102400 || size > 104857600) {
+        throw new AppError(
+          "maxFileSizeBytes must be between 100KB and 100MB",
+          400,
+        );
+      }
+      settings.imageSettings.maxFileSizeBytes = size;
+    }
+
+    const boolFields = [
+      "autoConvertEnabled",
+      "autoGenerateThumbnail",
+    ];
+    for (const field of boolFields) {
+      if (body[field] !== undefined) {
+        const val = body[field];
+        settings.imageSettings[field] =
+          val === true || val === "true" || val === "1" || val === 1;
+      }
+    }
+
+    const numFields = ["thumbnailWidth", "thumbnailHeight"];
+    for (const field of numFields) {
+      if (body[field] !== undefined) {
+        const val = Number(body[field]);
+        if (!Number.isNaN(val) && val >= 50 && val <= 2000) {
+          settings.imageSettings[field] = val;
+        }
+      }
+    }
+
+    settings.markModified("imageSettings");
+    await settings.save();
+    clearImageSettingsCache();
+
+    logger.info("Image settings updated (global)");
+    return settings.imageSettings;
+  }
+
+  async updateImageSectionSettings(sectionName, body) {
+    const VALID_SECTIONS = [
+      "product",
+      "category",
+      "banner",
+      "avatar",
+      "brand",
+      "review",
+      "settings",
+    ];
+    if (!VALID_SECTIONS.includes(sectionName)) {
+      throw new AppError(
+        `Invalid section "${sectionName}". Valid: ${VALID_SECTIONS.join(", ")}`,
+        400,
+      );
+    }
+
+    const settings = await this.getOrCreate();
+
+    if (!settings.imageSettings.sections[sectionName]) {
+      settings.imageSettings.sections[sectionName] = {};
+    }
+
+    const sec = settings.imageSettings.sections[sectionName];
+
+    if (body.maxWidth !== undefined) {
+      const v = Number(body.maxWidth);
+      if (!Number.isNaN(v) && v >= 100 && v <= 5000) sec.maxWidth = v;
+    }
+    if (body.maxHeight !== undefined) {
+      const v = Number(body.maxHeight);
+      if (!Number.isNaN(v) && v >= 100 && v <= 5000) sec.maxHeight = v;
+    }
+    if (body.quality !== undefined) {
+      const v = Number(body.quality);
+      if (!Number.isNaN(v) && v >= 1 && v <= 100) sec.quality = v;
+    }
+    if (body.maxCount !== undefined) {
+      const v = Number(body.maxCount);
+      if (!Number.isNaN(v) && v >= 1 && v <= 200) sec.maxCount = v;
+    }
+    if (body.aspectRatio !== undefined) {
+      const validRatios = ["1:1", "16:9", "4:3", "16:3", "3:2", "free"];
+      if (validRatios.includes(body.aspectRatio)) {
+        sec.aspectRatio = body.aspectRatio;
+      }
+    }
+
+    settings.markModified("imageSettings");
+    await settings.save();
+    clearImageSettingsCache();
+
+    logger.info(`Image settings updated for section: ${sectionName}`);
+    return sec;
+  }
+
+  async resetImageSettings() {
+    const settings = await this.getOrCreate();
+    settings.imageSettings = undefined;
+    settings.markModified("imageSettings");
+    await settings.save();
+    clearImageSettingsCache();
+
+    logger.info("Image settings reset to defaults");
+    return DEFAULT_IMAGE_SETTINGS;
+  }
+
+  async getImageSectionSettings(sectionName) {
+    const imgSettings = await this.getImageSettings();
+    return (
+      imgSettings.sections[sectionName] ||
+      DEFAULT_IMAGE_SETTINGS.sections[sectionName] ||
+      DEFAULT_IMAGE_SETTINGS.sections.product
+    );
   }
 }
 

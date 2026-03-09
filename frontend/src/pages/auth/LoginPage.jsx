@@ -10,6 +10,7 @@ import { ErrorAlert, FieldError } from '../../components/common';
 import { processApiError, getFieldClasses, getFieldError } from '../../utils/errorUtils';
 import { useSiteSettings } from '../../context/useSiteSettings';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import SavingOverlay from '../../components/ui/SavingOverlay';
 
 const loginSchema = yup.object().shape({
         email: yup
@@ -120,6 +121,7 @@ const LoginPage = () => {
 
                 return (
         <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4 py-6">
+            <SavingOverlay visible={isLoading} message="Signing in..." />
             <div className="absolute -left-12 top-10 h-56 w-56 rounded-full bg-cyan-500/20 blur-3xl" />
             <div className="absolute -right-12 bottom-10 h-56 w-56 rounded-full bg-indigo-500/20 blur-3xl" />
 

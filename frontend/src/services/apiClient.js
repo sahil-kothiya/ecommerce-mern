@@ -1,5 +1,3 @@
-import { logger } from "../utils/logger.js";
-
 import { API_CONFIG } from "../constants";
 import toast from "react-hot-toast";
 
@@ -27,9 +25,6 @@ class ApiClient {
       const duration = response.config.metadata
         ? endTime - response.config.metadata.startTime
         : 0;
-      logger.info(
-        `[API] ${response.config.method.toUpperCase()} ${response.config.url} - ${duration}ms`,
-      );
       return response;
     });
 
@@ -62,7 +57,7 @@ class ApiClient {
 
     this._isRefreshing = true;
     try {
-      const response = await fetch(`${this.baseURL}/auth/refresh-token`, {
+      const response = await fetch(`${this.baseURL}/api/auth/refresh-token`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

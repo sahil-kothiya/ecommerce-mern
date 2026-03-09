@@ -8,8 +8,10 @@ import notify from '../../../utils/notify';
 import authFetch from '../../../utils/authFetch.js';
 import { resolveImageUrl } from '../../../utils/imageUrl';
 import { useSiteSettings } from '../../../context/useSiteSettings';
+import useImageSettings from '../../../hooks/useImageSettings';
 import { formatCurrency } from '../../../utils/currency';
 import { logger } from '../../../utils/logger.js';
+import SavingOverlay from '../../../components/ui/SavingOverlay';
 
 const schema = yup.object({
     title: yup.string().trim().required('Title is required'),
@@ -128,26 +130,26 @@ const resolveVariantSelections = (variants = [], types = [], optionsByType = {})
 };
 
 const RANDOM_VARIANT_IMAGE_FILES = [
-    '404-error-cyberpunk-5120x2880-18226.jpg',
-    'alucard-guns-5120x2880-22588.png',
-    'attack-on-titan-shingeki-no-kyojin-mikasa-ackerman-anime-3840x2160-2073.jpg',
-    'be-yourself-be-you-inspirational-quotes-dark-background-5120x2880-1486.jpg',
-    'bee-happy-clear-sky-sky-blue-clouds-bee-2560x2560-1407.jpg',
-    'captain-america-6200x3429-21470.png',
-    'challenge-yourself-make-your-dream-become-reality-work-3840x2160-1933.png',
-    'cute-panda-love-heart-colorful-hearts-white-background-4000x2366-6575.jpg',
-    'cyberpunk-2077-john-wick-keanu-reeves-3500x5000-1005.jpg',
-    'dope-sukuna-pink-5120x2880-16935.png',
-    'goku-ultra-instinct-5120x2880-22575.png',
-    'guts-neon-iconic-5120x2880-21415.png',
-    'i-love-coding-dark-3840x2160-16016.png',
-    'miles-morales-spider-man-dark-black-background-artwork-5k-8k-8000x4518-1902.png',
-    'pubg-survive-loot-repeat-black-background-pubg-helmet-3840x2160-1174.png',
-    'roronoa-zoro-neon-5120x2880-19829.png',
-    'sasuke-uchiha-neon-5120x2880-22582.png',
-    'satoru-gojo-neon-5120x2880-22583.png',
-    'spooky-devil-amoled-3840x2160-16276.png',
-    'ultra-instinct-goku-5120x2880-19856.jpg',
+    '404-error-cyberpunk-5120x2880-18226.webp',
+    'alucard-guns-5120x2880-22588.webp',
+    'attack-on-titan-shingeki-no-kyojin-mikasa-ackerman-anime-3840x2160-2073.webp',
+    'be-yourself-be-you-inspirational-quotes-dark-background-5120x2880-1486.webp',
+    'bee-happy-clear-sky-sky-blue-clouds-bee-2560x2560-1407.webp',
+    'captain-america-6200x3429-21470.webp',
+    'challenge-yourself-make-your-dream-become-reality-work-3840x2160-1933.webp',
+    'cute-panda-love-heart-colorful-hearts-white-background-4000x2366-6575.webp',
+    'cyberpunk-2077-john-wick-keanu-reeves-3500x5000-1005.webp',
+    'dope-sukuna-pink-5120x2880-16935.webp',
+    'goku-ultra-instinct-5120x2880-22575.webp',
+    'guts-neon-iconic-5120x2880-21415.webp',
+    'i-love-coding-dark-3840x2160-16016.webp',
+    'miles-morales-spider-man-dark-black-background-artwork-5k-8k-8000x4518-1902.webp',
+    'pubg-survive-loot-repeat-black-background-pubg-helmet-3840x2160-1174.webp',
+    'roronoa-zoro-neon-5120x2880-19829.webp',
+    'sasuke-uchiha-neon-5120x2880-22582.webp',
+    'satoru-gojo-neon-5120x2880-22583.webp',
+    'spooky-devil-amoled-3840x2160-16276.webp',
+    'ultra-instinct-goku-5120x2880-19856.webp',
 ];
 
 const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -181,6 +183,7 @@ const ProductForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { settings } = useSiteSettings();
+    const { accept: imageAccept } = useImageSettings();
     const currencyCode = String(settings?.currencyCode || 'USD').toUpperCase();
     const isEdit = Boolean(id);
 
@@ -213,6 +216,7 @@ const ProductForm = () => {
     const [brands, setBrands] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0, phase: '' });
 
     // ── Variant state
     const [hasVariants, setHasVariants] = useState(false);
@@ -579,12 +583,6 @@ reset({
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
 
-        const totalImages = images.length + existingImages.length + files.length;
-        if (totalImages > 10) {
-            notify.error('Maximum 10 images allowed for products');
-            return;
-        }
-
         const validFiles = files.filter((file) => {
             if (!file.type.startsWith('image/')) {
                 notify.error(`${file.name} is not an image`);
@@ -676,19 +674,27 @@ reset({
         }
 
         setIsSaving(true);
+        setUploadProgress({ current: 0, total: 0, phase: 'Preparing...' });
 
         try {
-            const formDataToSend = new FormData();
+            const BATCH_SIZE = 10;
 
+            const allProductImages = [...images];
+            const allVariantImgEntries = Object.entries(variantImages);
+
+            const totalBatches =
+                Math.ceil(allProductImages.length / BATCH_SIZE) +
+                allVariantImgEntries.reduce((sum, [, d]) => sum + Math.ceil((d.files?.length || 0) / BATCH_SIZE), 0);
+            const totalUploads = totalBatches + 1;
+            let completedUploads = 0;
+
+            setUploadProgress({ current: 0, total: totalUploads, phase: isEdit ? 'Updating product...' : 'Creating product...' });
+
+            const formDataToSend = new FormData();
             Object.keys(data).forEach((key) => {
                 formDataToSend.append(key, data[key]);
             });
-
             formDataToSend.append('hasVariants', hasVariants);
-
-            images.forEach((image) => {
-                formDataToSend.append('images', image);
-            });
 
             if (isEdit) {
                 formDataToSend.append('existingImages', JSON.stringify(existingImages));
@@ -707,9 +713,18 @@ reset({
                     images: Array.isArray(v.images) ? v.images : [],
                 }));
                 formDataToSend.append('variants', JSON.stringify(variantsPayload));
-                Object.entries(variantImages).forEach(([idx, d]) => {
-                    (d.files || []).forEach(file => formDataToSend.append(`variantImages_${idx}`, file));
-                });
+            }
+
+            const firstBatchProduct = allProductImages.slice(0, BATCH_SIZE);
+            firstBatchProduct.forEach((img) => formDataToSend.append('images', img));
+
+            const firstBatchVariants = {};
+            for (const [idx, d] of allVariantImgEntries) {
+                const batch = (d.files || []).slice(0, BATCH_SIZE);
+                batch.forEach(file => formDataToSend.append(`variantImages_${idx}`, file));
+                if ((d.files || []).length > BATCH_SIZE) {
+                    firstBatchVariants[idx] = (d.files || []).slice(BATCH_SIZE);
+                }
             }
 
             const url = isEdit
@@ -723,22 +738,61 @@ reset({
 
             const resData = await response.json();
 
-            if (resData.success || response.ok) {
-                notify.success(`Product ${isEdit ? 'updated' : 'created'} successfully!`);
-                navigate('/admin/products');
-            } else {
+            if (!resData.success && !response.ok) {
                 if (Array.isArray(resData?.errors) && resData.errors.length > 0) {
                     resData.errors.forEach(({ field, message }) => setError(field, { message }));
                     notify.error(resData.message || 'Please fix form validation errors');
                     return;
                 }
                 notify.error(resData.message || 'Failed to save product');
+                return;
             }
+
+            completedUploads += 1;
+            setUploadProgress({ current: completedUploads, total: totalUploads, phase: 'Uploading images...' });
+
+            const productId = resData.data?._id || id;
+            const batchUploadUrl = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/${productId}/images`;
+
+            const remainingProductImages = allProductImages.slice(BATCH_SIZE);
+            for (let i = 0; i < remainingProductImages.length; i += BATCH_SIZE) {
+                const batch = remainingProductImages.slice(i, i + BATCH_SIZE);
+                const batchForm = new FormData();
+                batch.forEach((img) => batchForm.append('images', img));
+
+                const batchRes = await authFetch(batchUploadUrl, { method: 'POST', body: batchForm });
+                if (!batchRes.ok) {
+                    const errData = await batchRes.json().catch(() => ({}));
+                    throw new Error(errData.message || 'Image batch upload failed');
+                }
+                completedUploads += 1;
+                setUploadProgress({ current: completedUploads, total: totalUploads, phase: 'Uploading images...' });
+            }
+
+            for (const [idx, remainingFiles] of Object.entries(firstBatchVariants)) {
+                for (let i = 0; i < remainingFiles.length; i += BATCH_SIZE) {
+                    const batch = remainingFiles.slice(i, i + BATCH_SIZE);
+                    const batchForm = new FormData();
+                    batch.forEach(file => batchForm.append(`variantImages_${idx}`, file));
+
+                    const batchRes = await authFetch(batchUploadUrl, { method: 'POST', body: batchForm });
+                    if (!batchRes.ok) {
+                        const errData = await batchRes.json().catch(() => ({}));
+                        throw new Error(errData.message || 'Variant image batch upload failed');
+                    }
+                    completedUploads += 1;
+                    setUploadProgress({ current: completedUploads, total: totalUploads, phase: 'Uploading variant images...' });
+                }
+            }
+
+            notify.success(`Product ${isEdit ? 'updated' : 'created'} successfully!`);
+            navigate('/admin/products');
         } catch (error) {
             logger.error('Error saving product:', error);
-            notify.error('Failed to save product. Please try again.');
+            notify.error(error.message || 'Failed to save product. Please try again.');
         } finally {
             setIsSaving(false);
+            setUploadProgress({ current: 0, total: 0, phase: '' });
         }
     };
 
@@ -785,6 +839,11 @@ reset({
 
     return (
         <div className="relative w-full space-y-8 px-4">
+            <SavingOverlay
+                visible={isSaving}
+                message={uploadProgress.phase || (isEdit ? 'Updating Product...' : 'Saving Product...')}
+                progress={uploadProgress}
+            />
             <div className="pointer-events-none absolute right-8 top-16 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
             <div className="pointer-events-none absolute bottom-20 left-8 h-44 w-44 rounded-full bg-sky-300/20 blur-3xl" />
 
@@ -1060,7 +1119,7 @@ reset({
                                 <input
                                     type="file"
                                     multiple
-                                    accept="image/jpeg,image/png,image/gif,image/webp"
+                                    accept={imageAccept}
                                     onChange={handleImageChange}
                                     className={`media-file-input ${imagesError ? 'border-red-500 focus:ring-red-200' : ''}`}
                                 />
@@ -1295,8 +1354,8 @@ reset({
                                                         <div className="flex flex-wrap items-center gap-1.5">
                                                             {(Array.isArray(variant.images) ? variant.images : []).map((img, ii) => (
                                                                 <div key={ii} className="group relative h-12 w-12 flex-shrink-0 overflow-hidden rounded border border-slate-200 bg-slate-100">
-                                                                    <img src={typeof img === 'string' ? img : (img.path?.startsWith('http') ? img.path : `${API_CONFIG.BASE_URL}/uploads/${img.path}`)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover"
-                                                                        onError={e => { e.target.src = '/placeholder.png'; }} />
+                                                                    <img src={resolveImageUrl(typeof img === 'string' ? img : img?.path)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover"
+                                                                        onError={e => { e.target.src = resolveImageUrl('/images/404-error-cyberpunk-5120x2880-18226.webp'); }} />
                                                                     <button type="button" onClick={() => removeVariantImage(vi, ii, true)}
                                                                         className="absolute inset-0 flex items-center justify-center bg-red-500/0 text-sm font-bold text-white opacity-0 transition-all hover:bg-red-500/70 group-hover:opacity-100">×</button>
                                                                 </div>
@@ -1312,7 +1371,7 @@ reset({
                                                                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                                                 </svg>
-                                                                <input type="file" accept="image/*" multiple onChange={e => handleVariantImageChange(e, vi)} className="hidden" />
+                                                                <input type="file" accept={imageAccept} multiple onChange={e => handleVariantImageChange(e, vi)} className="hidden" />
                                                             </label>
                                                         </div>
                                                     </div>
@@ -1350,9 +1409,15 @@ reset({
                     <button
                         type="submit"
                         disabled={isSaving}
-                        className="w-full rounded-xl bg-cyan-400 px-6 py-3 font-bold text-slate-900 transition-colors hover:bg-cyan-300 disabled:opacity-50 sm:flex-1"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 px-6 py-3 font-bold text-slate-900 transition-colors hover:bg-cyan-300 disabled:opacity-50 sm:flex-1"
                     >
-                        {isSaving ? 'Saving...' : isEdit ? 'Update Product' : 'Create Product'}
+                        {isSaving && (
+                            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                            </svg>
+                        )}
+                        {isSaving ? (isEdit ? 'Updating...' : 'Saving...') : (isEdit ? 'Update Product' : 'Create Product')}
                     </button>
                 </div>
             </form>

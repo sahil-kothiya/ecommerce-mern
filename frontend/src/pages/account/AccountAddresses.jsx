@@ -5,6 +5,7 @@ import * as yup from 'yup';
 import apiClient from '../../services/apiClient';
 import { API_CONFIG } from '../../constants';
 import notify from '../../utils/notify';
+import SavingOverlay from '../../components/ui/SavingOverlay';
 
 const addressSchema = yup.object({
     label: yup.string().default(''),
@@ -124,6 +125,7 @@ const AccountAddresses = () => {
 
     return (
         <div className="space-y-5">
+            <SavingOverlay visible={isSaving} message={editingId ? 'Updating address...' : 'Saving address...'} />
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-xl font-bold text-slate-800">Manage Addresses</h1>

@@ -47,6 +47,26 @@ class SettingsService {
       to,
     });
   }
+
+  async getImageSettings() {
+    return apiClient.get(`${API_CONFIG.ENDPOINTS.SETTINGS}/image`);
+  }
+
+  async updateImageSettings(data) {
+    return apiClient.put(`${API_CONFIG.ENDPOINTS.SETTINGS}/image`, data);
+  }
+
+  async getImageSectionSettings(sectionName) {
+    return apiClient.get(`${API_CONFIG.ENDPOINTS.SETTINGS}/image/section/${sectionName}`);
+  }
+
+  async updateImageSectionSettings(sectionName, data) {
+    return apiClient.put(`${API_CONFIG.ENDPOINTS.SETTINGS}/image/section/${sectionName}`, data);
+  }
+
+  async resetImageSettings() {
+    return apiClient.post(`${API_CONFIG.ENDPOINTS.SETTINGS}/image/reset`);
+  }
 }
 
 export const settingsService = new SettingsService();

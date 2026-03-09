@@ -2,9 +2,9 @@ import { Router } from "express";
 import { protect, authorize } from "../middleware/auth.js";
 import { settingController } from "../controllers/SettingController.js";
 import {
-  uploadSettingsAssets,
-  handleUploadError,
-} from "../middleware/uploadEnhanced.js";
+  createDynamicUpload,
+  handleDynamicUploadError,
+} from "../middleware/dynamicUpload.js";
 
 const router = Router();
 
@@ -19,8 +19,14 @@ router.put(
   "/",
   protect,
   authorize("admin"),
-  uploadSettingsAssets,
-  handleUploadError,
+  createDynamicUpload("settings", {
+    type: "fields",
+    fields: [
+      { name: "logo", maxCount: 1 },
+      { name: "favicon", maxCount: 1 },
+    ],
+  }),
+  handleDynamicUploadError,
   settingController.update.bind(settingController),
 );
 router.post(
@@ -28,6 +34,34 @@ router.post(
   protect,
   authorize("admin"),
   settingController.testEmail.bind(settingController),
+);
+
+// Image settings routes
+router.get(
+  "/image",
+  settingController.getImageSettings.bind(settingController),
+);
+router.put(
+  "/image",
+  protect,
+  authorize("admin"),
+  settingController.updateImageSettings.bind(settingController),
+);
+router.post(
+  "/image/reset",
+  protect,
+  authorize("admin"),
+  settingController.resetImageSettings.bind(settingController),
+);
+router.get(
+  "/image/section/:sectionName",
+  settingController.getImageSectionSettings.bind(settingController),
+);
+router.put(
+  "/image/section/:sectionName",
+  protect,
+  authorize("admin"),
+  settingController.updateImageSectionSettings.bind(settingController),
 );
 
 export default router;

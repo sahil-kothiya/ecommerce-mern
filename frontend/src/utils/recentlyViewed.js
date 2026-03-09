@@ -63,11 +63,6 @@ export const addRecentlyViewed = (product) => {
     const updated = [productData, ...filtered].slice(0, MAX_RECENT_PRODUCTS);
 
     localStorage.setItem(getStorageKey(), JSON.stringify(updated));
-    logger.info("Added product to recently viewed", {
-      productId: product._id,
-      total: updated.length,
-      scope: getViewerScope(),
-    });
   } catch (error) {
     logger.error("Failed to add recently viewed product", {
       error: error.message,
@@ -113,7 +108,6 @@ export const getRecentlyViewed = (limit = MAX_RECENT_PRODUCTS) => {
 export const clearRecentlyViewed = () => {
   try {
     localStorage.removeItem(getStorageKey());
-    logger.info("Cleared recently viewed products");
   } catch (error) {
     logger.error("Failed to clear recently viewed products", {
       error: error.message,
@@ -126,7 +120,6 @@ export const removeRecentlyViewed = (productId) => {
     const recent = getRecentlyViewed();
     const filtered = recent.filter((p) => p._id !== productId);
     localStorage.setItem(getStorageKey(), JSON.stringify(filtered));
-    logger.info("Removed product from recently viewed", { productId });
   } catch (error) {
     logger.error("Failed to remove recently viewed product", {
       error: error.message,

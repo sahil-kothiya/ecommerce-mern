@@ -5,7 +5,10 @@ const productService = new ProductService();
 
 export class ProductController {
   index = asyncHandler(async (req, res) => {
-    const bypass = String(req.query.noCache || "").trim().toLowerCase() === "true";
+    const bypass =
+      String(req.query.noCache || "")
+        .trim()
+        .toLowerCase() === "true";
     const cacheKey = bypass ? null : `products:index:${req.originalUrl}`;
 
     const result = await productService.listProducts(req.query, cacheKey);
@@ -26,7 +29,10 @@ export class ProductController {
   });
 
   show = asyncHandler(async (req, res) => {
-    const data = await productService.getProductBySlugOrId(req.params.slug, true);
+    const data = await productService.getProductBySlugOrId(
+      req.params.slug,
+      true,
+    );
     res.json({ success: true, data });
   });
 
@@ -36,13 +42,42 @@ export class ProductController {
   });
 
   store = asyncHandler(async (req, res) => {
-    const product = await productService.storeProduct(req.body, req.files || []);
-    res.status(201).json({ success: true, message: "Product created successfully", data: product });
+    const product = await productService.storeProduct(
+      req.body,
+      req.files || [],
+    );
+    res
+      .status(201)
+      .json({
+        success: true,
+        message: "Product created successfully",
+        data: product,
+      });
   });
 
   update = asyncHandler(async (req, res) => {
-    const product = await productService.updateFullProduct(req.params.id, req.body, req.files || []);
-    res.json({ success: true, message: "Product updated successfully", data: product });
+    const product = await productService.updateFullProduct(
+      req.params.id,
+      req.body,
+      req.files || [],
+    );
+    res.json({
+      success: true,
+      message: "Product updated successfully",
+      data: product,
+    });
+  });
+
+  appendImages = asyncHandler(async (req, res) => {
+    const product = await productService.appendImages(
+      req.params.id,
+      req.files || [],
+    );
+    res.json({
+      success: true,
+      message: "Images uploaded successfully",
+      data: product,
+    });
   });
 
   destroy = asyncHandler(async (req, res) => {

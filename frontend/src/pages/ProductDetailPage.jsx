@@ -13,6 +13,7 @@ import notify from '../utils/notify';
 import { useSiteSettings } from '../context/useSiteSettings';
 import ProductCard from '../components/product/ProductCard';
 import { addRecentlyViewed, getRecentlyViewed } from '../utils/recentlyViewed';
+import SavingOverlay from '../components/ui/SavingOverlay';
 
 const reviewSchema = yup.object().shape({
     rating: yup
@@ -555,6 +556,7 @@ const ProductDetailPage = () => {
 
     return (
         <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+            <SavingOverlay visible={isSubmitting} message={isEditingReview ? 'Updating review...' : 'Submitting review...'} />
             {/* Breadcrumb */}
             <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-sm">
                 <Link to="/" className="text-primary-600 hover:underline font-medium">Home</Link>

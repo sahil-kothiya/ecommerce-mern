@@ -1,10 +1,7 @@
-import { logger } from "../utils/logger.js";
-
 import { apiClient } from "./apiClient.js";
 import { API_CONFIG } from "../constants";
 
 class BrandService {
-  
   async getAllBrands(params = {}) {
     const queryParams = new URLSearchParams();
 
@@ -17,15 +14,15 @@ class BrandService {
     return apiClient.get(url);
   }
 
-async getBrandBySlug(slug) {
+  async getBrandBySlug(slug) {
     return apiClient.get(`${API_CONFIG.ENDPOINTS.BRANDS}/${slug}`);
   }
 
-async getBrandById(id) {
+  async getBrandById(id) {
     return apiClient.get(`${API_CONFIG.ENDPOINTS.BRANDS}/${id}`);
   }
 
-async getBrandProducts(slug, params = {}) {
+  async getBrandProducts(slug, params = {}) {
     const queryParams = new URLSearchParams();
 
     if (params.page) queryParams.append("page", params.page);
@@ -35,24 +32,18 @@ async getBrandProducts(slug, params = {}) {
     return apiClient.get(url);
   }
 
-async createBrand(formData) {
+  async createBrand(formData) {
     try {
-      return await apiClient.upload(
-        API_CONFIG.ENDPOINTS.BRANDS,
-        formData,
-        (progress) => {
-          logger.info(`Upload progress: ${progress.toFixed(2)}%`);
-        },
-      );
+      return await apiClient.upload(API_CONFIG.ENDPOINTS.BRANDS, formData);
     } catch (error) {
-            if (error.errors) {
+      if (error.errors) {
         throw error;
       }
       throw new Error(error.message || "Failed to create brand");
     }
   }
 
-async updateBrand(id, formData) {
+  async updateBrand(id, formData) {
     const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}/${id}`;
 
     return new Promise((resolve, reject) => {
@@ -67,13 +58,13 @@ async updateBrand(id, formData) {
             resolve(xhr.responseText);
           }
         } else {
-                    try {
+          try {
             const errorData = JSON.parse(xhr.responseText);
             const error = new Error(
               errorData.message || `Update failed with status ${xhr.status}`,
             );
 
-                        if (errorData.errors) {
+            if (errorData.errors) {
               error.errors = errorData.errors;
             }
 
@@ -95,7 +86,7 @@ async updateBrand(id, formData) {
     });
   }
 
-async deleteBrand(id) {
+  async deleteBrand(id) {
     return apiClient.delete(`${API_CONFIG.ENDPOINTS.BRANDS}/${id}`);
   }
 }

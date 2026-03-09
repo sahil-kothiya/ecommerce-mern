@@ -2,7 +2,7 @@ import { Banner } from "../models/Banner.js";
 import { Discount } from "../models/Discount.js";
 import { BaseService } from "../core/BaseService.js";
 import { AppError } from "../middleware/errorHandler.js";
-import { deleteUploadedFile } from "../middleware/uploadEnhanced.js";
+import { imageProcessingService } from "./ImageProcessingService.js";
 import { logger } from "../utils/logger.js";
 import mongoose from "mongoose";
 
@@ -117,9 +117,18 @@ export class BannerService extends BaseService {
 
   async createBanner(body, file) {
     if (!body.title) throw new AppError("Title is required", 400);
-    const image = file
-      ? `banners/${file.filename}`
-      : body.image || body.photo || null;
+    let image = body.image || body.photo || null;
+    let processedPath = null;
+    if (file) {
+      const result = await imageProcessingService.processAndSave(
+        file,
+        "banner",
+        "banners",
+        "banner-",
+      );
+      image = result.path;
+      processedPath = result.path;
+    }
     const data = {
       title: body.title,
       slug: await ensureUniqueSlug(body.slug || body.title),
@@ -138,7 +147,7 @@ export class BannerService extends BaseService {
     try {
       return await this.model.create(data);
     } catch (error) {
-      if (file) await deleteUploadedFile(`banners/${file.filename}`);
+      if (processedPath) await imageProcessingService.deleteFile(processedPath);
       if (error.code === 11000)
         throw new AppError("Banner slug already exists", 409);
       throw error;
@@ -148,9 +157,19 @@ export class BannerService extends BaseService {
   async updateBanner(id, body, file) {
     if (!mongoose.Types.ObjectId.isValid(id))
       throw new AppError("Invalid banner ID", 400);
+    let processedPath = null;
+    if (file) {
+      const result = await imageProcessingService.processAndSave(
+        file,
+        "banner",
+        "banners",
+        "banner-",
+      );
+      processedPath = result.path;
+    }
     const banner = await this.model.findById(id);
     if (!banner) {
-      if (file) await deleteUploadedFile(`banners/${file.filename}`);
+      if (processedPath) await imageProcessingService.deleteFile(processedPath);
       throw new AppError("Banner not found", 404);
     }
     const oldImage = banner.image;
@@ -180,14 +199,14 @@ export class BannerService extends BaseService {
     }
     if (body.image !== undefined || body.photo !== undefined)
       banner.image = body.image || body.photo || null;
-    if (file) banner.image = `banners/${file.filename}`;
+    if (processedPath) banner.image = processedPath;
 
     try {
       await banner.save();
-      if (file && oldImage) await deleteUploadedFile(oldImage);
+      if (processedPath && oldImage) await imageProcessingService.deleteFile(oldImage);
       return banner;
     } catch (error) {
-      if (file) await deleteUploadedFile(`banners/${file.filename}`);
+      if (processedPath) await imageProcessingService.deleteFile(processedPath);
       if (error.code === 11000)
         throw new AppError("Banner slug already exists", 409);
       throw error;
@@ -199,7 +218,7 @@ export class BannerService extends BaseService {
       throw new AppError("Invalid banner ID", 400);
     const banner = await this.model.findById(id);
     if (!banner) throw new AppError("Banner not found", 404);
-    if (banner.image) await deleteUploadedFile(banner.image);
+    if (banner.image) await imageProcessingService.deleteFile(banner.image);
     await banner.deleteOne();
   }
 

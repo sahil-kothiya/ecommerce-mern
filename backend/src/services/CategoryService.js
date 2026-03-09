@@ -14,6 +14,7 @@ import {
   invalidateCacheByPrefix,
 } from "../utils/requestCache.js";
 import { parseBoolean, normalizeStatus } from "../utils/shared.js";
+import { imageProcessingService } from "./ImageProcessingService.js";
 
 const CACHE_TTL = 15000;
 
@@ -356,9 +357,16 @@ export class CategoryService extends BaseService {
     if (Number.isNaN(sortOrder) || sortOrder < 0)
       sortOrder = await Category.getNextPosition(resolvedParentId);
 
-    const photoPath = file
-      ? `/uploads/categories/${file.filename}`
-      : body.photo || null;
+    let photoPath = body.photo || null;
+    if (file) {
+      const result = await imageProcessingService.processAndSave(
+        file,
+        "category",
+        "categories",
+        "category-",
+      );
+      photoPath = `/uploads/${result.path}`;
+    }
     const brandIds = normalizeIdArray(
       body.brandIds,
       body.brands,
@@ -428,19 +436,16 @@ export class CategoryService extends BaseService {
 
     if (file) {
       if (category.photo) {
-        const old = path.join(
-          process.cwd(),
-          category.photo.replace(/^\/+/, ""),
-        );
-        if (fs.existsSync(old)) {
-          try {
-            fs.unlinkSync(old);
-          } catch (e) {
-            logger.error("Error deleting old image", { error: e.message });
-          }
-        }
+        const oldRelative = category.photo.replace(/^\/?uploads\//, "");
+        await imageProcessingService.deleteFile(oldRelative);
       }
-      category.photo = `/uploads/categories/${file.filename}`;
+      const result = await imageProcessingService.processAndSave(
+        file,
+        "category",
+        "categories",
+        "category-",
+      );
+      category.photo = `/uploads/${result.path}`;
     } else if (body.photo !== undefined) {
       category.photo = body.photo || null;
     }

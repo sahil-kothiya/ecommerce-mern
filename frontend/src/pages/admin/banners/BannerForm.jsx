@@ -7,6 +7,8 @@ import { API_CONFIG } from '../../../constants';
 import notify from '../../../utils/notify';
 import authFetch from '../../../utils/authFetch.js';
 import { logger } from '../../../utils/logger.js';
+import SavingOverlay from '../../../components/ui/SavingOverlay';
+import useImageSettings from '../../../hooks/useImageSettings';
 
 const schema = yup.object({
     title: yup.string().trim().required('Title is required'),
@@ -27,6 +29,7 @@ const schema = yup.object({
 const BannerForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { accept: imageAccept } = useImageSettings();
     const isEdit = Boolean(id);
 
     const [image, setImage] = useState(null);
@@ -222,6 +225,7 @@ const BannerForm = () => {
 
     return (
         <div className="relative w-full space-y-8 px-4">
+            <SavingOverlay visible={isSaving} message={isEdit ? 'Updating banner...' : 'Creating banner...'} />
             <div className="pointer-events-none absolute right-8 top-16 h-40 w-40 rounded-full bg-primary-300/20 blur-3xl" />
             <div className="pointer-events-none absolute bottom-20 left-8 h-44 w-44 rounded-full bg-sky-300/20 blur-3xl" />
 
@@ -310,7 +314,7 @@ const BannerForm = () => {
                                     </label>
                                     <input
                                         type="file"
-                                        accept="image/jpeg,image/png,image/gif,image/webp"
+                                        accept={imageAccept}
                                         onChange={handleImageChange}
                                         className={`media-file-input ${imageError ? 'border-red-400 bg-red-50' : ''}`}
                                     />

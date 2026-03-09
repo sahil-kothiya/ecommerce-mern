@@ -6,6 +6,7 @@ import * as yup from 'yup';
 import notify from '../../../utils/notify';
 import { FieldError } from '../../../components/common';
 import discountService from '../../../services/discountService';
+import SavingOverlay from '../../../components/ui/SavingOverlay';
 
 const toLocalInputDateTime = (value) => {
     if (!value) return '';
@@ -336,6 +337,7 @@ const DiscountForm = () => {
 
     return (
         <div className="w-full px-4 space-y-8 relative">
+            <SavingOverlay visible={isSaving} message={isEdit ? 'Updating discount...' : 'Creating discount...'} />
             <div className="pointer-events-none absolute top-16 right-8 h-40 w-40 rounded-full bg-primary-300/20 blur-3xl"></div>
             <div className="pointer-events-none absolute bottom-20 left-8 h-44 w-44 rounded-full bg-sky-300/20 blur-3xl"></div>
 

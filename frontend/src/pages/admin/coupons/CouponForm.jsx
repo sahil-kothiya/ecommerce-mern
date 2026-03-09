@@ -4,8 +4,8 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useNavigate, useParams } from 'react-router-dom';
 import notify from '../../../utils/notify';
-import { logger } from '../../../utils/logger';
 import couponService from '../../../services/couponService';
+import SavingOverlay from '../../../components/ui/SavingOverlay';
 
 const toLocalInputDateTime = (value) => {
     if (!value) return '';
@@ -131,13 +131,6 @@ const CouponForm = () => {
                 status: data.status,
             };
 
-            logger.info('[Admin Coupon] submit payload', {
-                isEdit,
-                couponId: id,
-                minPurchase: payload.minPurchase,
-                minOrderAmount: payload.minOrderAmount,
-            });
-
             if (isEdit) {
                 await couponService.updateCoupon(id, payload);
                 notify.success('Coupon updated successfully');
@@ -175,6 +168,7 @@ const CouponForm = () => {
 
     return (
         <div className="space-y-8">
+            <SavingOverlay visible={isSaving} message={isEdit ? 'Updating coupon...' : 'Creating coupon...'} />
             <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-primary-900 p-6 text-white shadow-lg sm:p-8">
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-200/80">Coupon Studio</p>
                 <h1 className="mt-2 text-3xl font-black leading-tight sm:text-4xl">{isEdit ? 'Edit Coupon' : 'Create Coupon'}</h1>

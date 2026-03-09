@@ -34,7 +34,7 @@ export const IMAGE_CONFIG = {
   BASE_PATH: "/images",
   PRODUCT_PATH: "/images/products",
   VARIANT_PATH: "/images/products/variants",
-  PLACEHOLDER: "/images/404-error-cyberpunk-5120x2880-18226.jpg",
+  PLACEHOLDER: "/images/404-error-cyberpunk-5120x2880-18226.webp",
   SUPPORTED_FORMATS: ["webp", "jpg", "jpeg", "png"],
   MAX_SIZE_MB: 5,
   LAZY_LOADING: true,

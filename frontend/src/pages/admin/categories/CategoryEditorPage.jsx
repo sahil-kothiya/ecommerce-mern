@@ -6,6 +6,8 @@ import * as yup from 'yup';
 import { API_CONFIG } from '../../../constants';
 import authService from '../../../services/authService';
 import notify from '../../../utils/notify';
+import SavingOverlay from '../../../components/ui/SavingOverlay';
+import useImageSettings from '../../../hooks/useImageSettings';
 
 const schema = yup.object({
     title: yup.string().trim().required('Title is required'),
@@ -26,6 +28,7 @@ const CategoryEditorPage = () => {
     const { id } = useParams();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const { accept: imageAccept } = useImageSettings();
     const isEdit = Boolean(id);
 
     const { register, handleSubmit, reset, setError, watch, setValue, formState: { errors } } = useForm({
@@ -266,6 +269,7 @@ const CategoryEditorPage = () => {
 
     return (
         <div className="relative w-full space-y-8 px-4">
+            <SavingOverlay visible={isSaving} message={isEdit ? 'Updating category...' : 'Creating category...'} />
             <div className="pointer-events-none absolute right-8 top-16 h-40 w-40 rounded-full bg-primary-300/20 blur-3xl" />
             <div className="pointer-events-none absolute bottom-20 left-8 h-44 w-44 rounded-full bg-primary-300/20 blur-3xl" />
 
@@ -334,7 +338,7 @@ const CategoryEditorPage = () => {
 
                                 <input
                                     type="file"
-                                    accept="image/*"
+                                    accept={imageAccept}
                                     onChange={handleFileChange}
                                     className={`media-file-input ${photoError ? 'border-red-500 focus:ring-red-200' : ''}`}
                                 />

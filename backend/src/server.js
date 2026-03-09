@@ -25,6 +25,10 @@ const startServer = async () => {
       logger.info(`Server running on port ${PORT} in ${config.nodeEnv} mode`);
       logger.info(`API available at ${config.apiUrl}`);
     });
+
+    server.requestTimeout = 10 * 60 * 1000;
+    server.headersTimeout = 10 * 60 * 1000;
+    server.keepAliveTimeout = 65 * 1000;
   } catch (error) {
     logger.error("Failed to start server:", error);
     process.exit(1);

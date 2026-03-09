@@ -7,6 +7,8 @@ import notify from '../../../utils/notify';
 import { API_CONFIG } from '../../../constants';
 import authFetch from '../../../utils/authFetch.js';
 import { AdminLoadingState, AdminPageHeader, AdminSurface } from '../../../components/admin/AdminTheme';
+import SavingOverlay from '../../../components/ui/SavingOverlay';
+import useImageSettings from '../../../hooks/useImageSettings';
 
 const buildSchema = (isEdit) => yup.object({
     name: yup.string().trim().required('Name is required').min(2, 'Name must be at least 2 characters'),
@@ -21,6 +23,7 @@ const buildSchema = (isEdit) => yup.object({
 const UserForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { accept: imageAccept } = useImageSettings();
     const isEdit = Boolean(id);
 
     const [isLoading, setIsLoading] = useState(false);
@@ -161,6 +164,7 @@ const UserForm = () => {
 
     return (
         <div className="space-y-8">
+            <SavingOverlay visible={isSaving} message={isEdit ? 'Updating user...' : 'Creating user...'} />
             <AdminPageHeader
                 eyebrow="User Studio"
                 title={isEdit ? 'Edit User' : 'Create User'}
@@ -218,7 +222,7 @@ const UserForm = () => {
                             <input
                                 type="file"
                                 name="avatar"
-                                accept="image/jpeg,image/png,image/gif,image/webp"
+                                accept={imageAccept}
                                 onChange={handlePhotoChange}
                                 className="w-full rounded-xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-100"
                             />

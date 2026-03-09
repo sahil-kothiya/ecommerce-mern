@@ -4,6 +4,9 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import slugify from "slugify";
 import { faker } from "@faker-js/faker";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { Category } from "./src/models/Category.js";
 import { Brand } from "./src/models/Brand.js";
 import { User } from "./src/models/User.js";
@@ -22,6 +25,10 @@ import { Cart } from "./src/models/Cart.js";
 import { Wishlist } from "./src/models/Wishlist.js";
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PROJECT_IMAGES_DIR = path.resolve(__dirname, "../images");
 
 const PRODUCT_BATCH_SIZE = 500;
 
@@ -87,6 +94,44 @@ const SEEDED_ACCOUNT_DEFAULTS = Object.freeze({
     password: "password123",
   },
 });
+
+function loadProjectSeedImages() {
+  if (!fs.existsSync(PROJECT_IMAGES_DIR)) {
+    throw new Error(
+      `Project images directory not found at '${PROJECT_IMAGES_DIR}'.`,
+    );
+  }
+
+  const webpFiles = fs
+    .readdirSync(PROJECT_IMAGES_DIR)
+    .filter((fileName) => fileName.toLowerCase().endsWith(".webp"))
+    .sort();
+
+  if (!webpFiles.length) {
+    throw new Error(
+      `No .webp images found in '${PROJECT_IMAGES_DIR}'. Seed requires local WebP images.`,
+    );
+  }
+
+  return webpFiles;
+}
+
+const PROJECT_SEED_IMAGES = loadProjectSeedImages();
+
+function hashString(value = "") {
+  const text = String(value || "");
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (hash * 31 + text.charCodeAt(index)) >>> 0;
+  }
+  return hash;
+}
+
+function getSeedImageByOffset(seed, offset = 0) {
+  const base = hashString(seed);
+  const index = (base + offset) % PROJECT_SEED_IMAGES.length;
+  return `/images/${PROJECT_SEED_IMAGES[index]}`;
+}
 
 /**
  * Parse seeder CLI arguments.
@@ -329,8 +374,8 @@ function buildProductTitleForCategory(categoryTitle, brandTitle) {
 }
 
 function buildProductImages(slug) {
-  const first = `https://picsum.photos/seed/${slug}-1/900/900`;
-  const second = `https://picsum.photos/seed/${slug}-2/900/900`;
+  const first = getSeedImageByOffset(`${slug}-product`, 0);
+  const second = getSeedImageByOffset(`${slug}-product`, 1);
   return [
     {
       path: first,
@@ -350,13 +395,13 @@ function buildProductImages(slug) {
 function buildVariantImages(seed) {
   return [
     {
-      path: `https://picsum.photos/seed/${seed}-variant-1/900/900`,
+      path: getSeedImageByOffset(`${seed}-variant`, 0),
       altText: `${seed} variant image`,
       isPrimary: true,
       sortOrder: 0,
     },
     {
-      path: `https://picsum.photos/seed/${seed}-variant-2/900/900`,
+      path: getSeedImageByOffset(`${seed}-variant`, 1),
       altText: `${seed} variant alternate image`,
       isPrimary: false,
       sortOrder: 1,
@@ -631,7 +676,7 @@ async function seedBrands(count) {
       title,
       slug,
       description: faker.company.catchPhrase(),
-      logo: `https://picsum.photos/seed/brand-${slug}/300/300`,
+      logo: getSeedImageByOffset(`brand-${slug}`, 0),
       status: STATUS_ACTIVE,
     };
   });
@@ -1161,7 +1206,7 @@ async function seedBanners(count, categories) {
       return {
         title: preset.title,
         description: faker.commerce.productDescription(),
-        image: `https://picsum.photos/seed/banner-${index + 1}/1920/600`,
+        image: getSeedImageByOffset(`banner-${index + 1}`, 0),
         link:
           preset.linkType === "category"
             ? `/category/${category.slug}`
