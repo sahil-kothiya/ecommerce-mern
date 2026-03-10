@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import notify from '../../../utils/notify';
 import { API_CONFIG } from '../../../constants';
-import authService from '../../../services/authService';
+import apiClient from '../../../services/apiClient';
 
 const UsersList = () => {
     const [users, setUsers] = useState([]);
@@ -68,18 +68,8 @@ const UsersList = () => {
             if (role) query.append('role', role);
             if (status) query.append('status', status);
 
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}?${query.toString()}`, {
-                headers: authService.getAuthHeaders({}, false),
-                credentials: 'include',
-            });
-            if (authService.handleUnauthorizedResponse(response)) return;
-            const data = await response.json();
+            const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.USERS}?${query.toString()}`);
             if (requestId !== requestCounterRef.current) return;
-            if (!response.ok || !data?.success) {
-                notify.error(data, 'Failed to load users');
-                setUsers([]);
-                return;
-            }
             const items = data?.data?.users || [];
             setUsers(Array.isArray(items) ? items : []);
             const apiPagination = data?.data?.pagination || {};
@@ -129,17 +119,7 @@ const UsersList = () => {
     const handleDelete = async () => {
         if (!userToDelete?._id) return;
         try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}/${userToDelete._id}`, {
-                method: 'DELETE',
-                headers: authService.getAuthHeaders({}, false),
-                credentials: 'include',
-            });
-            if (authService.handleUnauthorizedResponse(response)) return;
-            const data = await response.json();
-            if (!response.ok || !data?.success) {
-                notify.error(data, 'Failed to delete user');
-                return;
-            }
+            await apiClient.delete(`${API_CONFIG.ENDPOINTS.USERS}/${userToDelete._id}`);
 
             setUserToDelete(null);
             notify.success('User deleted successfully');

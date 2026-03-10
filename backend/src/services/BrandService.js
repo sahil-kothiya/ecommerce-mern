@@ -10,7 +10,7 @@ export class BrandService extends BaseService {
   }
 
   async createBrand(brandData) {
-        const existingBrand = await this.model
+    const existingBrand = await this.model
       .findOne({
         title: brandData.title,
       })
@@ -23,19 +23,19 @@ export class BrandService extends BaseService {
       );
     }
 
-        return await this.create(brandData);
+    return await this.create(brandData);
   }
 
   async updateBrand(id, updateData) {
     const brand = await this.findByIdOrFail(id);
 
-        if (updateData.title && updateData.title !== brand.title) {
+    if (updateData.title && updateData.title !== brand.title) {
       updateData.slug = slugify(updateData.title, {
         lower: true,
         strict: true,
       });
 
-            const existingBrand = await this.model
+      const existingBrand = await this.model
         .findOne({
           slug: updateData.slug,
           _id: { $ne: id },
@@ -47,9 +47,9 @@ export class BrandService extends BaseService {
       }
     }
 
-        const updatedBrand = await this.update(id, updateData);
+    const updatedBrand = await this.update(id, updateData);
 
-        if (updateData.title || updateData.slug) {
+    if (updateData.title || updateData.slug) {
       await Product.updateBrandInfo(id, {
         title: updatedBrand.title,
         slug: updatedBrand.slug,
@@ -60,11 +60,11 @@ export class BrandService extends BaseService {
   }
 
   async deleteBrand(id) {
-    const productCount = await Product.countDocuments({ "brand.id": id });
+    const hasProducts = await Product.exists({ "brand.id": id });
 
-    if (productCount > 0) {
+    if (hasProducts) {
       throw new AppError(
-        `Cannot delete brand. ${productCount} products are using this brand.`,
+        "Cannot delete brand. Products are using this brand.",
         400,
       );
     }

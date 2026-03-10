@@ -7,6 +7,7 @@ import { getRandomProductImage } from '../services/imageService';
 import { resolveImageUrl } from '../utils/imageUrl';
 import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
 import { API_CONFIG, PRODUCT_CONDITIONS } from '../constants';
+import apiClient from '../services/apiClient';
 import authService from '../services/authService';
 import reviewService from '../services/reviewService';
 import notify from '../utils/notify';
@@ -215,9 +216,7 @@ const ProductDetailPage = () => {
     const loadProductDetail = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/${id}`);
-            if (!response.ok) throw new Error('Product not found');
-            const data = await response.json();
+            const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.PRODUCTS}/${id}`);
             const p = data?.data || data;
             if (p) {
                 p.images = Array.isArray(p.images) ? p.images : [];
@@ -254,12 +253,10 @@ const ProductDetailPage = () => {
         if (!productId) return;
         try {
             setSimilarProductsLoading(true);
-            let url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}?limit=16&status=active`;
+            let url = `${API_CONFIG.ENDPOINTS.PRODUCTS}?limit=16&status=active`;
             if (categoryId) url += `&categoryId=${categoryId}`;
 
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Failed to fetch similar products');
-            const data = await response.json();
+            const data = await apiClient.get(url);
 
             const products = Array.isArray(data?.data?.products)
                 ? data.data.products
@@ -276,17 +273,7 @@ const ProductDetailPage = () => {
     const loadWishlist = async () => {
         if (!authService.isAuthenticated()) { setWishlistItems([]); return; }
         try {
-
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { 
-                headers: authService.getAuthHeaders(),
-                credentials: 'include'
-            });
-            if (!res.ok) {
-                authService.handleUnauthorizedResponse(res);
-                setWishlistItems([]);
-                return;
-            }
-            const data = await res.json();
+            const data = await apiClient.get(API_CONFIG.ENDPOINTS.WISHLIST);
             setWishlistItems((Array.isArray(data?.data?.items) ? data.data.items : []).map((i) => i.productId).filter(Boolean));
         } catch { setWishlistItems([]); }
     };
@@ -294,7 +281,7 @@ const ProductDetailPage = () => {
     useEffect(() => {
         if (product?._id) {
             addRecentlyViewed(product);
-            loadReviews(product._id);
+            loadReviews(product._id, reviewSort, 1);
             const categoryId = product?.category?._id || product?.category?.id;
             loadSimilarProducts(product._id, categoryId);
             loadWishlist();
@@ -302,7 +289,7 @@ const ProductDetailPage = () => {
             const recent = getRecentlyViewed(13).filter(p => p._id !== product._id).slice(0, 12);
             setRecentlyViewed(recent);
         }
-    }, [product?._id]);
+    }, [product?._id, reviewSort]);
 
     const handleReviewSubmit = async (formValues) => {
         if (!authService.isAuthenticated()) {
@@ -465,14 +452,7 @@ const ProductDetailPage = () => {
         if (isAdmin) { navigate('/admin'); return false; }
         if (product?.hasVariants && !selectedVariant) { notify.error('Please select all options'); return false; }
         try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
-                method: 'POST',
-                headers: authService.getAuthHeaders(),
-                credentials: 'include',
-                body: JSON.stringify({ productId: product._id, variantId: selectedVariant?._id || null, quantity }),
-            });
-            const data = await response.json();
-            if (!response.ok || !data?.success) throw new Error(data?.message || 'Failed to add to cart');
+            await apiClient.post(API_CONFIG.ENDPOINTS.CART, { productId: product._id, variantId: selectedVariant?._id || null, quantity });
             window.dispatchEvent(new Event('cart:changed'));
             notify.success(`Added ${quantity} item(s) to cart`);
             return true;
@@ -486,14 +466,7 @@ const ProductDetailPage = () => {
         if (isAdmin) { notify.info('Admins cannot add items to cart'); return; }
         if (similarProduct?.hasVariants) { navigate(`/products/${similarProduct._id}`); return; }
         try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
-                method: 'POST',
-                headers: authService.getAuthHeaders(),
-                credentials: 'include',
-                body: JSON.stringify({ productId: similarProduct._id, variantId: null, quantity: 1 }),
-            });
-            const data = await response.json();
-            if (!response.ok || !data?.success) throw new Error(data?.message || 'Failed to add to cart');
+            await apiClient.post(API_CONFIG.ENDPOINTS.CART, { productId: similarProduct._id, variantId: null, quantity: 1 });
             window.dispatchEvent(new Event('cart:changed'));
             notify.success('Added to cart');
         } catch (error) { notify.error(error.message || 'Failed to add to cart'); }
@@ -505,20 +478,11 @@ const ProductDetailPage = () => {
         const inWishlist = wishlistItems.includes(productId);
         try {
             if (inWishlist) {
-                await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${productId}`, { 
-                    method: 'DELETE', 
-                    headers: authService.getAuthHeaders(),
-                    credentials: 'include'
-                });
+                await apiClient.delete(`${API_CONFIG.ENDPOINTS.WISHLIST}/${productId}`);
                 setWishlistItems(prev => prev.filter(id => id !== productId));
                 notify.success('Removed from wishlist');
             } else {
-                await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { 
-                    method: 'POST', 
-                    headers: authService.getAuthHeaders(),
-                    credentials: 'include',
-                    body: JSON.stringify({ productId })
-                });
+                await apiClient.post(API_CONFIG.ENDPOINTS.WISHLIST, { productId });
                 setWishlistItems(prev => [...prev, productId]);
                 notify.success('Added to wishlist');
             }

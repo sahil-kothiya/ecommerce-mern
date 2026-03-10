@@ -270,7 +270,7 @@ const AccountOrders = () => {
         const load = async () => {
             try {
                 setIsLoading(true);
-                const data = await apiClient.get(API_CONFIG.ENDPOINTS.ORDERS);
+                const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.ORDERS}?limit=50&sort=-createdAt`);
                 setOrders(Array.isArray(data?.data?.orders) ? data.data.orders : data?.orders || []);
             } catch (err) {
                 setError(err.message);

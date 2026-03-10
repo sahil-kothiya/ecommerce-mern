@@ -10,7 +10,8 @@ const categoryService = {
   },
 
   getTree(maxDepth = 3) {
-    return apiClient.get(`${BASE}/tree?maxDepth=${maxDepth}`);
+    const depth = Math.min(Math.max(Number(maxDepth) || 3, 1), 10);
+    return apiClient.get(`${BASE}/tree?maxDepth=${depth}`);
   },
 
   getFlat() {
@@ -55,7 +56,7 @@ const categoryService = {
   },
 
   update(id, formData) {
-    return apiClient.upload(`${BASE}/${id}`, formData);
+    return apiClient.upload(`${BASE}/${id}`, formData, null, "PUT");
   },
 
   delete(id) {

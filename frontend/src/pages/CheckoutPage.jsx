@@ -153,7 +153,13 @@ const CheckoutForm = ({ stripeAvailable, savedAddresses }) => {
                     notify.error("Stripe is not ready. Please wait and try again.");
                     return;
                 }
-                const intentData = await paymentService.createPaymentIntent(orderAttemptKey);
+                let intentData;
+                try {
+                    intentData = await paymentService.createPaymentIntent(orderAttemptKey);
+                } catch (intentError) {
+                    notify.error(intentError?.message || "Failed to initialize payment. Please try again.");
+                    return;
+                }
                 const { error, paymentIntent } = await stripe.confirmCardPayment(intentData.clientSecret, {
                     payment_method: {
                         card: elements.getElement(CardElement),

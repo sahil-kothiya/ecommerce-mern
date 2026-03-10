@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_CONFIG } from '../../../constants';
-import authService from '../../../services/authService';
+import apiClient from '../../../services/apiClient';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import notify from '../../../utils/notify';
 
@@ -26,17 +26,7 @@ const CategoriesList = () => {
     const loadCategories = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(
-                `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`,
-                { headers: authService.getAuthHeaders(), credentials: 'include' }
-            );
-            const data = await response.json();
-
-            if (response.status === 401) {
-                await authService.logout();
-                window.location.href = '/login';
-                return;
-            }
+            const data = await apiClient.get(API_CONFIG.ENDPOINTS.CATEGORIES);
 
             const list = Array.isArray(data?.data)
                 ? data.data
@@ -57,32 +47,13 @@ const CategoriesList = () => {
         if (!categoryToDelete?._id) return;
         try {
             setIsDeleting(true);
-            const response = await fetch(
-                `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryToDelete._id}`,
-                {
-                    method: 'DELETE',
-                    headers: authService.getAuthHeaders(),
-                    credentials: 'include',
-                }
-            );
-
-            if (response.status === 401) {
-                await authService.logout();
-                window.location.href = '/login';
-                return;
-            }
-
-            const data = await response.json();
-            if (!response.ok) {
-                notify.error(data?.message || 'Failed to delete category');
-                return;
-            }
+            await apiClient.delete(`${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryToDelete._id}`);
 
             notify.success('Category deleted successfully');
             setCategoryToDelete(null);
             loadCategories();
         } catch (error) {
-            notify.error('Failed to delete category');
+            notify.error(error?.message || 'Failed to delete category');
         } finally {
             setIsDeleting(false);
         }

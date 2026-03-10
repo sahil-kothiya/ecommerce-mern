@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import { BaseController } from "../core/BaseController.js";
 import { DiscountService } from "../services/DiscountService.js";
 import { Discount } from "../models/Discount.js";
@@ -15,17 +14,7 @@ export class DiscountController extends BaseController {
 
   async index(req, res, next) {
     try {
-      const now = new Date();
-
-      await Discount.updateMany(
-        {
-          isActive: true,
-          endsAt: { $lt: now },
-        },
-        {
-          $set: { isActive: false },
-        },
-      );
+      await this.discountService.syncExpiredDiscounts();
 
       const result = await this.discountService.getDiscounts({
         page: req.query.page,

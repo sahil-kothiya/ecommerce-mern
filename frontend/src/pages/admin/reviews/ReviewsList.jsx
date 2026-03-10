@@ -3,6 +3,7 @@ import notify from '../../../utils/notify';
 import reviewService from '../../../services/reviewService';
 import { ConfirmDialog } from '../../../components/common';
 import { API_CONFIG } from '../../../constants';
+import apiClient from '../../../services/apiClient';
 
 const ReviewsList = () => {
     const [reviews, setReviews] = useState([]);
@@ -64,9 +65,7 @@ const ReviewsList = () => {
 
     const loadProductOptions = async () => {
         try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}?page=1&limit=500&status=active`);
-            const data = await response.json();
-            if (!response.ok || !data?.success) return;
+            const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.PRODUCTS}?page=1&limit=500&status=active`);
             const items = data?.data?.products || data?.data?.items || data?.data || [];
             setProducts(Array.isArray(items) ? items : []);
         } catch {

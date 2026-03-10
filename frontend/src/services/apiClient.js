@@ -276,7 +276,7 @@ class ApiClient {
     return this.executeRequest({ ...config, url, method: "DELETE" });
   }
 
-  async upload(url, formData, onProgress) {
+  async upload(url, formData, onProgress, method = "POST", _retried = false) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
 
@@ -300,10 +300,22 @@ class ApiClient {
             resolve(xhr.responseText);
           }
         } else {
-          if (xhr.status === 401) {
+          if (xhr.status === 401 && !_retried) {
             this.attemptTokenRefresh().then((refreshed) => {
-              if (!refreshed) this.handleUnauthorizedRedirect();
+              if (refreshed) {
+                this.upload(url, formData, onProgress, method, true).then(
+                  resolve,
+                  reject,
+                );
+              } else {
+                this.handleUnauthorizedRedirect();
+                const authErr = new Error("Session expired");
+                authErr.type = "API_ERROR";
+                authErr.status = 401;
+                reject(authErr);
+              }
             });
+            return;
           }
           try {
             const errorData = JSON.parse(xhr.responseText);
@@ -338,7 +350,7 @@ class ApiClient {
         reject(err);
       });
 
-      xhr.open("POST", `${this.baseURL}${url}`);
+      xhr.open(method, `${this.baseURL}${url}`);
       xhr.withCredentials = true;
       const csrfToken = this.getCookieValue("csrfToken");
       if (csrfToken) {

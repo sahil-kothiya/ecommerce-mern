@@ -202,6 +202,13 @@ class AuthService {
         return null;
       }
 
+      const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
+      if (parsed._storedAt && Date.now() - parsed._storedAt > SESSION_TTL) {
+        logger.info("Stored user data expired, clearing auth");
+        this.reset();
+        return null;
+      }
+
       this._userCache = parsed;
       return this._userCache;
     } catch (error) {
@@ -221,6 +228,7 @@ class AuthService {
       _id: user._id,
       role: user.role,
       name: user.name,
+      _storedAt: Date.now(),
     };
 
     this._userCache = sanitizedUser;

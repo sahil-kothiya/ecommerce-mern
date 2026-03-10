@@ -5,6 +5,7 @@ import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
 import { getImageSource, getPrimaryProductImage, resolveImageUrl } from '../utils/imageUrl';
 import { API_CONFIG, CURRENCY_CONFIG } from '../constants';
 import authService from '../services/authService';
+import apiClient from '../services/apiClient';
 import notify from '../utils/notify';
 import LazyImage from '../components/common/LazyImage';
 import { useSiteSettings } from '../context/useSiteSettings';
@@ -16,7 +17,6 @@ const FEATURED_CATEGORY_LIMIT = 12;
 const FEATURED_PRODUCTS_TARGET = 24;
 const PRODUCTS_PER_CATEGORY_LIMIT = 16;
 const IMAGE_ROTATION_INTERVAL = 1400;
-const BANNER_URL = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}?limit=5&status=active`;
 
 const parseCategoryList = (payload) => {
     if (Array.isArray(payload?.data?.categories)) return payload.data.categories;
@@ -262,18 +262,7 @@ const HomePage = () => {
     const loadWishlist = useCallback(async () => {
         if (!authService.isAuthenticated()) { setWishlistItems([]); return; }
         try {
-            await authService.getCurrentUser();
-
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { 
-                headers: authService.getAuthHeaders(),
-                credentials: 'include'
-            });
-            if (!res.ok) {
-                authService.handleUnauthorizedResponse(res);
-                setWishlistItems([]);
-                return;
-            }
-            const data = await res.json();
+            const data = await apiClient.get(API_CONFIG.ENDPOINTS.WISHLIST);
             setWishlistItems((Array.isArray(data?.data?.items) ? data.data.items : []).map((i) => i.productId).filter(Boolean));
         } catch { setWishlistItems([]); }
     }, []);
@@ -281,16 +270,10 @@ const HomePage = () => {
     const loadData = useCallback(async () => {
         try {
             setIsLoading(true);
-            const [prodsRes, catsRes, bannersRes] = await Promise.all([
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}?limit=${PRODUCT_FETCH_LIMIT}&sort=popular&status=active&includeCount=false`),
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`),
-                fetch(BANNER_URL).catch(() => null),
-            ]);
-            if (!prodsRes.ok) throw new Error(`Products ${prodsRes.status}`);
-            if (!catsRes.ok) throw new Error(`Categories ${catsRes.status}`);
             const [prodsData, catsData, bannersData] = await Promise.all([
-                prodsRes.json(), catsRes.json(),
-                bannersRes ? bannersRes.json().catch(() => null) : Promise.resolve(null),
+                apiClient.get(`${API_CONFIG.ENDPOINTS.PRODUCTS}?limit=${PRODUCT_FETCH_LIMIT}&sort=popular&status=active&includeCount=false`),
+                apiClient.get(API_CONFIG.ENDPOINTS.CATEGORIES),
+                apiClient.get(`${API_CONFIG.ENDPOINTS.BANNERS}?limit=5&status=active`).catch(() => null),
             ]);
             const apiProducts = (prodsData?.data?.products || []).map((p) => ({ ...p, images: Array.isArray(p.images) ? p.images : [] }));
             const apiCategories = parseCategoryList(catsData);
@@ -351,13 +334,7 @@ const HomePage = () => {
             return;
         }
         try {
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
-                method: 'POST', headers: authService.getAuthHeaders(),
-                credentials: 'include',
-                body: JSON.stringify({ productId: product._id, quantity: 1 }),
-            });
-            const data = await res.json();
-            if (!res.ok || !data?.success) throw new Error(data?.message || 'Failed');
+            await apiClient.post(API_CONFIG.ENDPOINTS.CART, { productId: product._id, quantity: 1 });
             window.dispatchEvent(new Event('cart:changed'));
             notify.success(`"${product.title.slice(0, 30)}" added to cart`);
         } catch (error) { notify.error(error, 'Failed to add to cart'); }
@@ -370,32 +347,19 @@ const HomePage = () => {
         if (inList) {
             setWishlistItems((prev) => prev.filter((i) => i._id !== product._id));
             try {
-                const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { headers: authService.getAuthHeaders(), credentials: 'include' });
-                if (!res.ok) {
-                    authService.handleUnauthorizedResponse(res);
-                    return;
-                }
-                const data = await res.json();
+                const data = await apiClient.get(API_CONFIG.ENDPOINTS.WISHLIST);
                 const matched = (Array.isArray(data?.data?.items) ? data.data.items : []).find((i) => i.productId?._id === product._id || i.productId === product._id);
                 if (matched?._id) {
-                    const deleteRes = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${matched._id}`, { method: 'DELETE', headers: authService.getAuthHeaders(), credentials: 'include' });
-                    if (!deleteRes.ok) {
-                        authService.handleUnauthorizedResponse(deleteRes);
-                        return;
-                    }
+                    await apiClient.delete(`${API_CONFIG.ENDPOINTS.WISHLIST}/${matched._id}`);
                     window.dispatchEvent(new Event('wishlist:changed'));
                 }
-            } catch (_err) { /* ignore */ }
+            } catch { /* ignore */ }
         } else {
             setWishlistItems((prev) => prev.some((i) => i._id === product._id) ? prev : [...prev, product]);
             try {
-                const createRes = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { method: 'POST', headers: authService.getAuthHeaders(), credentials: 'include', body: JSON.stringify({ productId: product._id }) });
-                if (!createRes.ok) {
-                    authService.handleUnauthorizedResponse(createRes);
-                    return;
-                }
+                await apiClient.post(API_CONFIG.ENDPOINTS.WISHLIST, { productId: product._id });
                 window.dispatchEvent(new Event('wishlist:changed'));
-            } catch (_err) { /* ignore */ }
+            } catch { /* ignore */ }
         }
     };
 

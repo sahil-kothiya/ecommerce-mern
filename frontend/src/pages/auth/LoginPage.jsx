@@ -249,7 +249,7 @@ const LoginPage = () => {
                         </p>
                     </div>
 
-                    <>
+                    {import.meta.env.DEV && (
                         <div className="glass-panel interactive-card mt-7 rounded-2xl border border-primary-100 bg-gradient-to-r from-primary-50 to-primary-50/50 p-4">
                             <p className="mb-3 text-sm font-semibold text-primary-900">Quick Login:</p>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -278,7 +278,7 @@ const LoginPage = () => {
                                 </button>
                             </div>
                         </div>
-                    </>
+                    )}
                 </section>
             </div>
         </div>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { API_CONFIG } from '../../constants';
+import apiClient from '../../services/apiClient';
 import { useSiteSettings } from '../../context/useSiteSettings';
 import { resolveImageUrl } from '../../utils/imageUrl';
 
@@ -50,9 +51,7 @@ const StoreFooter = () => {
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}?limit=6`);
-                if (!res.ok) return;
-                const data = await res.json();
+                const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.CATEGORIES}?limit=6`);
                 const cats = Array.isArray(data?.data) ? data.data : (data?.data?.categories || []);
                 setCategories(cats.slice(0, 6));
             } catch {

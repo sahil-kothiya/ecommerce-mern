@@ -7,40 +7,12 @@ class SettingsService {
   }
 
   async updateSettings(formData) {
-    const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.SETTINGS}`;
-
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-
-      xhr.addEventListener("load", () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            resolve(JSON.parse(xhr.responseText));
-          } catch {
-            resolve(xhr.responseText);
-          }
-        } else {
-          try {
-            const errorData = JSON.parse(xhr.responseText);
-            const error = new Error(
-              errorData.message || "Failed to update settings",
-            );
-            error.data = errorData;
-            reject(error);
-          } catch {
-            reject(new Error("Failed to update settings"));
-          }
-        }
-      });
-
-      xhr.addEventListener("error", () =>
-        reject(new Error("Network error while updating settings")),
-      );
-
-      xhr.open("PUT", url);
-      xhr.withCredentials = true;
-      xhr.send(formData);
-    });
+    return apiClient.upload(
+      API_CONFIG.ENDPOINTS.SETTINGS,
+      formData,
+      null,
+      "PUT",
+    );
   }
   async testEmail(to) {
     return apiClient.post(`${API_CONFIG.ENDPOINTS.SETTINGS}/test-email`, {
@@ -57,11 +29,16 @@ class SettingsService {
   }
 
   async getImageSectionSettings(sectionName) {
-    return apiClient.get(`${API_CONFIG.ENDPOINTS.SETTINGS}/image/section/${sectionName}`);
+    return apiClient.get(
+      `${API_CONFIG.ENDPOINTS.SETTINGS}/image/section/${sectionName}`,
+    );
   }
 
   async updateImageSectionSettings(sectionName, data) {
-    return apiClient.put(`${API_CONFIG.ENDPOINTS.SETTINGS}/image/section/${sectionName}`, data);
+    return apiClient.put(
+      `${API_CONFIG.ENDPOINTS.SETTINGS}/image/section/${sectionName}`,
+      data,
+    );
   }
 
   async resetImageSettings() {

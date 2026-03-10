@@ -497,6 +497,66 @@ export class OrderService extends BaseService {
     };
   }
 
+  async requestReturn(orderId, userId, { reason, notes, items } = {}) {
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      throw new AppError("Invalid order ID", 400);
+    }
+
+    const order = await Order.findOne({ _id: orderId, userId });
+    if (!order) throw new AppError("Order not found", 404);
+
+    if (order.status !== "delivered") {
+      throw new AppError(
+        "Returns can only be requested for delivered orders",
+        400,
+      );
+    }
+
+    const requestedItems = (
+      Array.isArray(items) && items.length > 0
+        ? items
+        : order.items.map((item) => ({
+            productId: item.productId,
+            variantId: item.variantId || null,
+            quantity: item.quantity,
+          }))
+    ).map((item) => ({
+      productId: item.productId,
+      variantId: item.variantId || null,
+      quantity: Math.max(1, Number(item.quantity || 1)),
+    }));
+
+    for (const requestedItem of requestedItems) {
+      const matched = order.items.find((item) => {
+        const sameProduct =
+          String(item.productId) === String(requestedItem.productId);
+        const sameVariant =
+          String(item.variantId || "") ===
+          String(requestedItem.variantId || "");
+        return sameProduct && sameVariant;
+      });
+
+      if (!matched)
+        throw new AppError("Return item does not exist in order", 400);
+      if (requestedItem.quantity > matched.quantity) {
+        throw new AppError("Return quantity exceeds purchased quantity", 400);
+      }
+    }
+
+    const returnRequest = {
+      reason: String(reason || "").trim(),
+      notes: String(notes || "").trim() || undefined,
+      items: requestedItems,
+      status: "requested",
+      requestedAt: new Date(),
+    };
+
+    order.returnRequests.push(returnRequest);
+    await order.save();
+
+    return order.returnRequests[order.returnRequests.length - 1];
+  }
+
   async reorderFromExisting(orderId, userId) {
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
       throw new AppError("Invalid order ID", 400);

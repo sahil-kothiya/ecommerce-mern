@@ -271,19 +271,39 @@ export class CategoryService extends BaseService {
   }
 
   async getBreadcrumb(id) {
-    let current = await this.model.findById(id).lean();
+    const current = await this.model
+      .findById(id)
+      .select("_id title slug path")
+      .lean();
     if (!current) throw new AppError("Category not found", 404);
-    const breadcrumb = [];
-    while (current) {
-      breadcrumb.unshift({
-        id: current._id,
-        title: current.title,
-        slug: current.slug,
-      });
-      current = current.parentId
-        ? await this.model.findById(current.parentId).lean()
-        : null;
+
+    const ancestorIds = current.path
+      ? current.path
+          .split("/")
+          .filter(Boolean)
+          .map((pid) => new mongoose.Types.ObjectId(pid))
+      : [];
+
+    if (ancestorIds.length === 0) {
+      return [{ id: current._id, title: current.title, slug: current.slug }];
     }
+
+    const ancestors = await this.model
+      .find({ _id: { $in: ancestorIds } })
+      .select("_id title slug")
+      .lean();
+
+    const ancestorMap = new Map(ancestors.map((a) => [String(a._id), a]));
+    const breadcrumb = ancestorIds
+      .map((aid) => ancestorMap.get(String(aid)))
+      .filter(Boolean)
+      .map((a) => ({ id: a._id, title: a.title, slug: a.slug }));
+
+    breadcrumb.push({
+      id: current._id,
+      title: current.title,
+      slug: current.slug,
+    });
     return breadcrumb;
   }
 

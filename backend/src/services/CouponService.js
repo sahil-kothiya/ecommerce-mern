@@ -2,6 +2,7 @@ import { Coupon } from "../models/Coupon.js";
 import { BaseService } from "../core/BaseService.js";
 import { AppError } from "../middleware/errorHandler.js";
 import mongoose from "mongoose";
+import { logger } from "../utils/logger.js";
 
 function parseNum(value, fallback = null) {
   if (value === undefined || value === null || value === "") return fallback;
@@ -19,9 +20,12 @@ function escapeRegex(v = "") {
   return String(v).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+const SYNC_INTERVAL_MS = 60_000;
+
 export class CouponService extends BaseService {
   constructor() {
     super(Coupon);
+    this._lastSyncTime = 0;
   }
 
   normalizeCoupon(coupon = {}) {
@@ -41,17 +45,27 @@ export class CouponService extends BaseService {
   }
 
   async syncExpired() {
-    const now = new Date();
-    await this.model.updateMany(
-      {
-        status: "active",
-        $or: [
-          { expiryDate: { $ne: null, $lt: now } },
-          { validUntil: { $ne: null, $lt: now } },
-        ],
-      },
-      { $set: { status: "inactive" } },
-    );
+    const now = Date.now();
+    if (now - this._lastSyncTime < SYNC_INTERVAL_MS) return;
+    this._lastSyncTime = now;
+
+    try {
+      const result = await this.model.updateMany(
+        {
+          status: "active",
+          $or: [
+            { expiryDate: { $ne: null, $lt: new Date() } },
+            { validUntil: { $ne: null, $lt: new Date() } },
+          ],
+        },
+        { $set: { status: "inactive" } },
+      );
+      if (result.modifiedCount > 0) {
+        logger.info(`Expired ${result.modifiedCount} coupons`);
+      }
+    } catch (error) {
+      logger.error(`Failed to sync expired coupons: ${error.message}`);
+    }
   }
 
   validatePayload(payload, isPartial = false) {

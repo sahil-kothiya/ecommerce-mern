@@ -1,6 +1,7 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
+import apiClient from '../services/apiClient';
 import { API_CONFIG } from '../constants';
 import { getPrimaryCartItemImage, resolveImageUrl } from '../utils/imageUrl';
 import notify from '../utils/notify';
@@ -22,9 +23,7 @@ const CartPage = () => {
     const loadCart = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, { headers: authService.getAuthHeaders(), credentials: 'include' });
-            const data = await response.json();
-            if (!response.ok || !data?.success) throw new Error(data?.message || 'Failed to load cart');
+            const data = await apiClient.get(API_CONFIG.ENDPOINTS.CART);
             setCart(data.data || cart);
         } catch (error) { logger.error('Cart load error:', error); } finally { setIsLoading(false); }
     };
@@ -40,14 +39,9 @@ const CartPage = () => {
 
         try {
             setIsApplyingCoupon(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.COUPONS}/validate`, {
-                method: 'POST',
-                headers: authService.getAuthHeaders(),
-                credentials: 'include',
-                body: JSON.stringify({ code, total: Number(cart.summary?.subTotal || 0) }),
+            const data = await apiClient.post(`${API_CONFIG.ENDPOINTS.COUPONS}/validate`, {
+                code, total: Number(cart.summary?.subTotal || 0),
             });
-            const data = await response.json();
-            if (!response.ok || !data?.success) throw new Error(data?.message || 'Invalid coupon code');
 
             const validatedCoupon = {
                 code,
@@ -69,18 +63,19 @@ const CartPage = () => {
         }
     };
 
+    const applyCouponRef = useRef(applyCoupon);
+    useEffect(() => { applyCouponRef.current = applyCoupon; });
+
     useEffect(() => {
         if (!appliedCoupon?.code) return;
-        applyCoupon(appliedCoupon.code, { silent: true });
-    }, [cart.summary?.subTotal]);
+        applyCouponRef.current(appliedCoupon.code, { silent: true });
+    }, [cart.summary?.subTotal, appliedCoupon?.code]);
 
     const updateQuantity = async (itemId, quantity) => {
         if (quantity < 1) return;
         try {
             setIsBusy(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}/${itemId}`, { method: 'PUT', headers: authService.getAuthHeaders(), credentials: 'include', body: JSON.stringify({ quantity }) });
-            const data = await response.json();
-            if (!response.ok || !data?.success) throw new Error(data?.message || 'Failed');
+            const data = await apiClient.put(`${API_CONFIG.ENDPOINTS.CART}/${itemId}`, { quantity });
             setCart(data.data || cart);
             window.dispatchEvent(new Event('cart:changed'));
         } catch (error) { notify.error(error, 'Failed to update cart'); } finally { setIsBusy(false); }
@@ -89,9 +84,7 @@ const CartPage = () => {
     const removeItem = async (itemId) => {
         try {
             setIsBusy(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}/${itemId}`, { method: 'DELETE', headers: authService.getAuthHeaders({}, false), credentials: 'include' });
-            const data = await response.json();
-            if (!response.ok || !data?.success) throw new Error(data?.message || 'Failed');
+            const data = await apiClient.delete(`${API_CONFIG.ENDPOINTS.CART}/${itemId}`);
             setCart(data.data || cart);
             window.dispatchEvent(new Event('cart:changed'));
         } catch (error) { notify.error(error, 'Failed to remove item'); } finally { setIsBusy(false); }
@@ -100,9 +93,7 @@ const CartPage = () => {
     const clearCart = async () => {
         try {
             setIsBusy(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, { method: 'DELETE', headers: authService.getAuthHeaders({}, false), credentials: 'include' });
-            const data = await response.json();
-            if (!response.ok || !data?.success) throw new Error(data?.message || 'Failed');
+            const data = await apiClient.delete(API_CONFIG.ENDPOINTS.CART);
             setCart(data.data || cart);
             setAppliedCoupon(null);
             setCouponCode('');

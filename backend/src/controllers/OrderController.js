@@ -1,8 +1,6 @@
 import mongoose from "mongoose";
 import { BaseController } from "../core/BaseController.js";
 import { OrderService } from "../services/OrderService.js";
-import { Cart } from "../models/Cart.js";
-import { Product } from "../models/Product.js";
 import { Order } from "../models/Order.js";
 import { AppError } from "../middleware/errorHandler.js";
 
@@ -208,83 +206,23 @@ export class OrderController extends BaseController {
   async requestReturn(req, res, next) {
     try {
       const userId = req.user?._id || req.user?.id;
-      const { id } = req.params;
-      const { reason, notes, items } = req.body;
-
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return next(new AppError("Invalid order ID", 400));
-      }
-
-      const order = await Order.findOne({ _id: id, userId });
-      if (!order) {
-        return next(new AppError("Order not found", 404));
-      }
-
-      if (order.status !== "delivered") {
-        return next(
-          new AppError(
-            "Returns can only be requested for delivered orders",
-            400,
-          ),
-        );
-      }
-
-      const requestedItems = (
-        Array.isArray(items) && items.length > 0
-          ? items
-          : order.items.map((item) => ({
-              productId: item.productId,
-              variantId: item.variantId || null,
-              quantity: item.quantity,
-            }))
-      ).map((item) => ({
-        productId: item.productId,
-        variantId: item.variantId || null,
-        quantity: Math.max(1, Number(item.quantity || 1)),
-      }));
-
-      for (const requestedItem of requestedItems) {
-        const matched = order.items.find((item) => {
-          const sameProduct =
-            String(item.productId) === String(requestedItem.productId);
-          const sameVariant =
-            String(item.variantId || "") ===
-            String(requestedItem.variantId || "");
-          return sameProduct && sameVariant;
-        });
-
-        if (!matched) {
-          return next(new AppError("Return item does not exist in order", 400));
-        }
-
-        if (requestedItem.quantity > matched.quantity) {
-          return next(
-            new AppError("Return quantity exceeds purchased quantity", 400),
-          );
-        }
-      }
-
-      const returnRequest = {
-        reason: String(reason || "").trim(),
-        notes: String(notes || "").trim() || undefined,
-        items: requestedItems,
-        status: "requested",
-        requestedAt: new Date(),
-      };
-
-      order.returnRequests.push(returnRequest);
-      await order.save();
+      const returnRequest = await this.orderService.requestReturn(
+        req.params.id,
+        userId,
+        req.body,
+      );
 
       return res.status(201).json({
         success: true,
         message: "Return request submitted",
-        data: order.returnRequests[order.returnRequests.length - 1],
+        data: returnRequest,
       });
     } catch (error) {
-      if (error instanceof AppError) {
-        return next(error);
-      }
-      return next(new AppError("Failed to request return", 500));
+      return next(
+        error instanceof AppError
+          ? error
+          : new AppError("Failed to request return", 500),
+      );
     }
   }
 

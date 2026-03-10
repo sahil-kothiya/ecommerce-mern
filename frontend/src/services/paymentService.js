@@ -1,32 +1,25 @@
 import { API_CONFIG } from "../constants";
-import authService from "./authService";
+import { apiClient } from "./apiClient.js";
 
 class PaymentService {
   async getConfig() {
-    const res = await fetch(
-      `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PAYMENTS}/config`,
+    const response = await apiClient.get(
+      `${API_CONFIG.ENDPOINTS.PAYMENTS}/config`,
     );
-    const data = await res.json();
-    if (!res.ok)
-      throw new Error(data?.message || "Failed to get payment config");
-    return data.data;
+    return response?.data;
   }
 
   async createPaymentIntent(idempotencyKey = "") {
-    const res = await fetch(
-      `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PAYMENTS}/create-intent`,
-      {
-        method: "POST",
-        headers: authService.getAuthHeaders(
-          idempotencyKey ? { "X-Idempotency-Key": idempotencyKey } : {},
-        ),
-        credentials: "include",
-      },
+    const headers = {};
+    if (idempotencyKey) {
+      headers["X-Idempotency-Key"] = idempotencyKey;
+    }
+    const response = await apiClient.post(
+      `${API_CONFIG.ENDPOINTS.PAYMENTS}/create-intent`,
+      {},
+      { headers },
     );
-    const data = await res.json();
-    if (!res.ok)
-      throw new Error(data?.message || "Failed to create payment intent");
-    return data.data; // { clientSecret, paymentIntentId, amount }
+    return response?.data;
   }
 }
 

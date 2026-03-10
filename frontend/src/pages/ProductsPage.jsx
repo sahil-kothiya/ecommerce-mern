@@ -4,6 +4,7 @@ import { API_CONFIG } from '../constants';
 import { formatPrice } from '../utils/productUtils';
 import { getImageSource, getPrimaryProductImage, resolveImageUrl } from '../utils/imageUrl';
 import authService from '../services/authService';
+import apiClient from '../services/apiClient';
 import notify from '../utils/notify';
 import StoreNav from '../components/common/StoreNav';
 import LazyImage from '../components/common/LazyImage';
@@ -222,15 +223,18 @@ const ProductsPage = () => {
 
     const isAuthenticated = authService.isAuthenticated();
 
+    useEffect(() => {
+        return () => {
+            clearTimeout(searchDebounceRef.current);
+            clearTimeout(messageTimerRef.current);
+            Object.values(hoverIntervalsRef.current).forEach(clearInterval);
+        };
+    }, []);
+
     const loadWishlist = useCallback(async () => {
         if (!authService.isAuthenticated()) { setWishlistItems([]); return; }
         try {
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, {
-                headers: authService.getAuthHeaders(),
-                credentials: 'include',
-            });
-            if (!res.ok) { setWishlistItems([]); return; }
-            const data = await res.json();
+            const data = await apiClient.get(API_CONFIG.ENDPOINTS.WISHLIST);
             setWishlistItems((Array.isArray(data?.data?.items) ? data.data.items : []).map((i) => i.productId).filter(Boolean));
         } catch { setWishlistItems([]); }
     }, []);
@@ -247,14 +251,7 @@ const ProductsPage = () => {
             return;
         }
         try {
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
-                method: 'POST',
-                headers: authService.getAuthHeaders(),
-                credentials: 'include',
-                body: JSON.stringify({ productId: product._id, quantity: 1 }),
-            });
-            const data = await res.json();
-            if (!res.ok || !data?.success) throw new Error(data?.message || 'Failed');
+            await apiClient.post(API_CONFIG.ENDPOINTS.CART, { productId: product._id, quantity: 1 });
             window.dispatchEvent(new Event('cart:changed'));
             notify.success(`"${product.title.slice(0, 30)}" added to cart`);
         } catch (error) { notify.error(error, 'Failed to add to cart'); }
@@ -267,19 +264,17 @@ const ProductsPage = () => {
         if (inList) {
             setWishlistItems((prev) => prev.filter((i) => i._id !== product._id));
             try {
-                const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { headers: authService.getAuthHeaders(), credentials: 'include' });
-                if (!res.ok) return;
-                const data = await res.json();
+                const data = await apiClient.get(API_CONFIG.ENDPOINTS.WISHLIST);
                 const matched = (Array.isArray(data?.data?.items) ? data.data.items : []).find((i) => i.productId?._id === product._id || i.productId === product._id);
                 if (matched?._id) {
-                    await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${matched._id}`, { method: 'DELETE', headers: authService.getAuthHeaders(), credentials: 'include' });
+                    await apiClient.delete(`${API_CONFIG.ENDPOINTS.WISHLIST}/${matched._id}`);
                     window.dispatchEvent(new Event('wishlist:changed'));
                 }
             } catch { /* ignore */ }
         } else {
             setWishlistItems((prev) => prev.some((i) => i._id === product._id) ? prev : [...prev, product]);
             try {
-                await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { method: 'POST', headers: authService.getAuthHeaders(), credentials: 'include', body: JSON.stringify({ productId: product._id }) });
+                await apiClient.post(API_CONFIG.ENDPOINTS.WISHLIST, { productId: product._id });
                 window.dispatchEvent(new Event('wishlist:changed'));
             } catch { /* ignore */ }
         }
@@ -345,16 +340,11 @@ const ProductsPage = () => {
     const persistPreferences = useCallback(async (nextSavedFilters, nextRecentSearches) => {
         if (canSyncPreferences) {
             try {
-                await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/preferences/product-discovery`, {
-                    method: 'PUT',
-                    headers: authService.getAuthHeaders(),
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        savedFilters: nextSavedFilters,
-                        recentSearches: nextRecentSearches,
-                    }),
+                await apiClient.put(`${API_CONFIG.ENDPOINTS.AUTH}/preferences/product-discovery`, {
+                    savedFilters: nextSavedFilters,
+                    recentSearches: nextRecentSearches,
                 });
-            } catch (_err) { /* ignore — fall back to localStorage */ }
+            } catch { /* ignore — fall back to localStorage */ }
             return;
         }
 
@@ -372,16 +362,10 @@ const ProductsPage = () => {
     useEffect(() => {
         const loadTaxonomy = async () => {
             try {
-                const [categoriesResponse, brandsResponse, bannersResponse] = await Promise.all([
-                    fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`),
-                    fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}`),
-                    fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BANNERS}?status=active&limit=5`).catch(() => null),
-                ]);
-
                 const [categoriesData, brandsData, bannersData] = await Promise.all([
-                    categoriesResponse.json(),
-                    brandsResponse.json(),
-                    bannersResponse ? bannersResponse.json().catch(() => null) : Promise.resolve(null),
+                    apiClient.get(API_CONFIG.ENDPOINTS.CATEGORIES),
+                    apiClient.get(API_CONFIG.ENDPOINTS.BRANDS),
+                    apiClient.get(`${API_CONFIG.ENDPOINTS.BANNERS}?status=active&limit=5`).catch(() => null),
                 ]);
 
                 setCategories(parseCategoryList(categoriesData));
@@ -409,18 +393,10 @@ const ProductsPage = () => {
                     await authService.getCurrentUser();
                     setCanSyncPreferences(true);
 
-                    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/preferences/product-discovery`, {
-                        headers: authService.getAuthHeaders(),
-                        credentials: 'include',
-                    });
-                    const payload = await response.json();
-                    if (response.ok) {
-                        const discovery = payload?.data?.productDiscovery || {};
-                        setRecentSearches(Array.isArray(discovery.recentSearches) ? discovery.recentSearches : []);
-                        setSavedFilters(Array.isArray(discovery.savedFilters) ? discovery.savedFilters : []);
-                    } else {
-                        loadLocalPreferences();
-                    }
+                    const payload = await apiClient.get(`${API_CONFIG.ENDPOINTS.AUTH}/preferences/product-discovery`);
+                    const discovery = payload?.data?.productDiscovery || {};
+                    setRecentSearches(Array.isArray(discovery.recentSearches) ? discovery.recentSearches : []);
+                    setSavedFilters(Array.isArray(discovery.savedFilters) ? discovery.savedFilters : []);
                 } catch {
                     setCanSyncPreferences(false);
                     loadLocalPreferences();
@@ -499,12 +475,7 @@ const ProductsPage = () => {
                 if (String(effectiveFilters.minPrice).trim()) params.set('minPrice', String(effectiveFilters.minPrice).trim());
                 if (String(effectiveFilters.maxPrice).trim()) params.set('maxPrice', String(effectiveFilters.maxPrice).trim());
 
-                const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}?${params.toString()}`);
-                const payload = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(payload?.message || 'Failed to fetch products');
-                }
+                const payload = await apiClient.get(`${API_CONFIG.ENDPOINTS.PRODUCTS}?${params.toString()}`);
 
                 setProducts(Array.isArray(payload?.data?.products) ? payload.data.products : []);
                 setPagination(payload?.data?.pagination || {

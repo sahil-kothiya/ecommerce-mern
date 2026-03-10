@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { API_CONFIG } from '../../../constants';
+import apiClient from '../../../services/apiClient';
 import authService from '../../../services/authService';
 import notify from '../../../utils/notify';
 import SavingOverlay from '../../../components/ui/SavingOverlay';
@@ -96,16 +97,11 @@ const CategoryEditorPage = () => {
 
     const loadDependencies = async () => {
         try {
-            const headers = authService.getAuthHeaders();
-            const [catRes, brandRes, filterRes] = await Promise.all([
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`, { headers, credentials: 'include' }),
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}?page=1&limit=500`, { headers, credentials: 'include' }),
-                fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/filters`, { headers, credentials: 'include' }),
+            const [catJson, brandJson, filterJson] = await Promise.all([
+                apiClient.get(API_CONFIG.ENDPOINTS.CATEGORIES),
+                apiClient.get(`${API_CONFIG.ENDPOINTS.BRANDS}?page=1&limit=500`),
+                apiClient.get(`${API_CONFIG.ENDPOINTS.CATEGORIES}/filters`),
             ]);
-
-            const catJson = await catRes.json();
-            const brandJson = await brandRes.json();
-            const filterJson = await filterRes.json();
 
             const categoryList = Array.isArray(catJson?.data)
                 ? catJson.data
@@ -136,12 +132,10 @@ const CategoryEditorPage = () => {
     const loadCategory = async () => {
         try {
             setIsLoading(true);
-            const headers = authService.getAuthHeaders();
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${id}`, { headers, credentials: 'include' });
-            const data = await response.json();
+            const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.CATEGORIES}/${id}`);
 
-            if (!response.ok || !data?.data) {
-                notify.error(data?.message || 'Failed to load category');
+            if (!data?.data) {
+                notify.error('Failed to load category');
                 navigate('/admin/categories');
                 return;
             }
@@ -194,9 +188,9 @@ const CategoryEditorPage = () => {
     const onSubmit = async (data) => {
         setIsSaving(true);
         try {
-            const url = isEdit
-                ? `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${id}`
-                : `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`;
+            const endpoint = isEdit
+                ? `${API_CONFIG.ENDPOINTS.CATEGORIES}/${id}`
+                : API_CONFIG.ENDPOINTS.CATEGORIES;
 
             const payload = new FormData();
             payload.append('title', data.title);
@@ -212,31 +206,17 @@ const CategoryEditorPage = () => {
             if (data.parentId) payload.append('parentId', data.parentId);
             if (selectedFile) payload.append('photo', selectedFile);
 
-            const headers = authService.getAuthHeaders();
-            delete headers['Content-Type'];
-
-            const response = await fetch(url, {
-                method: isEdit ? 'PUT' : 'POST',
-                headers,
-                credentials: 'include',
-                body: payload,
-            });
-
-            const resData = await response.json();
-            if (!response.ok) {
-                if (Array.isArray(resData?.errors)) {
-                    resData.errors.forEach(({ field, message }) => {
-                        if (field) setError(field, { message });
-                    });
-                }
-                notify.error(resData?.message || 'Failed to save category');
-                return;
-            }
+            await apiClient.upload(endpoint, payload, null, isEdit ? 'PUT' : 'POST');
 
             notify.success(`Category ${isEdit ? 'updated' : 'created'} successfully`);
             navigate('/admin/categories');
         } catch (error) {
-            notify.error('Failed to save category');
+            if (Array.isArray(error?.errors)) {
+                error.errors.forEach(({ field, message }) => {
+                    if (field) setError(field, { message });
+                });
+            }
+            notify.error(error?.message || 'Failed to save category');
         } finally {
             setIsSaving(false);
         }

@@ -3,7 +3,7 @@ import { logger } from '../../../utils/logger.js';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_CONFIG } from '../../../constants';
-import authService from '../../../services/authService';
+import apiClient from '../../../services/apiClient';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import notify from '../../../utils/notify';
 import {
@@ -55,24 +55,7 @@ const CategoryTreeManager = () => {
         try {
             setIsLoading(true);
 
-            const headers = authService.getAuthHeaders();
-
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}`, {
-                headers,
-                credentials: 'include',
-            });
-            
-            if (response.status === 401) {
-                await authService.logout();
-                window.location.href = '/login';
-                return;
-            }
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || `HTTP error! status: ${response.status}`);
-            }
+            const data = await apiClient.get(API_CONFIG.ENDPOINTS.CATEGORIES);
 
             const categoriesList = Array.isArray(data?.data) ? data.data : [];
             
@@ -326,20 +309,11 @@ const CategoryTreeManager = () => {
                 level: cat.depth,
             }));
 
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/reorder`, {
-                method: 'POST',
-                headers: authService.getAuthHeaders(),
-                credentials: 'include',
-                body: JSON.stringify({ updates }),
-            });
+            await apiClient.post(`${API_CONFIG.ENDPOINTS.CATEGORIES}/reorder`, { updates });
 
-            if (response.ok) {
-                showToast('Category order saved successfully', 'success');
-                setHasChanges(false);
-                loadCategories();
-            } else {
-                showToast('Failed to save category order', 'error');
-            }
+            showToast('Category order saved successfully', 'success');
+            setHasChanges(false);
+            loadCategories();
         } catch (error) {
             logger.error('Error saving order:', error);
             showToast('Failed to save changes', 'error');
@@ -372,29 +346,14 @@ const CategoryTreeManager = () => {
 
         try {
             setIsDeleting(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryToDelete.id}`, {
-                method: 'DELETE',
-                headers: authService.getAuthHeaders(),
-                credentials: 'include',
-            });
+            await apiClient.delete(`${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryToDelete.id}`);
 
-            if (response.status === 401) {
-                await authService.logout();
-                window.location.href = '/login';
-                return;
-            }
-
-            if (response.ok) {
-                setCategoryToDelete(null);
-                showToast('Category deleted successfully', 'success');
-                loadCategories();
-            } else {
-                const errorData = await response.json();
-                showToast(errorData.message || 'Failed to delete category', 'error');
-            }
+            setCategoryToDelete(null);
+            showToast('Category deleted successfully', 'success');
+            loadCategories();
         } catch (error) {
             logger.error('Error deleting category:', error);
-            showToast('Failed to delete category', 'error');
+            showToast(error?.message || 'Failed to delete category', 'error');
         } finally {
             setIsDeleting(false);
         }
@@ -403,17 +362,10 @@ const CategoryTreeManager = () => {
 const toggleStatus = async (categoryId, currentStatus) => {
         try {
             const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryId}`, {
-                method: 'PUT',
-                headers: authService.getAuthHeaders(),
-                credentials: 'include',
-                body: JSON.stringify({ status: newStatus }),
-            });
+            await apiClient.put(`${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryId}`, { status: newStatus });
 
-            if (response.ok) {
-                showToast(`Category ${newStatus === 'active' ? 'activated' : 'deactivated'}`, 'success');
-                loadCategories();
-            }
+            showToast(`Category ${newStatus === 'active' ? 'activated' : 'deactivated'}`, 'success');
+            loadCategories();
         } catch (error) {
             logger.error('Error toggling status:', error);
             showToast('Failed to update status', 'error');
@@ -422,32 +374,17 @@ const toggleStatus = async (categoryId, currentStatus) => {
 
     const toggleFeatured = async (categoryId, currentIsFeatured) => {
         try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryId}`, {
-                method: 'PUT',
-                headers: authService.getAuthHeaders(),
-                credentials: 'include',
-                body: JSON.stringify({ isFeatured: !currentIsFeatured }),
-            });
+            await apiClient.put(`${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryId}`, { isFeatured: !currentIsFeatured });
 
-            if (response.status === 401) {
-                await authService.logout();
-                window.location.href = '/login';
-                return;
-            }
-
-            if (response.ok) {
-                showToast(
-                    !currentIsFeatured ? 'Category marked as featured' : 'Category removed from featured',
-                    'success'
-                );
-                loadCategories();
-                return;
-            }
-
-            const errorData = await response.json();
-            showToast(errorData.message || 'Failed to update featured flag', 'error');
+            showToast(
+                !currentIsFeatured ? 'Category marked as featured' : 'Category removed from featured',
+                'success'
+            );
+            loadCategories();
         } catch (error) {
             logger.error('Error toggling featured:', error);
+            showToast(error?.message || 'Failed to update featured flag', 'error');
+        }
             showToast('Failed to update featured flag', 'error');
         }
     };

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { API_CONFIG } from "../constants";
 import {
   DEFAULT_SITE_SETTINGS,
@@ -8,22 +8,27 @@ import {
 export function SiteSettingsProvider({ children }) {
   const [settings, setSettings] = useState(DEFAULT_SITE_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     try {
+      setError(null);
       const response = await fetch(
         `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.SETTINGS}/public`,
       );
-      if (!response.ok) return;
+      if (!response.ok) {
+        setError(`Failed to load settings (${response.status})`);
+        return;
+      }
       const payload = await response.json();
       const data = payload?.data || {};
       setSettings((prev) => ({ ...prev, ...data }));
-    } catch {
-      // Keep defaults silently for storefront resiliency.
+    } catch (err) {
+      setError(err?.message || "Failed to load site settings");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     refresh();
@@ -49,8 +54,8 @@ export function SiteSettingsProvider({ children }) {
   }, [settings.metaTitle, settings.metaDescription, settings.siteName, settings.siteTagline]);
 
   const value = useMemo(
-    () => ({ settings, isLoading, refresh }),
-    [settings, isLoading],
+    () => ({ settings, isLoading, error, refresh }),
+    [settings, isLoading, error, refresh],
   );
 
   return (

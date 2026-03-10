@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { API_CONFIG } from '../../constants';
+import apiClient from '../../services/apiClient';
 import authService from '../../services/authService';
 import useWishlistCount from '../../hooks/useWishlistCount';
 import { useSiteSettings } from '../../context/useSiteSettings';
@@ -15,16 +16,7 @@ const useCartCount = () => {
         try {
             await authService.getCurrentUser();
 
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CART}`, {
-                headers: authService.getAuthHeaders(),
-                credentials: 'include',
-            });
-            if (!res.ok) {
-                authService.handleUnauthorizedResponse(res);
-                setCount(0);
-                return;
-            }
-            const data = await res.json();
+            const data = await apiClient.get(API_CONFIG.ENDPOINTS.CART);
             const count = data?.data?.summary?.totalItems ?? (Array.isArray(data?.data?.items) ? data.data.items.reduce((s, i) => s + (i.quantity || 1), 0) : 0);
             setCount(count);
         } catch { setCount(0); }
@@ -77,9 +69,7 @@ const StoreHeader = () => {
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}?limit=8`);
-                if (!res.ok) return;
-                const data = await res.json();
+                const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.CATEGORIES}?limit=8`);
                 const cats = Array.isArray(data?.data) ? data.data : (data?.data?.categories || []);
                 setCategories(cats.slice(0, 7));
             } catch { /* silent */ }

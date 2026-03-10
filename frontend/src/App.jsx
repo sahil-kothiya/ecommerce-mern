@@ -111,8 +111,7 @@ function App() {
         <Suspense fallback={<PageSkeleton />}>
             <Routes>
             <Route element={<PublicLayout />}>
-                        <Route index element={<HomePage />} />
-            <Route path="/" element={<HomePage />} />
+            <Route index element={<HomePage />} />
 
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />

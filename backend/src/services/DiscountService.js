@@ -300,6 +300,14 @@ export class DiscountService extends BaseService {
     return updated;
   }
 
+  async syncExpiredDiscounts() {
+    const now = new Date();
+    await Discount.updateMany(
+      { isActive: true, endsAt: { $lt: now } },
+      { $set: { isActive: false } },
+    );
+  }
+
   async getDiscounts(filters = {}) {
     const { page = 1, limit = 20, isActive, type, search } = filters;
 

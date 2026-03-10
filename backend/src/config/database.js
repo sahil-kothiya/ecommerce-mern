@@ -14,7 +14,7 @@ const connectionOptions = {
   heartbeatFrequencyMS: 10000,
   monitorCommands: true,
 
-  autoIndex: false,
+  autoIndex: config.nodeEnv !== "production",
   retryWrites: true,
   retryReads: true,
 
@@ -29,6 +29,8 @@ const connectionOptions = {
 };
 
 let isSlowQueryMonitoringAttached = false;
+let retryCount = 0;
+const MAX_RETRIES = 5;
 
 export const connectDB = async () => {
   try {
@@ -41,6 +43,7 @@ export const connectDB = async () => {
 
     await mongoose.connect(mongoUri, connectionOptions);
 
+    retryCount = 0;
     setupEventListeners();
 
     logger.info(`✅ MongoDB connected successfully to ${maskUri(mongoUri)}`);
@@ -49,9 +52,13 @@ export const connectDB = async () => {
   } catch (error) {
     logger.error("❌ MongoDB connection error:", error.message);
 
-    if (config.nodeEnv === "production") {
-      logger.info("🔄 Retrying connection in 5 seconds...");
-      setTimeout(connectDB, 5000);
+    if (config.nodeEnv === "production" && retryCount < MAX_RETRIES) {
+      retryCount++;
+      const delay = Math.min(5000 * 2 ** retryCount, 60000);
+      logger.info(
+        `🔄 Retrying connection in ${delay / 1000}s (attempt ${retryCount}/${MAX_RETRIES})...`,
+      );
+      setTimeout(connectDB, delay);
     } else {
       throw error;
     }

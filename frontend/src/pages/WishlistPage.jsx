@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
+import apiClient from '../services/apiClient';
 import { API_CONFIG } from '../constants';
 import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
 import { getPrimaryProductImage, resolveImageUrl } from '../utils/imageUrl';
@@ -18,25 +19,18 @@ const WishlistPage = () => {
     const loadWishlist = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`, { headers: authService.getAuthHeaders(), credentials: 'include' });
-            if (!response.ok) { setItems([]); return; }
-            const data = await response.json();
+            const data = await apiClient.get(API_CONFIG.ENDPOINTS.WISHLIST);
             setItems(data?.data?.items || []);
-        } catch { setItems([]); } finally { setIsLoading(false); }
+        } catch (err) {
+            notify.error(err?.message || 'Failed to load wishlist');
+            setItems([]);
+        } finally { setIsLoading(false); }
     };
 
     const removeItem = async (id) => {
         try {
             setIsBusy(true);
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${id}`, {
-                method: 'DELETE',
-                headers: authService.getAuthHeaders(),
-                credentials: 'include',
-            });
-            if (!res.ok) {
-                const payload = await res.json().catch(() => ({}));
-                throw new Error(payload?.message || 'Failed to remove item');
-            }
+            await apiClient.delete(`${API_CONFIG.ENDPOINTS.WISHLIST}/${id}`);
             notify.success('Removed from wishlist');
             window.dispatchEvent(new Event('wishlist:changed'));
             loadWishlist();
@@ -62,13 +56,7 @@ const WishlistPage = () => {
 
         try {
             setIsBusy(true);
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}/${item._id}/move-to-cart`, {
-                method: 'POST',
-                headers: authService.getAuthHeaders(),
-                credentials: 'include',
-            });
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(payload?.message || 'Failed to move to cart');
+            await apiClient.post(`${API_CONFIG.ENDPOINTS.WISHLIST}/${item._id}/move-to-cart`);
             notify.success('Item moved to cart!');
             window.dispatchEvent(new Event('wishlist:changed'));
             window.dispatchEvent(new Event('cart:changed'));

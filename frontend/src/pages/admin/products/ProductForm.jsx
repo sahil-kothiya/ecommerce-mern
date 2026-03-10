@@ -228,6 +228,20 @@ const ProductForm = () => {
     const [isFillingVariantData, setIsFillingVariantData] = useState(false);
 
     useEffect(() => {
+        return () => {
+            Object.values(variantImages).forEach(({ previews }) => {
+                if (Array.isArray(previews)) {
+                    previews.forEach((url) => {
+                        if (typeof url === "string" && url.startsWith("blob:")) {
+                            URL.revokeObjectURL(url);
+                        }
+                    });
+                }
+            });
+        };
+    }, []);
+
+    useEffect(() => {
         loadSelectOptions();
         loadVariantTypes();
         if (isEdit) {
@@ -544,9 +558,10 @@ reset({
         if (!valid.length) return;
         // Read all previews first, then do a single state update to avoid async stale-prev issues
         Promise.all(
-            valid.map(file => new Promise((resolve) => {
+            valid.map(file => new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onloadend = () => resolve({ file, preview: reader.result });
+                reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
                 reader.readAsDataURL(file);
             }))
         ).then(results => {
@@ -601,6 +616,7 @@ reset({
             reader.onloadend = () => {
                 setImagePreviews((prev) => [...prev, { url: reader.result, name: file.name }]);
             };
+            reader.onerror = () => notify.error(`Failed to read ${file.name}`);
             reader.readAsDataURL(file);
         });
 

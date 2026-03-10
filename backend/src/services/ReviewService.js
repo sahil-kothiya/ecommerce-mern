@@ -258,7 +258,10 @@ export class ReviewService extends BaseService {
     if (userRole === "admin")
       throw new AppError("Admins cannot vote on reviews", 403);
 
-    const review = await this.model.findById(reviewId);
+    const review = await this.model
+      .findById(reviewId)
+      .select("userId helpfulVoters")
+      .lean();
     if (!review) throw new AppError("Review not found", 404);
     if (String(review.userId) === String(userId))
       throw new AppError("You cannot mark your own review as helpful", 400);
@@ -266,24 +269,32 @@ export class ReviewService extends BaseService {
     const alreadyVoted = review.helpfulVoters.some(
       (v) => String(v) === String(userId),
     );
+
     if (alreadyVoted) {
-      review.helpfulVoters = review.helpfulVoters.filter(
-        (v) => String(v) !== String(userId),
+      await this.model.updateOne(
+        { _id: reviewId },
+        { $pull: { helpfulVoters: userId }, $inc: { helpful: -1 } },
       );
-      review.helpful = Math.max(0, review.helpful - 1);
-      await review.save({ timestamps: false });
       return {
-        helpful: review.helpful,
+        helpful: Math.max(0, (review.helpfulVoters.length || 1) - 1),
         voted: false,
         message: "Helpful vote removed",
       };
     }
 
-    review.helpfulVoters.push(userId);
-    review.helpful += 1;
-    await review.save({ timestamps: false });
+    if (review.helpfulVoters.length >= 10000) {
+      throw new AppError(
+        "This review has reached the maximum number of helpful votes",
+        400,
+      );
+    }
+
+    await this.model.updateOne(
+      { _id: reviewId },
+      { $addToSet: { helpfulVoters: userId }, $inc: { helpful: 1 } },
+    );
     return {
-      helpful: review.helpful,
+      helpful: (review.helpfulVoters.length || 0) + 1,
       voted: true,
       message: "Review marked as helpful",
     };

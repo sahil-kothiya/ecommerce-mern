@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { API_CONFIG } from "../constants";
 import authService from "../services/authService";
+import apiClient from "../services/apiClient";
 
 export const useWishlistCount = () => {
   const [count, setCount] = useState(0);
@@ -12,24 +13,7 @@ export const useWishlistCount = () => {
     }
 
     try {
-      await authService.getCurrentUser();
-
-      const response = await fetch(
-        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.WISHLIST}`,
-        {
-          headers: authService.getAuthHeaders(),
-          credentials: "include",
-        },
-      );
-
-      if (!response.ok) {
-        authService.handleUnauthorizedResponse(response);
-        setCount(0);
-        return;
-      }
-
-      const payload = await response.json();
-
+      const payload = await apiClient.get(API_CONFIG.ENDPOINTS.WISHLIST);
       const items = Array.isArray(payload?.data?.items)
         ? payload.data.items
         : [];

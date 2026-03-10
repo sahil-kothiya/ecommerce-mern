@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { API_CONFIG } from "../../../constants";
+import apiClient from "../../../services/apiClient";
 import ConfirmDialog from "../../../components/common/ConfirmDialog";
 import notify from "../../../utils/notify";
 import { formatPrice, getProductDisplayPricing } from "../../../utils/productUtils";
@@ -124,9 +125,7 @@ const ProductsList = () => {
       if (hasVariants) params.set("hasVariants", hasVariants);
       if (activeSearch) params.set("search", activeSearch);
 
-      const endpoint = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ADMIN_PRODUCTS}?${params.toString()}`;
-      const response = await fetch(endpoint, { credentials: "include" });
-      const data = await response.json();
+      const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.ADMIN_PRODUCTS}?${params.toString()}`);
       if (requestId !== requestCounterRef.current) return;
 
       if (data.success) {
@@ -154,19 +153,10 @@ const ProductsList = () => {
     if (!productToDelete?._id) return;
     try {
       setIsDeleting(true);
-      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRODUCTS}/${productToDelete._id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        setProductToDelete(null);
-        loadProducts({ page: pagination.page }, { background: true });
-        notify.success("Product deleted successfully");
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        notify.error(errorData, "Failed to delete product");
-      }
+      await apiClient.delete(`${API_CONFIG.ENDPOINTS.PRODUCTS}/${productToDelete._id}`);
+      setProductToDelete(null);
+      loadProducts({ page: pagination.page }, { background: true });
+      notify.success("Product deleted successfully");
     } catch (error) {
       notify.error(error, "Failed to delete product");
     } finally {

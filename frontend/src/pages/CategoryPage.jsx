@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { API_CONFIG } from '../constants';
+import apiClient from '../services/apiClient';
 import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
 import { useSiteSettings } from '../context/useSiteSettings';
+import notify from '../utils/notify';
 
 const CategoryPage = () => {
     const { slug } = useParams();
@@ -11,28 +13,30 @@ const CategoryPage = () => {
     const [category, setCategory] = useState(null);
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         const loadCategoryData = async () => {
             try {
                 setIsLoading(true);
-                const categoryResponse = await fetch(
-                    `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/slug/${slug}`
+                setError(null);
+                const categoryData = await apiClient.get(
+                    `${API_CONFIG.ENDPOINTS.CATEGORIES}/slug/${slug}`
                 );
-                const categoryData = await categoryResponse.json();
                 const categoryItem = categoryData?.data;
                 setCategory(categoryItem || null);
 
                 if (categoryItem?._id) {
-                    const productsResponse = await fetch(
-                        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryItem._id}/products`
+                    const productsData = await apiClient.get(
+                        `${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryItem._id}/products`
                     );
-                    const productsData = await productsResponse.json();
                     setProducts(productsData?.data?.products || []);
                 } else {
                     setProducts([]);
                 }
-            } catch {
+            } catch (err) {
+                setError(err?.message || 'Failed to load category');
+                notify.error(err?.message || 'Failed to load category');
                 setCategory(null);
                 setProducts([]);
             } finally {
@@ -51,6 +55,8 @@ const CategoryPage = () => {
 
             {isLoading ? (
                 <p className="mt-4 text-slate-500">Loading category...</p>
+            ) : error ? (
+                <p className="mt-4 text-red-600">{error}</p>
             ) : products.length === 0 ? (
                 <p className="mt-4 text-slate-500">No products available in this category.</p>
             ) : (

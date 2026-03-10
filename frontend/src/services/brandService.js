@@ -44,46 +44,19 @@ class BrandService {
   }
 
   async updateBrand(id, formData) {
-    const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BRANDS}/${id}`;
-
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-
-      xhr.addEventListener("load", () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const response = JSON.parse(xhr.responseText);
-            resolve(response);
-          } catch {
-            resolve(xhr.responseText);
-          }
-        } else {
-          try {
-            const errorData = JSON.parse(xhr.responseText);
-            const error = new Error(
-              errorData.message || `Update failed with status ${xhr.status}`,
-            );
-
-            if (errorData.errors) {
-              error.errors = errorData.errors;
-            }
-
-            reject(error);
-          } catch {
-            reject(new Error(`Update failed with status ${xhr.status}`));
-          }
-        }
-      });
-
-      xhr.addEventListener("error", () => {
-        reject(new Error("Network error occurred"));
-      });
-
-      xhr.open("PUT", url);
-      xhr.withCredentials = true;
-
-      xhr.send(formData);
-    });
+    try {
+      return await apiClient.upload(
+        `${API_CONFIG.ENDPOINTS.BRANDS}/${id}`,
+        formData,
+        null,
+        "PUT",
+      );
+    } catch (error) {
+      if (error.errors) {
+        throw error;
+      }
+      throw new Error(error.message || "Failed to update brand");
+    }
   }
 
   async deleteBrand(id) {
