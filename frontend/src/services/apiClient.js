@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 class ApiClient {
   constructor() {
     this.baseURL = API_CONFIG.BASE_URL;
-    this.timeout = 30000;
+    this.timeout = API_CONFIG.TIMEOUT || 10000;
     this.requestInterceptors = [];
     this.responseInterceptors = [];
     this.errorInterceptors = [];
@@ -211,7 +211,14 @@ class ApiClient {
       }
     } catch (error) {
       for (const interceptor of this.errorInterceptors) {
-        await interceptor(error);
+        try {
+          const result = await interceptor(error);
+          if (result !== undefined && !(result instanceof Error)) {
+            return result;
+          }
+        } catch {
+          // Interceptor rejected; continue to normalizeError
+        }
       }
 
       throw this.normalizeError(error);

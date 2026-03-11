@@ -77,7 +77,7 @@ const BrandForm = () => {
             }
         } catch (error) {
             logger.error('Error loading brand:', error);
-            toast.error(error.message || 'Failed to load brand');
+            notify.error(error.message || 'Failed to load brand');
         } finally {
             setIsLoading(false);
         }
@@ -363,7 +363,7 @@ const BrandForm = () => {
                                     placeholder="Brand description"
                                 />
                                 {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>}
-                                <p className="mt-1 text-sm text-slate-500">{watchDescription.length}/1000</p>
+                                <p className="mt-1 text-sm text-slate-500">{(watchDescription || '').length}/1000</p>
                             </div>
 
                             <div>

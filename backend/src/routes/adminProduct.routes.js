@@ -5,9 +5,8 @@ import { protect, authorize } from "../middleware/auth.js";
 const router = Router();
 const productController = new ProductController();
 
-router.get("/", protect, authorize("admin"), (req, res) =>
-  productController.index(req, res),
+router.get("/", protect, authorize("admin"), (req, res, next) =>
+  productController.index(req, res, next),
 );
 
 export default router;
-

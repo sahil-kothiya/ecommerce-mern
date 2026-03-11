@@ -85,9 +85,10 @@ const CategoryTreeManager = () => {
     };
 
     const buildCategoryTree = (flatList, parentId = null) => {
+        const targetId = parentId ? String(parentId) : null;
         const filtered = flatList.filter(cat => {
-            const catParentId = cat.parentId || null;
-            return catParentId === parentId;
+            const catParentId = cat.parentId ? String(cat.parentId) : null;
+            return catParentId === targetId;
         });
         
         return filtered
@@ -359,7 +360,7 @@ const CategoryTreeManager = () => {
         }
     };
 
-const toggleStatus = async (categoryId, currentStatus) => {
+    const toggleStatus = async (categoryId, currentStatus) => {
         try {
             const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
             await apiClient.put(`${API_CONFIG.ENDPOINTS.CATEGORIES}/${categoryId}`, { status: newStatus });
@@ -384,8 +385,6 @@ const toggleStatus = async (categoryId, currentStatus) => {
         } catch (error) {
             logger.error('Error toggling featured:', error);
             showToast(error?.message || 'Failed to update featured flag', 'error');
-        }
-            showToast('Failed to update featured flag', 'error');
         }
     };
 

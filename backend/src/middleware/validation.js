@@ -76,22 +76,21 @@ export const validateRequest = (validationType) => {
       case "cancelOrder":
         break;
 
-      case "updateOrderStatus":
+      case "updateOrderStatus": {
         if (!req.body.status) errors.push("Status is required");
 
         const validStatuses = [
-          "pending",
-          "confirmed",
-          "processing",
+          "new",
+          "process",
           "shipped",
           "delivered",
           "cancelled",
-          "refunded",
         ];
         if (req.body.status && !validStatuses.includes(req.body.status)) {
           errors.push("Invalid order status");
         }
         break;
+      }
 
       case "updateShipping":
         if (!req.body.carrier) errors.push("Carrier is required");

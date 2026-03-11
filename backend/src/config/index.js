@@ -90,7 +90,7 @@ const parseTrustProxy = (value, nodeEnv) => {
 
 export const config = {
   nodeEnv: process.env.NODE_ENV || "development",
-  port: Number.isNaN(parsedPort) ? 5000 : parsedPort,
+  port: Number.isNaN(parsedPort) ? 5001 : parsedPort,
   apiUrl: process.env.API_URL || "http://localhost:5001",
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:5173",
   trustProxy: parseTrustProxy(

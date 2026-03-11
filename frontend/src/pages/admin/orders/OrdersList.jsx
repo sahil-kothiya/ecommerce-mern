@@ -6,7 +6,7 @@ import authFetch from '../../../utils/authFetch.js';
 import { useSiteSettings } from '../../../context/useSiteSettings';
 import { formatCurrency } from '../../../utils/currency';
 
-const ORDER_STATUSES = ['new', 'process', 'delivered', 'cancelled'];
+const ORDER_STATUSES = ['new', 'process', 'shipped', 'delivered', 'cancelled'];
 const PAYMENT_STATUSES = ['paid', 'unpaid'];
 
 const OrdersList = () => {
@@ -86,25 +86,16 @@ const OrdersList = () => {
 
     useEffect(() => {
         loadData(1);
-         
     }, []);
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            const nextPage = pagination.page === 1 ? 1 : 1;
-            setPagination((prev) => ({ ...prev, page: nextPage }));
-            loadData(nextPage, true);
+            setPagination((prev) => ({ ...prev, page: 1 }));
+            loadData(1, true);
         }, 350);
 
         return () => clearTimeout(timer);
-         
     }, [searchTerm, statusFilter, paymentFilter]);
-
-    useEffect(() => {
-        if (isLoading) return;
-        loadData(pagination.page, true);
-         
-    }, [pagination.page]);
 
     const handleStatusUpdate = async (orderId, nextStatus) => {
         try {
@@ -315,7 +306,11 @@ const OrdersList = () => {
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
-                            onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
+                            onClick={() => {
+                                const prevPage = pagination.page - 1;
+                                setPagination((prev) => ({ ...prev, page: prevPage }));
+                                loadData(prevPage, true);
+                            }}
                             disabled={!pagination.hasPrev}
                             className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -326,7 +321,11 @@ const OrdersList = () => {
                         </span>
                         <button
                             type="button"
-                            onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                            onClick={() => {
+                                const nextPage = pagination.page + 1;
+                                setPagination((prev) => ({ ...prev, page: nextPage }));
+                                loadData(nextPage, true);
+                            }}
                             disabled={!pagination.hasNext}
                             className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >

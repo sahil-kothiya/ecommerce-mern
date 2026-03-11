@@ -41,7 +41,7 @@ const productService = {
   },
 
   update(id, formData) {
-    return apiClient.upload(`${ADMIN}/${id}`, formData);
+    return apiClient.upload(`${ADMIN}/${id}`, formData, undefined, "PUT");
   },
 
   delete(id) {

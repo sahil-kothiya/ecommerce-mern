@@ -33,8 +33,18 @@ export class ReviewService extends BaseService {
     if (rating) query.rating = Number(rating);
     if (search) {
       query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { comment: { $regex: search, $options: "i" } },
+        {
+          title: {
+            $regex: search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+            $options: "i",
+          },
+        },
+        {
+          comment: {
+            $regex: search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+            $options: "i",
+          },
+        },
       ];
     }
     const skip = (page - 1) * limit;
@@ -319,15 +329,12 @@ export class ReviewService extends BaseService {
   }
 
   async approveReview(reviewId) {
-    const review = await this.update(reviewId, { status: "active" });
-    const product = await Product.findById(review.productId);
-    if (product) await product.updateRatings();
-    return review;
+    return this.updateStatus(reviewId, "active");
   }
 
   async rejectReview(reviewId, reason = null) {
     return this.update(reviewId, {
-      status: "rejected",
+      status: "inactive",
       ...(reason && { rejectionReason: reason }),
     });
   }

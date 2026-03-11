@@ -72,6 +72,12 @@ const couponSchema = new Schema(
       type: String,
       maxlength: [200, "Description cannot exceed 200 characters"],
     },
+    usedBy: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   {
     timestamps: true,

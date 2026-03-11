@@ -228,6 +228,7 @@ class AuthService {
       _id: user._id,
       role: user.role,
       name: user.name,
+      email: user.email,
       _storedAt: Date.now(),
     };
 

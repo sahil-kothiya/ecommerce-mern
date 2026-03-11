@@ -70,9 +70,6 @@ app.use(
     },
   }),
 );
-app.use(mongoSanitizeMiddleware());
-app.use(hpp());
-
 app.use(
   cors({
     origin: config.frontendUrl,
@@ -99,6 +96,8 @@ app.post(
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(cookieParser());
+app.use(mongoSanitizeMiddleware());
+app.use(hpp());
 app.use(compression({ level: 6, threshold: 1024 }));
 app.use("/api", rateLimiter);
 app.use("/api", csrfProtection);
@@ -215,7 +214,7 @@ app.use(
     res.setHeader("Cache-Control", "public, max-age=604800, immutable");
     next();
   },
-  express.static("uploads", { maxAge: "7d" }),
+  express.static(path.resolve(__dirname, "../../uploads"), { maxAge: "7d" }),
 );
 
 app.use(

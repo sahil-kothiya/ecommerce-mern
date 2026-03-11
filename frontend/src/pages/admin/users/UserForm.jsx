@@ -94,13 +94,13 @@ const UserForm = () => {
         if (!file) return;
 
         if (!file.type.startsWith('image/')) {
-            setErrors((prev) => ({ ...prev, photo: 'Please select an image file' }));
+            setError('photo', { message: 'Please select an image file' });
             notify.error('Please select an image file');
             return;
         }
 
         if (file.size > 2 * 1024 * 1024) {
-            setErrors((prev) => ({ ...prev, photo: 'Image must be less than 2MB' }));
+            setError('photo', { message: 'Image must be less than 2MB' });
             notify.error('Image must be less than 2MB');
             return;
         }
@@ -111,7 +111,6 @@ const UserForm = () => {
 
         setSelectedPhotoFile(file);
         setPhotoPreview(URL.createObjectURL(file));
-        clearFieldError(setErrors, 'photo');
     };
 
     const onSubmit = async (data) => {
@@ -227,7 +226,7 @@ const UserForm = () => {
                                 className="w-full rounded-xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-100"
                             />
                             <p className="mt-1 text-xs text-slate-500">Allowed: JPG, PNG, GIF, WEBP. Max file size: 2MB.</p>
-                            {errors.photo && <p className="mt-1 text-sm text-red-600">{errors.photo}</p>}
+                            {errors.photo && <p className="mt-1 text-sm text-red-600">{errors.photo.message}</p>}
                         </div>
                         <div className="h-16 w-16 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
                             {photoPreview ? (

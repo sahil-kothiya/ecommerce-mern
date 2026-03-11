@@ -1,6 +1,6 @@
 import { logger } from "./logger.js";
 
-export const processApiError = (error) => {
+export const processApiError = (error = {}) => {
   const result = {
     fieldErrors: {},
     errorMessages: [],
@@ -9,9 +9,8 @@ export const processApiError = (error) => {
 
   logger.debug("Processing API error:", error?.message);
 
-  if (error.response?.data) {
-    const responseData = error.response.data;
-
+  const responseData = error.response?.data || error.data;
+  if (responseData) {
     if (responseData.errors && Array.isArray(responseData.errors)) {
       responseData.errors.forEach((errorItem) => {
         if (errorItem.field && errorItem.message) {

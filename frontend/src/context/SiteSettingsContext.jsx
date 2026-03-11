@@ -15,6 +15,7 @@ export function SiteSettingsProvider({ children }) {
       setError(null);
       const response = await fetch(
         `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.SETTINGS}/public`,
+        { credentials: "include" },
       );
       if (!response.ok) {
         setError(`Failed to load settings (${response.status})`);
@@ -32,7 +33,7 @@ export function SiteSettingsProvider({ children }) {
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refresh]);
 
   useEffect(() => {
     const title = String(settings.metaTitle || settings.siteName || "").trim();

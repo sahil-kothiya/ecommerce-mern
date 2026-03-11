@@ -27,7 +27,7 @@ const bannerService = {
   },
 
   update(id, formData) {
-    return apiClient.upload(`${BASE}/${id}`, formData);
+    return apiClient.upload(`${BASE}/${id}`, formData, undefined, "PUT");
   },
 
   delete(id) {

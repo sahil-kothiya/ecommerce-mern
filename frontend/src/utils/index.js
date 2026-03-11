@@ -151,7 +151,7 @@ export const deepClone = (obj) => {
   if (obj instanceof Object) {
     const clonedObj = {};
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         clonedObj[key] = deepClone(obj[key]);
       }
     }
@@ -162,7 +162,7 @@ export const deepClone = (obj) => {
 
 export const generateId = (prefix = "") => {
   const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substr(2);
+  const random = Math.random().toString(36).substring(2);
   return `${prefix}${timestamp}${random}`;
 };
 
@@ -174,7 +174,7 @@ export const capitalizeWords = (str) => {
 export const truncateText = (text, maxLength = 100) => {
   if (typeof text !== "string") return "";
   if (text.length <= maxLength) return text;
-  return text.substr(0, maxLength) + "...";
+  return text.substring(0, maxLength) + "...";
 };
 
 export const createSlug = (str) => {

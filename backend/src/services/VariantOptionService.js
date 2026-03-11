@@ -51,8 +51,18 @@ export class VariantOptionService extends BaseService {
 
     if (search) {
       query.$or = [
-        { value: { $regex: search, $options: "i" } },
-        { displayValue: { $regex: search, $options: "i" } },
+        {
+          value: {
+            $regex: search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+            $options: "i",
+          },
+        },
+        {
+          displayValue: {
+            $regex: search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+            $options: "i",
+          },
+        },
       ];
     }
 

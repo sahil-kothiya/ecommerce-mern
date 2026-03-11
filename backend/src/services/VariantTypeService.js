@@ -33,8 +33,18 @@ export class VariantTypeService extends BaseService {
 
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { displayName: { $regex: search, $options: "i" } },
+        {
+          name: {
+            $regex: search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+            $options: "i",
+          },
+        },
+        {
+          displayName: {
+            $regex: search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+            $options: "i",
+          },
+        },
       ];
     }
 

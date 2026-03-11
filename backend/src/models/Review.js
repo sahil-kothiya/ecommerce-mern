@@ -45,7 +45,7 @@ const reviewSchema = new Schema(
     },
     isVerifiedPurchase: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     status: {
       type: String,

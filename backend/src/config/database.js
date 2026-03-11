@@ -29,6 +29,7 @@ const connectionOptions = {
 };
 
 let isSlowQueryMonitoringAttached = false;
+let isEventListenersAttached = false;
 let retryCount = 0;
 const MAX_RETRIES = 5;
 
@@ -46,19 +47,20 @@ export const connectDB = async () => {
     retryCount = 0;
     setupEventListeners();
 
-    logger.info(`✅ MongoDB connected successfully to ${maskUri(mongoUri)}`);
-    logger.info(`📊 Database: ${mongoose.connection.name}`);
-    logger.info(`🔗 Connection state: ${getConnectionState()}`);
+    logger.info(`MongoDB connected successfully to ${maskUri(mongoUri)}`);
+    logger.info(`Database: ${mongoose.connection.name}`);
+    logger.info(`Connection state: ${getConnectionState()}`);
   } catch (error) {
-    logger.error("❌ MongoDB connection error:", error.message);
+    logger.error("MongoDB connection error:", error.message);
 
     if (config.nodeEnv === "production" && retryCount < MAX_RETRIES) {
       retryCount++;
-      const delay = Math.min(5000 * 2 ** retryCount, 60000);
+      const delay = Math.min(1000 * 2 ** retryCount, 60000);
       logger.info(
-        `🔄 Retrying connection in ${delay / 1000}s (attempt ${retryCount}/${MAX_RETRIES})...`,
+        `Retrying connection in ${delay / 1000}s (attempt ${retryCount}/${MAX_RETRIES})...`,
       );
-      setTimeout(connectDB, delay);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return connectDB();
     } else {
       throw error;
     }
@@ -66,28 +68,31 @@ export const connectDB = async () => {
 };
 
 const setupEventListeners = () => {
+  if (isEventListenersAttached) return;
+  isEventListenersAttached = true;
+
   const { connection } = mongoose;
 
   setupSlowQueryMonitoring(connection);
 
   connection.on("connected", () => {
-    logger.info("🔗 MongoDB connection established");
+    logger.info("MongoDB connection established");
   });
 
   connection.on("error", (err) => {
-    logger.error("❌ MongoDB connection error:", err);
+    logger.error("MongoDB connection error:", err);
   });
 
   connection.on("disconnected", () => {
-    logger.warn("⚠️  MongoDB disconnected");
+    logger.warn("MongoDB disconnected");
 
     if (config.nodeEnv === "production") {
-      logger.info("🔄 Attempting to reconnect...");
+      logger.info("Attempting to reconnect...");
     }
   });
 
   connection.on("reconnected", () => {
-    logger.info("🔄 MongoDB reconnected successfully");
+    logger.info("MongoDB reconnected successfully");
   });
 
   process.on("SIGINT", async () => {

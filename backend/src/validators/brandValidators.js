@@ -10,15 +10,13 @@ export const createBrandValidator = [
     .matches(/^[a-zA-Z0-9\s\-&.'()]+$/)
     .withMessage(
       "Title can only contain letters, numbers, spaces, and common punctuation",
-    )
-    .escape(),
+    ),
 
   body("description")
     .optional({ values: "falsy" })
     .trim()
     .isLength({ max: 1000 })
-    .withMessage("Description cannot exceed 1000 characters")
-    .escape(),
+    .withMessage("Description cannot exceed 1000 characters"),
 
   body("status")
     .optional({ values: "falsy" })
@@ -47,15 +45,13 @@ export const updateBrandValidator = [
     .matches(/^[a-zA-Z0-9\s\-&.'()]+$/)
     .withMessage(
       "Title can only contain letters, numbers, spaces, and common punctuation",
-    )
-    .escape(),
+    ),
 
   body("description")
     .optional({ values: "falsy" })
     .trim()
     .isLength({ max: 1000 })
-    .withMessage("Description cannot exceed 1000 characters")
-    .escape(),
+    .withMessage("Description cannot exceed 1000 characters"),
 
   body("status")
     .optional({ values: "falsy" })
