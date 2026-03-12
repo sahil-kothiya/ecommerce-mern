@@ -214,7 +214,7 @@ app.use(
     res.setHeader("Cache-Control", "public, max-age=604800, immutable");
     next();
   },
-  express.static(path.resolve(__dirname, "../../uploads"), { maxAge: "7d" }),
+  express.static(path.resolve(__dirname, "../uploads"), { maxAge: "7d" }),
 );
 
 app.use(

@@ -24,9 +24,10 @@ export class BrandController extends BaseController {
       query.status = status;
     }
     if (search) {
+      const escaped = String(search).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { slug: { $regex: search, $options: "i" } },
+        { title: { $regex: escaped, $options: "i" } },
+        { slug: { $regex: escaped, $options: "i" } },
       ];
     }
 

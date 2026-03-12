@@ -57,9 +57,10 @@ export class UserService extends BaseService {
     if (search) {
       const trimmed = String(search).trim();
       if (trimmed) {
+        const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         query.$or = [
-          { name: { $regex: trimmed, $options: "i" } },
-          { email: { $regex: trimmed, $options: "i" } },
+          { name: { $regex: escaped, $options: "i" } },
+          { email: { $regex: escaped, $options: "i" } },
         ];
       }
     }

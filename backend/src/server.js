@@ -1,13 +1,18 @@
 import { config } from "./config/index.js";
-import { connectDB } from "./config/database.js";
+import { connectDB, disconnectDB } from "./config/database.js";
 import { logger } from "./utils/logger.js";
 import app from "./app.js";
 
 const PORT = config.port || 5001;
 let server;
 
-const shutdown = (reason, code = 0) => {
+const shutdown = async (reason, code = 0) => {
   logger.info(`Shutdown triggered: ${reason}`);
+  try {
+    await disconnectDB();
+  } catch (err) {
+    logger.error("Error closing MongoDB during shutdown:", err);
+  }
   if (server) {
     server.close(() => process.exit(code));
     setTimeout(() => process.exit(code), 5000).unref();
@@ -47,6 +52,10 @@ process.on("uncaughtException", (err) => {
 
 process.on("SIGTERM", () => {
   shutdown("SIGTERM", 0);
+});
+
+process.on("SIGINT", () => {
+  shutdown("SIGINT", 0);
 });
 
 startServer();

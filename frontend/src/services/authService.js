@@ -159,7 +159,7 @@ class AuthService {
     }
   }
 
-  async changePassword(currentPassword, newPassword) {
+  async changePassword(currentPassword, newPassword, confirmPassword) {
     if (!currentPassword || !newPassword) {
       throw new Error("Current password and new password are required");
     }
@@ -174,6 +174,7 @@ class AuthService {
         {
           currentPassword,
           newPassword,
+          confirmPassword: confirmPassword || newPassword,
         },
       );
 
@@ -335,7 +336,7 @@ class AuthService {
     }
   }
 
-  async resetPassword(token, newPassword) {
+  async resetPassword(token, newPassword, confirmPassword) {
     if (!token || !newPassword) {
       throw new Error("Token and new password are required");
     }
@@ -347,7 +348,7 @@ class AuthService {
     try {
       const response = await apiClient.post(
         `${API_CONFIG.ENDPOINTS.AUTH}/reset-password`,
-        { token, newPassword },
+        { token, newPassword, confirmPassword: confirmPassword || newPassword },
       );
 
       return response;

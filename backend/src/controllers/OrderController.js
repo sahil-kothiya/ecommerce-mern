@@ -85,8 +85,9 @@ const resolveOrderItemPricing = (product, variantId = null) => {
 
 export class OrderController extends BaseController {
   constructor() {
-    super();
-    this.orderService = new OrderService();
+    const orderService = new OrderService();
+    super(orderService);
+    this.orderService = orderService;
   }
 
   async store(req, res, next) {

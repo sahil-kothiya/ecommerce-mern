@@ -94,21 +94,6 @@ const setupEventListeners = () => {
   connection.on("reconnected", () => {
     logger.info("MongoDB reconnected successfully");
   });
-
-  process.on("SIGINT", async () => {
-    await gracefulShutdown("SIGINT");
-  });
-
-  process.on("SIGTERM", async () => {
-    await gracefulShutdown("SIGTERM");
-  });
-
-  process.on("unhandledRejection", (err) => {
-    logger.error("🚨 Unhandled Promise Rejection:", err);
-    if (config.nodeEnv === "production") {
-      gracefulShutdown("unhandledRejection");
-    }
-  });
 };
 
 const setupSlowQueryMonitoring = (connection) => {

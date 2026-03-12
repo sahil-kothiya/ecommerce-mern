@@ -61,7 +61,7 @@ const ResetPasswordPage = () => {
         setIsLoading(true);
 
         try {
-            await authService.resetPassword(data.token.trim(), data.newPassword.trim());
+            await authService.resetPassword(data.token.trim(), data.newPassword.trim(), data.confirmPassword.trim());
             setIsCompleted(true);
             toast.success('Password reset successfully. You can now sign in.');
         } catch (err) {

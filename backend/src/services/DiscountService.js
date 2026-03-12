@@ -325,7 +325,8 @@ export class DiscountService extends BaseService {
     if (search) {
       const trimmed = String(search).trim();
       if (trimmed) {
-        query.title = { $regex: trimmed, $options: "i" };
+        const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        query.title = { $regex: escaped, $options: "i" };
       }
     }
 
