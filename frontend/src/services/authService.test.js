@@ -324,6 +324,7 @@ describe("authService", () => {
         {
           currentPassword: "OldPass123!",
           newPassword: "NewPass123!",
+          confirmPassword: "NewPass123!",
         },
       );
     });
@@ -417,7 +418,11 @@ describe("authService", () => {
 
       expect(apiClient.post).toHaveBeenCalledWith(
         expect.stringContaining("reset-password"),
-        { token: "reset-token-abc", newPassword: "NewPass123!" },
+        {
+          token: "reset-token-abc",
+          newPassword: "NewPass123!",
+          confirmPassword: "NewPass123!",
+        },
       );
     });
 
