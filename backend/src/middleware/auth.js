@@ -1,69 +1,55 @@
 import jwt from "jsonwebtoken";
 import { config } from "../config/index.js";
 import { User } from "../models/User.js";
-import { AppError } from "./errorHandler.js";
+import { AppError } from "../utils/AppError.js";
 import { logger } from "../utils/logger.js";
 
 const extractToken = (req) => {
-  if (req.cookies?.accessToken) {
-    return req.cookies.accessToken;
-  }
-
+  if (req.cookies?.accessToken) return req.cookies.accessToken;
   const authHeader = req.headers?.authorization;
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    return authHeader.slice(7);
-  }
-
+  if (authHeader?.startsWith("Bearer ")) return authHeader.slice(7);
   return null;
 };
 
 export const protect = async (req, res, next) => {
   try {
     const token = extractToken(req);
-
-    if (!token) {
+    if (!token)
       return next(new AppError("Not authorized to access this route", 401));
+
+    const decoded = jwt.verify(token, config.jwt.secret, {
+      algorithms: ["HS256"],
+    });
+
+    if (decoded.type && decoded.type !== "access") {
+      return next(new AppError("Invalid token type", 401));
     }
 
-    const decoded = jwt.verify(token, config.jwt.secret);
     const userId = decoded.userId || decoded.id;
-
     const user = await User.findById(userId).select("name email role status");
 
-    if (!user) {
-      return next(new AppError("User no longer exists", 401));
-    }
-
-    if (user.status !== "active") {
+    if (!user) return next(new AppError("User no longer exists", 401));
+    if (user.status !== "active")
       return next(new AppError("Your account has been deactivated", 401));
-    }
 
     req.user = user;
     return next();
   } catch (error) {
-    if (error.name === "TokenExpiredError") {
+    if (error.name === "TokenExpiredError")
       return next(new AppError("Token expired", 401));
-    }
-
-    if (error.name === "JsonWebTokenError") {
+    if (error.name === "JsonWebTokenError")
       return next(new AppError("Invalid token", 401));
-    }
-
     logger.error(`Auth middleware error: ${error.message}`);
     return next(error);
   }
 };
 
-export const authorize = (...roles) => {
-  return (req, res, next) => {
-    if (!req.user) {
+export const authorize =
+  (...roles) =>
+  (req, res, next) => {
+    if (!req.user)
       return next(new AppError("Not authorized to access this route", 401));
-    }
-
-    if (req.user.role === "admin") {
-      return next();
-    }
-
+    if (req.user.role === "admin") return next();
     if (!roles.includes(req.user.role)) {
       return next(
         new AppError(
@@ -72,33 +58,25 @@ export const authorize = (...roles) => {
         ),
       );
     }
-
     return next();
   };
-};
 
-export const authorizeOwner = (resourceModel, resourceIdParam = "id") => {
-  return async (req, res, next) => {
+export const authorizeOwner =
+  (resourceModel, resourceIdParam = "id") =>
+  async (req, res, next) => {
     try {
-      if (!req.user) {
+      if (!req.user)
         return next(new AppError("Not authorized to access this route", 401));
-      }
-
-      if (req.user.role === "admin") {
-        return next();
-      }
+      if (req.user.role === "admin") return next();
 
       const resourceId = req.params[resourceIdParam];
-      if (!resourceId) {
+      if (!resourceId)
         return next(new AppError("Resource ID is required", 400));
-      }
 
       const resource = await resourceModel
         .findById(resourceId)
         .select("user userId owner");
-      if (!resource) {
-        return next(new AppError("Resource not found", 404));
-      }
+      if (!resource) return next(new AppError("Resource not found", 404));
 
       const ownerId =
         resource.user?._id ||
@@ -119,26 +97,21 @@ export const authorizeOwner = (resourceModel, resourceIdParam = "id") => {
       return next(error);
     }
   };
-};
 
 export const optionalAuth = async (req, res, next) => {
   try {
     const token = extractToken(req);
-
-    if (!token) {
-      return next();
-    }
+    if (!token) return next();
 
     try {
-      const decoded = jwt.verify(token, config.jwt.secret);
+      const decoded = jwt.verify(token, config.jwt.secret, {
+        algorithms: ["HS256"],
+      });
       const userId = decoded.userId || decoded.id;
       const user = await User.findById(userId).select("name email role status");
-
-      if (user && user.status === "active") {
-        req.user = user;
-      }
-    } catch (_err) {
-      // token invalid or expired — proceed without user (optional auth)
+      if (user && user.status === "active") req.user = user;
+    } catch {
+      // optional — proceed unauthenticated on any jwt error
     }
 
     return next();

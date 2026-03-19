@@ -1,8 +1,9 @@
 import { Coupon } from "../models/Coupon.js";
 import { BaseService } from "../core/BaseService.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from "../utils/AppError.js";
 import mongoose from "mongoose";
 import { logger } from "../utils/logger.js";
+import { CouponRepository } from "../repositories/index.js";
 
 function parseNum(value, fallback = null) {
   if (value === undefined || value === null || value === "") return fallback;
@@ -24,7 +25,8 @@ const SYNC_INTERVAL_MS = 60_000;
 
 export class CouponService extends BaseService {
   constructor() {
-    super(Coupon);
+    super();
+    this.repository = new CouponRepository();
     this._lastSyncTime = 0;
   }
 
@@ -50,7 +52,7 @@ export class CouponService extends BaseService {
     this._lastSyncTime = now;
 
     try {
-      const result = await this.model.updateMany(
+      const result = await this.repository.model.updateMany(
         {
           status: "active",
           $or: [
@@ -224,7 +226,7 @@ export class CouponService extends BaseService {
         .skip(skip)
         .limit(limit)
         .lean(),
-      this.model.countDocuments(query),
+      this.repository.model.countDocuments(query),
     ]);
     return {
       coupons: coupons.map((c) => this.normalizeCoupon(c)),
@@ -236,7 +238,7 @@ export class CouponService extends BaseService {
     await this.syncExpired();
     if (!mongoose.Types.ObjectId.isValid(id))
       throw new AppError("Invalid coupon ID", 400);
-    const coupon = await this.model.findById(id).lean();
+    const coupon = await this.repository.model.findById(id).lean();
     if (!coupon) throw new AppError("Coupon not found", 404);
     return this.normalizeCoupon(coupon);
   }
@@ -245,14 +247,14 @@ export class CouponService extends BaseService {
     const payload = this.buildPayload(body);
     const errors = this.validatePayload(payload, false);
     if (errors.length) throw new AppError("Validation failed", 422, errors);
-    const created = await this.model.create(payload);
+    const created = await this.repository.model.create(payload);
     return this.normalizeCoupon(created.toObject());
   }
 
   async updateCoupon(id, body) {
     if (!mongoose.Types.ObjectId.isValid(id))
       throw new AppError("Invalid coupon ID", 400);
-    const coupon = await this.model.findById(id);
+    const coupon = await this.repository.model.findById(id);
     if (!coupon) throw new AppError("Coupon not found", 404);
 
     const payload = this.buildPayload(body, coupon);
@@ -267,7 +269,7 @@ export class CouponService extends BaseService {
   async deleteCoupon(id) {
     if (!mongoose.Types.ObjectId.isValid(id))
       throw new AppError("Invalid coupon ID", 400);
-    const coupon = await this.model.findById(id);
+    const coupon = await this.repository.model.findById(id);
     if (!coupon) throw new AppError("Coupon not found", 404);
     await coupon.deleteOne();
   }
@@ -282,7 +284,9 @@ export class CouponService extends BaseService {
         { field: "code", message: "Coupon code is required" },
       ]);
 
-    const coupon = await this.model.findOne({ code: rawCode }).lean();
+    const coupon = await this.repository.model
+      .findOne({ code: rawCode })
+      .lean();
     if (!coupon)
       throw new AppError("Invalid coupon code", 400, [
         { field: "code", message: "Invalid coupon code" },

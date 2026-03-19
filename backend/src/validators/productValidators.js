@@ -25,6 +25,7 @@ export const createProductValidator = [
     .withMessage("Description cannot exceed 5000 characters"),
 
   body("basePrice")
+    .optional({ values: "falsy" })
     .isFloat({ min: 0 })
     .withMessage("Base price must be a positive number"),
 
@@ -53,13 +54,6 @@ export const createProductValidator = [
     .optional()
     .isIn(["draft", "active", "inactive"])
     .withMessage("Invalid status"),
-
-  body("images").optional().isArray().withMessage("Images must be an array"),
-
-  body("variants")
-    .optional()
-    .isArray()
-    .withMessage("Variants must be an array"),
 ];
 
 export const updateProductValidator = [

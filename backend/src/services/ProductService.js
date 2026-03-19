@@ -1,10 +1,12 @@
-import { Product } from "../models/Product.js";
-import { Category } from "../models/Category.js";
-import { Brand } from "../models/Brand.js";
+import {
+  ProductRepository,
+  CategoryRepository,
+  BrandRepository,
+} from "../repositories/index.js";
 import { BaseService } from "../core/BaseService.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from "../utils/AppError.js";
 import { logger } from "../utils/logger.js";
-import { generateUniqueSlug, parseBoolean } from "../utils/shared.js";
+import { parseBoolean } from "../utils/shared.js";
 import {
   getCachedResponse,
   setCachedResponse,
@@ -66,20 +68,27 @@ function parseSort(sort = "-createdAt") {
     : { createdAt: -1 };
 }
 
+function parseBool(v) {
+  if (v === undefined) return undefined;
+  if (v === true || v === "true" || v === 1 || v === "1") return true;
+  if (v === false || v === "false" || v === 0 || v === "0") return false;
+  return undefined;
+}
+
 export class ProductService extends BaseService {
-  constructor() {
-    super(Product);
+  constructor(
+    productRepository = new ProductRepository(),
+    categoryRepository = new CategoryRepository(),
+    brandRepository = new BrandRepository(),
+  ) {
+    super();
+    this.repository = productRepository;
+    this.categoryRepository = categoryRepository;
+    this.brandRepository = brandRepository;
   }
 
-  async listProducts(options = {}, cacheKey = null) {
-    if (cacheKey) {
-      const cached = getCachedResponse(cacheKey);
-      if (cached) return { ...cached, cacheHit: true };
-    }
-
+  buildProductFilter(options = {}) {
     const {
-      page = 1,
-      limit = 20,
       search,
       category,
       categoryId,
@@ -91,81 +100,104 @@ export class ProductService extends BaseService {
       isFeatured,
       status,
       hasVariants,
-      includeCount = true,
-      sort = "-createdAt",
     } = options;
 
-    const safePage = Math.max(1, Number(page) || 1);
-    const safeLimit = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(limit) || 20));
-    const skip = (safePage - 1) * safeLimit;
+    const filter = {};
 
-    const baseQuery = {};
     if (search) {
       const escaped = String(search)
         .trim()
         .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      baseQuery.$or = [
+      filter.$or = [
         { title: { $regex: escaped, $options: "i" } },
         { "brand.title": { $regex: escaped, $options: "i" } },
         { tags: { $regex: escaped, $options: "i" } },
         { summary: { $regex: escaped, $options: "i" } },
       ];
     }
+
     if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
-      baseQuery["category.id"] = new mongoose.Types.ObjectId(categoryId);
+      filter["category.id"] = new mongoose.Types.ObjectId(categoryId);
     } else if (category && category !== "all") {
-      baseQuery["category.slug"] = String(category).trim();
+      filter["category.slug"] = String(category).trim();
     }
+
     if (brandId && mongoose.Types.ObjectId.isValid(brandId)) {
-      baseQuery["brand.id"] = new mongoose.Types.ObjectId(brandId);
+      filter["brand.id"] = new mongoose.Types.ObjectId(brandId);
     } else if (brand && brand !== "all") {
-      baseQuery["brand.slug"] = String(brand).trim();
+      filter["brand.slug"] = String(brand).trim();
     }
+
     if (minPrice || maxPrice) {
-      baseQuery.basePrice = {};
+      filter.basePrice = {};
       const pMin = Number.parseFloat(minPrice);
       const pMax = Number.parseFloat(maxPrice);
-      if (Number.isFinite(pMin)) baseQuery.basePrice.$gte = pMin;
-      if (Number.isFinite(pMax)) baseQuery.basePrice.$lte = pMax;
-      if (!Object.keys(baseQuery.basePrice).length) delete baseQuery.basePrice;
+      if (Number.isFinite(pMin)) filter.basePrice.$gte = pMin;
+      if (Number.isFinite(pMax)) filter.basePrice.$lte = pMax;
+      if (!Object.keys(filter.basePrice).length) delete filter.basePrice;
     }
-    if (condition) baseQuery.condition = condition;
+
+    if (condition) filter.condition = condition;
     if (isFeatured !== undefined)
-      baseQuery.isFeatured = isFeatured === "true" || isFeatured === true;
+      filter.isFeatured = parseBool(isFeatured) ?? false;
+    if (status && status !== "all") filter.status = status;
 
-    const query = { ...baseQuery };
-    if (status && status !== "all") query.status = status;
     if (hasVariants === "true" || hasVariants === true)
-      query.hasVariants = true;
+      filter.hasVariants = true;
     else if (hasVariants === "false" || hasVariants === false)
-      query.hasVariants = false;
+      filter.hasVariants = false;
 
-    const [products, totalCount, filterCounts] = await Promise.all([
-      this.model
-        .find(query)
-        .select(LISTING_SELECT)
-        .sort(parseSort(sort))
-        .skip(skip)
-        .limit(safeLimit)
-        .lean(),
-      includeCount ? this.model.countDocuments(query) : Promise.resolve(null),
-      Promise.all([
-        this.model.countDocuments(baseQuery),
-        this.model.countDocuments({ ...baseQuery, status: "active" }),
-        this.model.countDocuments({ ...baseQuery, status: "inactive" }),
-        this.model.countDocuments({ ...baseQuery, hasVariants: true }),
-        this.model.countDocuments({ ...baseQuery, hasVariants: false }),
+    return filter;
+  }
+
+  async listProducts(options = {}, cacheKey = null) {
+    if (cacheKey) {
+      const cached = getCachedResponse(cacheKey);
+      if (cached) return { ...cached, cacheHit: true };
+    }
+
+    const {
+      page = 1,
+      limit = 20,
+      sort = "-createdAt",
+      includeCount = true,
+    } = options;
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeLimit = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(limit) || 20));
+    const skip = (safePage - 1) * safeLimit;
+
+    const filter = this.buildProductFilter(options);
+    const baseQuery = { ...filter };
+    delete baseQuery.status;
+    delete baseQuery.hasVariants;
+
+    const [paginatedProducts, totalCount, filterCounts] = await Promise.all([
+      this.repository.find(filter, {
+        select: LISTING_SELECT,
+        sort: parseSort(sort),
+        skip,
+        limit: safeLimit,
+      }),
+      includeCount ? this.repository.count(filter) : Promise.resolve(null),
+      this.repository.countMultiple([
+        baseQuery,
+        { ...baseQuery, status: "active" },
+        { ...baseQuery, status: "inactive" },
+        { ...baseQuery, hasVariants: true },
+        { ...baseQuery, hasVariants: false },
       ]),
     ]);
 
     const total =
       typeof totalCount === "number"
         ? totalCount
-        : skip + products.length + (products.length === safeLimit ? 1 : 0);
+        : skip +
+          paginatedProducts.length +
+          (paginatedProducts.length === safeLimit ? 1 : 0);
     const pages = Math.ceil(total / safeLimit);
 
     const payload = {
-      products,
+      products: paginatedProducts,
       pagination: {
         page: safePage,
         limit: safeLimit,
@@ -196,55 +228,32 @@ export class ProductService extends BaseService {
     const {
       page = 1,
       limit = 20,
-      search,
-      categoryId,
-      brandId,
-      minPrice,
-      maxPrice,
-      condition,
-      isFeatured,
-      status = "active",
       sort = "-createdAt",
+      status = "active",
     } = options;
-
-    const filter = { status };
-    if (search) filter.$text = { $search: search };
-    if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
-      filter["category.id"] = new mongoose.Types.ObjectId(categoryId);
-    }
-    if (brandId && mongoose.Types.ObjectId.isValid(brandId)) {
-      filter["brand.id"] = new mongoose.Types.ObjectId(brandId);
-    }
-    if (minPrice || maxPrice) {
-      filter.basePrice = {};
-      if (minPrice) filter.basePrice.$gte = parseFloat(minPrice);
-      if (maxPrice) filter.basePrice.$lte = parseFloat(maxPrice);
-    }
-    if (condition) filter.condition = condition;
-    if (isFeatured !== undefined)
-      filter.isFeatured = isFeatured === "true" || isFeatured === true;
-
+    const filter = {
+      status,
+      ...this.buildProductFilter({ ...options, status }),
+    };
     const skip = (page - 1) * limit;
+
     const isFiltered =
-      search ||
-      categoryId ||
-      brandId ||
-      minPrice ||
-      maxPrice ||
-      condition ||
-      isFeatured !== undefined;
+      options.search ||
+      options.categoryId ||
+      options.brandId ||
+      options.minPrice ||
+      options.maxPrice ||
+      options.condition ||
+      options.isFeatured !== undefined;
 
     const [products, total] = await Promise.all([
-      this.model
-        .find(filter)
-        .select(LISTING_SELECT)
-        .sort(sort)
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      isFiltered
-        ? this.model.countDocuments(filter)
-        : this.model.estimatedDocumentCount(),
+      this.repository.find(filter, {
+        select: LISTING_SELECT,
+        sort: parseSort(sort),
+        skip,
+        limit,
+      }),
+      this.repository.count(filter),
     ]);
 
     return {
@@ -254,38 +263,21 @@ export class ProductService extends BaseService {
   }
 
   async getFeaturedProducts(limit = 10) {
-    return this.model
-      .find({ status: "active", isFeatured: true })
-      .select(LISTING_SELECT)
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean();
+    return this.repository.findFeatured(limit);
   }
 
   async searchProducts(query, filters = {}, page = 1, limit = 20) {
     if (!query) throw new AppError("Search query is required", 400);
     const safeLimit = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
     const safePage = Math.max(1, parseInt(page, 10) || 1);
-    const skip = (safePage - 1) * safeLimit;
-
-    const searchFilter = {
-      $text: { $search: query },
-      status: "active",
-      ...filters,
-    };
-    const [products, total] = await Promise.all([
-      this.model
-        .find(searchFilter, { score: { $meta: "textScore" } })
-        .select(LISTING_SELECT)
-        .sort({ score: { $meta: "textScore" } })
-        .skip(skip)
-        .limit(safeLimit)
-        .lean(),
-      this.model.countDocuments(searchFilter),
-    ]);
-
+    const { items, total } = await this.repository.fullTextSearch(
+      query,
+      { status: "active", ...filters },
+      safePage,
+      safeLimit,
+    );
     return {
-      items: products,
+      items,
       pagination: {
         page: safePage,
         limit: safeLimit,
@@ -296,40 +288,38 @@ export class ProductService extends BaseService {
   }
 
   async getProductBySlugOrId(identifier, filterActive = true) {
-    let product;
-    if (mongoose.Types.ObjectId.isValid(identifier)) {
-      const query = filterActive
-        ? { _id: identifier, status: "active" }
-        : { _id: identifier };
-      product = await this.model.findOne(query).lean();
-    }
-    if (!product) {
-      const query = filterActive
-        ? { slug: identifier, status: "active" }
-        : { slug: identifier };
-      product = await this.model.findOne(query).lean();
-    }
-    if (!product) {
-      const skuQuery = {
-        $or: [{ baseSku: identifier }, { "variants.sku": identifier }],
-      };
-      if (filterActive) skuQuery.status = "active";
-      product = await this.model.findOne(skuQuery).lean();
-    }
+    const product = await this.repository.findBySlugOrId(
+      identifier,
+      filterActive,
+    );
     if (!product) throw new AppError("Product not found", 404);
-
-    this.model
-      .findByIdAndUpdate(product._id, { $inc: { viewCount: 1 } })
-      .exec();
+    this.repository.incrementViewCount(product._id);
     return product;
   }
 
   async getProductAdmin(id) {
     if (!mongoose.Types.ObjectId.isValid(id))
       throw new AppError("Invalid product ID", 400);
-    const product = await this.model.findById(id).lean();
-    if (!product) throw new AppError("Product not found", 404);
-    return product;
+    return this.repository.findByIdOrFail(id);
+  }
+
+  async resolveCategory(categoryId) {
+    if (!categoryId) return null;
+    const cat = await this.categoryRepository.findById(categoryId);
+    if (!cat) return null;
+    return {
+      id: cat._id,
+      title: cat.title,
+      slug: cat.slug,
+      path: cat.pathNames || cat.title,
+    };
+  }
+
+  async resolveBrand(brandId) {
+    if (!brandId) return null;
+    const brand = await this.brandRepository.findById(brandId);
+    if (!brand) return null;
+    return { id: brand._id, title: brand.title, slug: brand.slug };
   }
 
   async extractImages(files = []) {
@@ -347,6 +337,16 @@ export class ProductService extends BaseService {
       isPrimary: index === 0,
       sortOrder: index,
     }));
+  }
+
+  parseJsonField(value) {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+    try {
+      return JSON.parse(value);
+    } catch {
+      return [];
+    }
   }
 
   async mergeVariantImages(files = [], variants = []) {
@@ -371,35 +371,6 @@ export class ProductService extends BaseService {
       }
     }
     return variants;
-  }
-
-  parseJsonField(value) {
-    if (Array.isArray(value)) return value;
-    if (!value) return [];
-    try {
-      return JSON.parse(value);
-    } catch {
-      return [];
-    }
-  }
-
-  async resolveCategory(categoryId) {
-    if (!categoryId) return null;
-    const cat = await Category.findById(categoryId).lean();
-    if (!cat) return null;
-    return {
-      id: cat._id,
-      title: cat.title,
-      slug: cat.slug,
-      path: cat.pathNames || cat.title,
-    };
-  }
-
-  async resolveBrand(brandId) {
-    if (!brandId) return null;
-    const brand = await Brand.findById(brandId).lean();
-    if (!brand) return null;
-    return { id: brand._id, title: brand.title, slug: brand.slug };
   }
 
   async storeProduct(body, files = []) {
@@ -430,8 +401,6 @@ export class ProductService extends BaseService {
       files,
       this.parseJsonField(variants),
     );
-    const parsedSize = this.parseJsonField(size);
-    const parsedTags = this.parseJsonField(tags);
     const images = await this.extractImages(files);
 
     if (isVariant && (!parsedVariants || parsedVariants.length === 0)) {
@@ -452,13 +421,13 @@ export class ProductService extends BaseService {
       finalBaseSku = `PRD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     }
 
-    const slug = await generateUniqueSlug(Product, title);
+    const slug = await this.repository.generateUniqueSlug(title);
     const [categoryInfo, brandInfo] = await Promise.all([
       this.resolveCategory(categoryId),
       this.resolveBrand(brandId),
     ]);
 
-    const product = new Product({
+    const product = await this.repository.createProduct({
       title,
       slug,
       summary: summary || title,
@@ -471,13 +440,13 @@ export class ProductService extends BaseService {
       baseDiscount: isVariant ? 0 : parseFloat(baseDiscount) || 0,
       baseStock: isVariant ? null : parseInt(baseStock) || 0,
       baseSku: isVariant ? undefined : finalBaseSku,
-      size: parsedSize,
+      size: this.parseJsonField(size),
       variants: parsedVariants,
       images,
       category: categoryInfo,
       childCategory: childCategoryId ? { id: childCategoryId } : null,
       brand: brandInfo,
-      tags: parsedTags,
+      tags: this.parseJsonField(tags),
       ratings: {
         average: 0,
         count: 0,
@@ -485,13 +454,12 @@ export class ProductService extends BaseService {
       },
     });
 
-    await product.save();
     invalidateCacheByPrefix("products:index:");
     return product;
   }
 
   async updateFullProduct(id, body, files = []) {
-    const product = await this.model.findById(id);
+    const product = await this.repository.findById(id, { lean: false });
     if (!product) throw new AppError("Product not found", 404);
 
     const {
@@ -532,8 +500,6 @@ export class ProductService extends BaseService {
       files,
       this.parseJsonField(variants),
     );
-    const parsedSize = this.parseJsonField(size);
-    const parsedTags = this.parseJsonField(tags);
 
     if (files.length > 0) {
       const newImageFiles = files.filter((f) => f.fieldname === "images");
@@ -552,13 +518,6 @@ export class ProductService extends BaseService {
       }));
       images = [...images, ...newImages];
     }
-
-    const parseBool = (v) => {
-      if (v === undefined) return undefined;
-      if (v === true || v === "true" || v === 1 || v === "1") return true;
-      if (v === false || v === "false" || v === 0 || v === "0") return false;
-      return undefined;
-    };
 
     const resolvedHasVariants = parseBool(hasVariants) ?? product.hasVariants;
 
@@ -600,16 +559,19 @@ export class ProductService extends BaseService {
       if (baseSku !== undefined) product.baseSku = baseSku;
     }
 
-    product.size = parsedSize;
+    product.size = this.parseJsonField(size);
     product.variants = parsedVariants;
     product.images = images;
-    product.tags = parsedTags;
+    product.tags = this.parseJsonField(tags);
     if (childCategoryId) product.childCategory = { id: childCategoryId };
 
     await product.save();
 
     if (resolvedHasVariants) {
-      await Product.updateOne({ _id: product._id }, { $unset: { baseSku: 1 } });
+      await this.repository.updateOne(
+        { _id: product._id },
+        { $unset: { baseSku: 1 } },
+      );
       product.baseSku = undefined;
     }
 
@@ -617,97 +579,9 @@ export class ProductService extends BaseService {
     return product;
   }
 
-  async appendImages(productId, files = [], variantIndexMap = {}) {
-    const product = await this.model.findById(productId);
-    if (!product) throw new AppError("Product not found", 404);
-
-    const productImgFiles = files.filter((f) => f.fieldname === "images");
-    if (productImgFiles.length) {
-      const currentCount = product.images?.length || 0;
-      const processedImages = await imageProcessingService.processAndSaveMany(
-        productImgFiles,
-        "product",
-        "products",
-        "product-",
-      );
-      const newImages = processedImages.map((r, i) => ({
-        path: r.path,
-        isPrimary: currentCount === 0 && i === 0,
-        sortOrder: currentCount + i,
-      }));
-      product.images = [...(product.images || []), ...newImages];
-    }
-
-    const variantImgFiles = files.filter((f) =>
-      /^variantImages_\d+$/.test(f.fieldname),
-    );
-    for (const file of variantImgFiles) {
-      const idx = parseInt(file.fieldname.split("_")[1], 10);
-      if (product.variants?.[idx]) {
-        if (!product.variants[idx].images) product.variants[idx].images = [];
-        const result = await imageProcessingService.processAndSave(
-          file,
-          "product",
-          "products",
-          "variant-",
-        );
-        product.variants[idx].images.push({
-          path: result.path,
-          isPrimary: product.variants[idx].images.length === 0,
-          sortOrder: product.variants[idx].images.length,
-        });
-      }
-    }
-
-    await product.save();
-    return product;
-  }
-
   async deleteProduct(id) {
-    const product = await this.model.findById(id);
-    if (!product) throw new AppError("Product not found", 404);
-    await product.deleteOne();
+    await this.repository.deleteByIdOrFail(id);
     invalidateCacheByPrefix("products:index:");
-  }
-
-  async createProduct(productData) {
-    if (!productData.slug && productData.title) {
-      productData.slug = await generateUniqueSlug(Product, productData.title);
-    }
-    if (productData.categoryId) {
-      const info = await this.resolveCategory(productData.categoryId);
-      if (!info) throw new AppError("Category not found", 404);
-      productData.category = info;
-    }
-    if (productData.brandId) {
-      const info = await this.resolveBrand(productData.brandId);
-      if (!info) throw new AppError("Brand not found", 404);
-      productData.brand = info;
-    }
-    const product = await this.create(productData);
-    logger.info("Product created successfully:", product._id);
-    return product;
-  }
-
-  async updateProduct(id, updateData) {
-    if (updateData.title && !updateData.slug) {
-      updateData.slug = await generateUniqueSlug(Product, updateData.title, id);
-    }
-    if (updateData.categoryId) {
-      const info = await this.resolveCategory(updateData.categoryId);
-      if (!info) throw new AppError("Category not found", 404);
-      updateData.category = info;
-      delete updateData.categoryId;
-    }
-    if (updateData.brandId) {
-      const info = await this.resolveBrand(updateData.brandId);
-      if (!info) throw new AppError("Brand not found", 404);
-      updateData.brand = info;
-      delete updateData.brandId;
-    }
-    const product = await this.updateOrFail(id, updateData);
-    logger.info("Product updated successfully:", id);
-    return product;
   }
 
   async getProductsByCategory(categoryId, options = {}) {
@@ -723,41 +597,26 @@ export class ProductService extends BaseService {
   }
 
   async getRelatedProducts(productId, limit = 6) {
-    const product = await this.findByIdOrFail(productId);
-    const query = { _id: { $ne: productId }, status: "active", $or: [] };
-    if (product.category?.id)
-      query.$or.push({ "category.id": product.category.id });
-    if (product.brand?.id) query.$or.push({ "brand.id": product.brand.id });
-    if (!query.$or.length && product.tags?.length) {
-      query.tags = { $in: product.tags };
-      delete query.$or;
-    }
-    if (query.$or && !query.$or.length) delete query.$or;
-
-    return this.model
-      .find(query)
-      .select(LISTING_SELECT)
-      .sort({ salesCount: -1, "ratings.average": -1 })
-      .limit(limit)
-      .lean();
+    const product = await this.repository.findByIdOrFail(productId);
+    return this.repository.findRelated(
+      productId,
+      product.category?.id,
+      product.brand?.id,
+      limit,
+    );
   }
 
   async getLowStockProducts(threshold = 10, limit = 50) {
-    return this.model
-      .find({ status: "active", baseStock: { $lte: threshold, $gt: 0 } })
-      .sort({ baseStock: 1 })
-      .limit(limit)
-      .select("title baseStock baseSku basePrice")
-      .lean();
+    return this.repository.findLowStock(threshold, limit);
   }
 
   async updateStock(id, quantity) {
-    const product = await this.model.findByIdAndUpdate(
-      id,
-      { $inc: { baseStock: quantity } },
-      { new: true, runValidators: true },
-    );
-    if (!product) throw new AppError("Product not found", 404);
+    const product = await this.repository.updateStock(id, quantity);
+    if (!product)
+      throw new AppError(
+        quantity < 0 ? "Insufficient stock" : "Product not found",
+        quantity < 0 ? 400 : 404,
+      );
     logger.info(`Product stock updated: ${id}, quantity: ${quantity}`);
     return product;
   }

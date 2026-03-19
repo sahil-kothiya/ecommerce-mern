@@ -3,7 +3,7 @@ import { BrandService } from "../services/BrandService.js";
 import { Brand } from "../models/Brand.js";
 import { Product } from "../models/Product.js";
 import { imageProcessingService } from "../services/ImageProcessingService.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from "../utils/AppError.js";
 import { logger } from "../utils/logger.js";
 import mongoose from "mongoose";
 
@@ -31,7 +31,7 @@ export class BrandController extends BaseController {
       ];
     }
 
-    const brands = await this.service.model
+    const brands = await this.service.repository.model
       .find(query)
       .select("title slug logo banners status description")
       .skip(skip)
@@ -39,7 +39,7 @@ export class BrandController extends BaseController {
       .sort({ title: 1 })
       .lean();
 
-    const total = await this.service.model.countDocuments(query);
+    const total = await this.service.repository.model.countDocuments(query);
 
     this.sendPaginatedResponse(res, brands, {
       page,

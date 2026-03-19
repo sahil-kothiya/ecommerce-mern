@@ -1,7 +1,7 @@
 import { BaseController } from "../core/BaseController.js";
 import { WishlistService } from "../services/WishlistService.js";
 import mongoose from "mongoose";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from '../utils/AppError.js';
 
 class WishlistController extends BaseController {
   constructor() {

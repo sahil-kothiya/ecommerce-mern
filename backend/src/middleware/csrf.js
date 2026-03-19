@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { config } from "../config/index.js";
-import { AppError } from "./errorHandler.js";
+import { AppError } from "../utils/AppError.js";
+import { createSuccessEnvelope } from "../utils/responseEnvelope.js";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const CSRF_COOKIE_NAME = "csrfToken";
@@ -9,7 +10,9 @@ const CSRF_HEADER_NAME = "x-csrf-token";
 const isProduction = () => config.nodeEnv === "production";
 
 const getCookieOptions = () => {
-  const isCrossOrigin = config.frontendUrl !== config.apiUrl;
+  const isCrossOrigin = config.frontendOrigins.some(
+    (origin) => origin !== config.apiUrl,
+  );
   return {
     httpOnly: false,
     secure: isProduction(),
@@ -59,8 +62,10 @@ export const csrfProtection = (req, res, next) => {
 export const issueCsrfToken = (_req, res) => {
   const csrfToken = createToken();
   res.cookie(CSRF_COOKIE_NAME, csrfToken, getCookieOptions());
-  return res.json({
-    success: true,
-    data: { csrfToken },
-  });
+  return res.json(
+    createSuccessEnvelope({
+      data: { csrfToken },
+      message: "CSRF token issued",
+    }),
+  );
 };

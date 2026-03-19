@@ -70,9 +70,10 @@ const UsersList = () => {
 
             const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.USERS}?${query.toString()}`);
             if (requestId !== requestCounterRef.current) return;
-            const items = data?.data?.users || [];
+            const payload = data?.data?.data || data?.data || {};
+            const items = payload?.users || [];
             setUsers(Array.isArray(items) ? items : []);
-            const apiPagination = data?.data?.pagination || {};
+            const apiPagination = payload?.pagination || {};
             setPagination((prev) => ({
                 ...prev,
                 page: apiPagination.page ?? page,

@@ -25,7 +25,9 @@ const CouponsList = () => {
         try {
             setIsLoading(true);
             const response = await couponService.getCoupons({ limit: 200 });
-            setCoupons(response?.data?.coupons || []);
+            const payload = response?.data?.data ?? response?.data ?? [];
+            const items = Array.isArray(payload) ? payload : payload?.coupons || [];
+            setCoupons(Array.isArray(items) ? items : []);
         } catch (error) {
             notify.error(error, 'Failed to load coupons');
         } finally {

@@ -5,9 +5,10 @@ import { Order } from "../models/Order.js";
 import { Cart } from "../models/Cart.js";
 import { Product } from "../models/Product.js";
 import { Setting } from "../models/Setting.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from '../utils/AppError.js';
 import { logger } from "../utils/logger.js";
 import { calculateCartTotals } from "../utils/pricing.js";
+import { OrderRepository } from '../repositories/index.js';
 
 const ORDER_STATUSES = ["new", "process", "delivered", "cancelled"];
 const PAYMENT_STATUSES = ["paid", "unpaid"];
@@ -33,8 +34,9 @@ const isTransactionUnsupportedError = (err) => {
 };
 
 export class OrderService extends BaseService {
-  constructor() {
-    super(Order);
+  constructor(repository = new OrderRepository()) {
+    super();
+    this.repository = repository;
   }
 
   async enrichOrderItemsWithImages(orders = []) {

@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import apiClient from '../../services/apiClient';
-import { API_CONFIG } from '../../constants';
-import notify from '../../utils/notify';
-import SavingOverlay from '../../components/ui/SavingOverlay';
+import { useAddresses, useAddAddress, useUpdateAddress, useDeleteAddress } from '@/hooks/queries';
+import notify from '@/utils/notify';
+import SavingOverlay from '@/components/ui/SavingOverlay';
 
 const addressSchema = yup.object({
     label: yup.string().default(''),
@@ -28,11 +27,16 @@ const defaultValues = {
 };
 
 const AccountAddresses = () => {
-    const [addresses, setAddresses] = useState([]);
     const [editingId, setEditingId] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
     const [showForm, setShowForm] = useState(false);
+
+    const { data: addresses = [], isLoading } = useAddresses();
+
+    const { mutate: addAddress, isPending: isAdding } = useAddAddress();
+    const { mutate: updateAddress, isPending: isUpdating } = useUpdateAddress();
+    const { mutate: deleteAddress } = useDeleteAddress();
+
+    const isSaving = isAdding || isUpdating;
 
     const { register, handleSubmit, reset, setError, formState: { errors } } = useForm({
         resolver: yupResolver(addressSchema),
@@ -42,77 +46,43 @@ const AccountAddresses = () => {
 
     const fc = (field) => `w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 ${errors[field] ? 'border-red-400 focus:ring-red-100 bg-red-50' : 'border-slate-200 focus:border-primary-400 focus:ring-primary-100'}`;
 
-    useEffect(() => {
-        const load = async () => {
-            try {
-                const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.AUTH}/addresses`);
-                const addresses = data?.data?.addresses ?? data?.addresses ?? [];
-                setAddresses(Array.isArray(addresses) ? addresses : []);
-            } catch {
-                notify.error('Failed to load addresses');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        load();
-    }, []);
-
-    const resetForm = () => {
-        reset(defaultValues);
-        setEditingId(null);
-        setShowForm(false);
-    };
+    const resetForm = () => { reset(defaultValues); setEditingId(null); setShowForm(false); };
 
     const handleEdit = (addr) => {
         reset({
-            label: addr.label || '',
-            firstName: addr.firstName || '',
-            lastName: addr.lastName || '',
-            phone: addr.phone || '',
-            address1: addr.address1 || '',
-            address2: addr.address2 || '',
-            city: addr.city || '',
-            state: addr.state || '',
-            postCode: addr.postCode || '',
-            country: addr.country || '',
-            isDefault: Boolean(addr.isDefault),
+            label: addr.label || '', firstName: addr.firstName || '', lastName: addr.lastName || '',
+            phone: addr.phone || '', address1: addr.address1 || '', address2: addr.address2 || '',
+            city: addr.city || '', state: addr.state || '', postCode: addr.postCode || '',
+            country: addr.country || '', isDefault: Boolean(addr.isDefault),
         });
         setEditingId(addr._id);
         setShowForm(true);
     };
 
-    const onSubmit = async (data) => {
-        try {
-            setIsSaving(true);
-            const result = editingId
-                ? await apiClient.put(`${API_CONFIG.ENDPOINTS.AUTH}/addresses/${editingId}`, data)
-                : await apiClient.post(`${API_CONFIG.ENDPOINTS.AUTH}/addresses`, data);
-            setAddresses(result?.data?.addresses || result?.addresses || []);
-            notify.success(`Address ${editingId ? 'updated' : 'added'} successfully`);
-            resetForm();
-        } catch (err) {
-            const serverErrors = err?.errors || err?.data?.errors;
+    const onSubmit = (data) => {
+        const handleError = (err) => {
+            const serverErrors = err?.response?.data?.errors;
             if (Array.isArray(serverErrors)) {
                 serverErrors.forEach(({ field, message }) => { if (field) setError(field, { message }); });
                 notify.error('Please fix form validation errors');
             } else {
-                notify.error(err.message || 'Failed to save address');
+                notify.error(err.response?.data?.message || err.message || 'Failed to save address');
             }
-        } finally {
-            setIsSaving(false);
+        };
+
+        if (editingId) {
+            updateAddress({ addressId: editingId, ...data }, { onSuccess: resetForm, onError: handleError });
+        } else {
+            addAddress(data, { onSuccess: resetForm, onError: handleError });
         }
     };
 
-    const handleDelete = async (addrId) => {
+    const handleDelete = (addrId) => {
         if (!window.confirm('Remove this address?')) return;
-        try {
-            const data = await apiClient.delete(`${API_CONFIG.ENDPOINTS.AUTH}/addresses/${addrId}`);
-            setAddresses(data?.data?.addresses || data?.addresses || []);
-            if (editingId === addrId) resetForm();
-            notify.success('Address removed');
-        } catch (err) {
-            notify.error(err.message || 'Failed to delete address');
-        }
+        deleteAddress(addrId, {
+            onSuccess: () => { if (editingId === addrId) resetForm(); },
+            onError: (err) => notify.error(err.response?.data?.message || err.message || 'Failed to delete address'),
+        });
     };
 
     if (isLoading) {
@@ -132,16 +102,12 @@ const AccountAddresses = () => {
                     <p className="text-sm text-slate-500">{addresses.length} saved address{addresses.length !== 1 ? 'es' : ''}</p>
                 </div>
                 {!showForm && (
-                    <button
-                        onClick={() => { resetForm(); setShowForm(true); }}
-                        className="rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
-                    >
+                    <button onClick={() => { resetForm(); setShowForm(true); }} className="rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700">
                         + Add New Address
                     </button>
                 )}
             </div>
 
-            {/* Address Form */}
             {showForm && (
                 <form onSubmit={handleSubmit(onSubmit)} noValidate className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-primary-100">
                     <h2 className="mb-4 text-base font-bold text-slate-800">{editingId ? 'Edit Address' : 'New Address'}</h2>
@@ -212,7 +178,6 @@ const AccountAddresses = () => {
                 </form>
             )}
 
-            {/* Address List */}
             {addresses.length === 0 && !showForm ? (
                 <div className="rounded-2xl bg-white py-14 text-center shadow-sm ring-1 ring-slate-100">
                     <svg className="mx-auto mb-4 h-12 w-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /></svg>
@@ -225,12 +190,8 @@ const AccountAddresses = () => {
                         <div key={addr._id} className={`rounded-2xl bg-white p-5 shadow-sm ring-1 transition ${addr.isDefault ? 'ring-primary-300' : 'ring-slate-100'}`}>
                             <div className="mb-3 flex items-start justify-between gap-2">
                                 <div className="flex items-center gap-2">
-                                    {addr.label && (
-                                        <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{addr.label}</span>
-                                    )}
-                                    {addr.isDefault && (
-                                        <span className="rounded-lg bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-700">Default</span>
-                                    )}
+                                    {addr.label && <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{addr.label}</span>}
+                                    {addr.isDefault && <span className="rounded-lg bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-700">Default</span>}
                                 </div>
                                 <div className="flex gap-1.5">
                                     <button onClick={() => handleEdit(addr)} className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100">Edit</button>
@@ -239,12 +200,8 @@ const AccountAddresses = () => {
                             </div>
                             <p className="font-semibold text-slate-800">{[addr.firstName, addr.lastName].filter(Boolean).join(' ')}</p>
                             <p className="mt-0.5 text-sm text-slate-500">{addr.phone}</p>
-                            <p className="mt-1 text-sm text-slate-600">
-                                {[addr.address1, addr.address2].filter(Boolean).join(', ')}
-                            </p>
-                            <p className="text-sm text-slate-600">
-                                {[addr.city, addr.state, addr.postCode].filter(Boolean).join(', ')}
-                            </p>
+                            <p className="mt-1 text-sm text-slate-600">{[addr.address1, addr.address2].filter(Boolean).join(', ')}</p>
+                            <p className="text-sm text-slate-600">{[addr.city, addr.state, addr.postCode].filter(Boolean).join(', ')}</p>
                             <p className="text-sm text-slate-600">{addr.country}</p>
                         </div>
                     ))}

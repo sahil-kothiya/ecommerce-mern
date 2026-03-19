@@ -1,68 +1,16 @@
 import { logger } from "../utils/logger.js";
 import { config } from "../config/index.js";
+import { AppError } from "../utils/AppError.js";
+import { createErrorEnvelope } from "../utils/responseEnvelope.js";
 
-export class AppError extends Error {
-  constructor(message, statusCode, errors = null) {
-    super(message);
-    this.statusCode = statusCode;
-    this.status = `${statusCode}`.startsWith("4") ? "fail" : "error";
-    this.isOperational = true;
-    this.errors = errors;
+export { AppError };
 
-    Error.captureStackTrace(this, this.constructor);
-  }
-}
-
-export class ApiResponse {
-  static success(res, data, statusCode = 200, message = null) {
-    if (typeof statusCode === "string") {
-      message = statusCode;
-      statusCode = 200;
-    }
-    const response = { success: true };
-    if (message) response.message = message;
-    response.data = data;
-    return res.status(statusCode).json(response);
-  }
-
-  static created(res, data, message = "Created successfully") {
-    return ApiResponse.success(res, data, 201, message);
-  }
-
-  static noContent(res) {
-    return res.status(204).send();
-  }
-
-  static paginated(res, items, pagination, message = null) {
-    const { page, limit, total } = pagination;
-    const totalPages = Math.ceil(total / limit);
-    const response = {
-      success: true,
-      ...(message && { message }),
-      data: items,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
-      },
-    };
-    return res.status(200).json(response);
-  }
-}
-
-export const asyncHandler = (fn) => (req, res, next) =>
-  Promise.resolve(fn(req, res, next)).catch(next);
-
-export const notFound = (req, res, next) => {
-  const error = new AppError(`Not found - ${req.originalUrl}`, 404);
-  next(error);
+export const notFound = (req, _res, next) => {
+  next(new AppError(`Not found - ${req.originalUrl}`, 404));
 };
 
 export const errorHandler = (err, req, res, _next) => {
-  let error = { ...err };
+  let error = Object.assign(Object.create(Object.getPrototypeOf(err)), err);
   error.message = err.message;
   error.statusCode = err.statusCode;
 
@@ -72,6 +20,7 @@ export const errorHandler = (err, req, res, _next) => {
     stack: err.stack,
     path: req.originalUrl,
     method: req.method,
+    requestId: req.id,
     userId: req.user?._id || req.user?.id || null,
   });
 
@@ -82,7 +31,7 @@ export const errorHandler = (err, req, res, _next) => {
   if (err.code === 11000) {
     const field = Object.keys(err.keyValue || {})[0] || "field";
     error = new AppError(
-      `Duplicate field value: ${field}. Please use another value`,
+      `Duplicate value for field: ${field}. Please use another value`,
       409,
     );
   }
@@ -105,16 +54,37 @@ export const errorHandler = (err, req, res, _next) => {
     error = new AppError("Token expired. Please log in again", 401);
   }
 
+  if (err.type === "entity.too.large") {
+    error = new AppError("Request payload too large", 413);
+  }
+
   const statusCode = error.statusCode || 500;
   const isProduction = config.nodeEnv === "production";
+  const isOperational = error.isOperational === true;
 
-  res.status(statusCode).json({
-    success: false,
-    message:
-      statusCode >= 500 && isProduction
-        ? "Internal server error"
-        : error.message || "Internal server error",
-    ...(error.errors && { errors: error.errors }),
-    ...(statusCode >= 500 && !isProduction && { stack: err.stack }),
+  const responseMessage =
+    !isOperational && isProduction
+      ? "Internal server error"
+      : error.message || "Internal server error";
+
+  const responseErrors = Array.isArray(error.errors)
+    ? error.errors
+    : error.errors
+      ? [error.errors]
+      : [];
+
+  const envelope = createErrorEnvelope({
+    message: responseMessage,
+    errors: responseErrors,
+    meta: {
+      requestId: req.id || null,
+      statusCode,
+    },
   });
+
+  if (!isProduction && statusCode >= 500) {
+    envelope.meta.stack = err.stack;
+  }
+
+  res.status(statusCode).json(envelope);
 };

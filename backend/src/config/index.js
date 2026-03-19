@@ -88,11 +88,44 @@ const parseTrustProxy = (value, nodeEnv) => {
   return value;
 };
 
-export const config = {
+const parseOrigins = (value, fallback) => {
+  const source = value || fallback;
+  return source
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const assertRequiredEnvInNonLocal = (nodeEnv, envMap) => {
+  const localEnvironments = new Set(["development", "test", "local"]);
+  if (localEnvironments.has(nodeEnv)) {
+    return;
+  }
+
+  const missing = Object.entries(envMap)
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required environment variables: ${missing.join(", ")}`,
+    );
+  }
+};
+
+const resolvedFrontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+const resolvedFrontendOrigins = parseOrigins(
+  process.env.FRONTEND_ORIGINS,
+  resolvedFrontendUrl,
+);
+
+export const config = Object.freeze({
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number.isNaN(parsedPort) ? 5001 : parsedPort,
   apiUrl: process.env.API_URL || "http://localhost:5001",
-  frontendUrl: process.env.FRONTEND_URL || "http://localhost:5173",
+  frontendUrl: resolvedFrontendUrl,
+  frontendOrigins: resolvedFrontendOrigins,
+  apiVersion: process.env.API_VERSION || "v1",
   trustProxy: parseTrustProxy(
     process.env.TRUST_PROXY,
     process.env.NODE_ENV || "development",
@@ -107,11 +140,11 @@ export const config = {
 
   jwt: {
     secret: process.env.JWT_SECRET || "default-secret-change-in-production",
-    expire: process.env.JWT_EXPIRE || "7d",
-    expireMs: parseDurationMs(process.env.JWT_EXPIRE || "7d"),
+    expire: process.env.JWT_EXPIRE || "15m",
+    expireMs: parseDurationMs(process.env.JWT_EXPIRE || "15m"),
     refreshSecret: process.env.JWT_REFRESH_SECRET || "default-refresh-secret",
-    refreshExpire: process.env.JWT_REFRESH_EXPIRE || "30d",
-    refreshExpireMs: parseDurationMs(process.env.JWT_REFRESH_EXPIRE || "30d"),
+    refreshExpire: process.env.JWT_REFRESH_EXPIRE || "7d",
+    refreshExpireMs: parseDurationMs(process.env.JWT_REFRESH_EXPIRE || "7d"),
   },
 
   email: {
@@ -176,6 +209,11 @@ export const config = {
 
   logLevel: process.env.LOG_LEVEL || "info",
 
+  redis: {
+    url: process.env.REDIS_URL || "redis://localhost:6379",
+    ttl: parseInt(process.env.REDIS_DEFAULT_TTL || "3600", 10),
+  },
+
   performance: {
     enableMonitoring: parseBoolean(
       process.env.ENABLE_PERFORMANCE_MONITORING,
@@ -194,7 +232,7 @@ export const config = {
       ? 100
       : parsedLatencyReportEvery,
   },
-};
+});
 
 const validateSecurityConfiguration = () => {
   const localEnvironments = new Set(["development", "test", "local"]);
@@ -233,5 +271,12 @@ const validateSecurityConfiguration = () => {
     );
   }
 };
+
+assertRequiredEnvInNonLocal(config.nodeEnv, {
+  MONGODB_URI: process.env.MONGODB_URI,
+  FRONTEND_URL: process.env.FRONTEND_URL,
+  JWT_SECRET: process.env.JWT_SECRET,
+  JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET,
+});
 
 validateSecurityConfiguration();

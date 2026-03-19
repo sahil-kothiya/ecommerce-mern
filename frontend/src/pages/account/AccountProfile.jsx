@@ -1,12 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import authService from '../../services/authService';
-import apiClient from '../../services/apiClient';
-import { API_CONFIG } from '../../constants';
-import notify from '../../utils/notify';
-import SavingOverlay from '../../components/ui/SavingOverlay';
+import { useCurrentUser, useUpdateProfile, useChangePassword } from '@/hooks/queries';
+import notify from '@/utils/notify';
+import SavingOverlay from '@/components/ui/SavingOverlay';
 
 const profileSchema = yup.object({
     name: yup.string().trim().required('Full name is required.').min(2, 'Name must be at least 2 characters.'),
@@ -37,10 +35,13 @@ const inputClass = (hasError) =>
     }`;
 
 const AccountProfile = () => {
-    const [isLoadingProfile, setIsLoadingProfile] = useState(true);
-    const [isSavingProfile, setIsSavingProfile] = useState(false);
-    const [isSavingPassword, setIsSavingPassword] = useState(false);
     const [activeSection, setActiveSection] = useState('info');
+
+    const { data: userData, isLoading: isLoadingProfile } = useCurrentUser();
+    const user = userData?.user || userData || null;
+
+    const { mutate: saveProfile, isPending: isSavingProfile } = useUpdateProfile();
+    const { mutate: savePassword, isPending: isSavingPassword } = useChangePassword();
 
     const {
         register: regProfile,
@@ -59,70 +60,42 @@ const AccountProfile = () => {
     } = useForm({ resolver: yupResolver(passwordSchema), mode: 'onBlur' });
 
     useEffect(() => {
-        const load = async () => {
-            try {
-                const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.AUTH}/me`);
-                const profile = data?.data?.user || data?.user || null;
-                if (profile) {
-                    resetProfile({ name: profile.name || '', email: profile.email || '', phone: profile.phone || '' });
-                }
-            } catch {
-                notify.error('Failed to load profile.');
-            } finally {
-                setIsLoadingProfile(false);
-            }
-        };
-        load();
-    }, [resetProfile]);
-
-    const onProfileSave = async (data) => {
-        try {
-            setIsSavingProfile(true);
-            const result = await apiClient.put(`${API_CONFIG.ENDPOINTS.AUTH}/profile`, {
-                name: data.name, 
-                email: data.email, 
-                phone: data.phone 
-            });
-            const updatedUser = result?.data?.user || result?.user;
-            if (updatedUser) {
-                authService.setUser(updatedUser);
-                resetProfile({ name: updatedUser.name || '', email: updatedUser.email || '', phone: updatedUser.phone || '' });
-            }
-            notify.success('Profile updated successfully.');
-        } catch (err) {
-            if (err.data?.errors) {
-                err.data.errors.forEach(({ field, message }) => {
-                    if (field) setProfileError(field, { message });
-                });
-                return;
-            }
-            notify.error(err.message || 'Failed to update profile');
-        } finally {
-            setIsSavingProfile(false);
+        if (user) {
+            resetProfile({ name: user.name || '', email: user.email || '', phone: user.phone || '' });
         }
+    }, [user, resetProfile]);
+
+    const onProfileSave = (data) => {
+        saveProfile({ name: data.name, email: data.email, phone: data.phone }, {
+            onSuccess: (result) => {
+                const updatedUser = result?.data?.data?.user ?? result?.data?.user;
+                if (updatedUser) {
+                    resetProfile({ name: updatedUser.name || '', email: updatedUser.email || '', phone: updatedUser.phone || '' });
+                }
+            },
+            onError: (err) => {
+                const serverErrors = err?.response?.data?.errors;
+                if (Array.isArray(serverErrors)) {
+                    serverErrors.forEach(({ field, message }) => { if (field) setProfileError(field, { message }); });
+                    return;
+                }
+                notify.error(err.response?.data?.message || err.message || 'Failed to update profile');
+            },
+        });
     };
 
-    const onPasswordSave = async (data) => {
-        try {
-            setIsSavingPassword(true);
-            await apiClient.put(`${API_CONFIG.ENDPOINTS.AUTH}/change-password`, {
-                currentPassword: data.currentPassword,
-                newPassword: data.newPassword,
-                confirmPassword: data.confirmPassword,
-            });
-            notify.success('Password changed successfully.');
-            resetPassword();
-        } catch (err) {
-            if (err.data?.errors) {
-                err.data.errors.forEach(({ field, message }) => {
-                    if (field) setPasswordError(field, { message });
-                });
-                return;
-            }
-            notify.error(err.message || 'Failed to change password');
-        } finally {
-            setIsSavingPassword(false);
-        }
+    const onPasswordSave = (data) => {
+        savePassword({ currentPassword: data.currentPassword, newPassword: data.newPassword, confirmPassword: data.confirmPassword }, {
+            onSuccess: () => resetPassword(),
+            onError: (err) => {
+                const serverErrors = err?.response?.data?.errors;
+                if (Array.isArray(serverErrors)) {
+                    serverErrors.forEach(({ field, message }) => { if (field) setPasswordError(field, { message }); });
+                    return;
+                }
+                notify.error(err.response?.data?.message || err.message || 'Failed to change password');
+            },
+        });
     };
 
     if (isLoadingProfile) {
@@ -141,7 +114,6 @@ const AccountProfile = () => {
                 <p className="text-sm text-slate-500">Manage your personal info and password.</p>
             </div>
 
-            {/* Section tabs */}
             <div className="flex gap-2 rounded-2xl bg-slate-100 p-1">
                 {[{ key: 'info', label: 'Personal Info' }, { key: 'password', label: 'Change Password' }].map((tab) => (
                     <button
@@ -154,112 +126,53 @@ const AccountProfile = () => {
                 ))}
             </div>
 
-            {/* ── Personal info form ───────────────────────────────────────── */}
             {activeSection === 'info' && (
                 <form onSubmit={handleProfileSubmit(onProfileSave)} className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100" noValidate>
                     <h2 className="mb-5 text-base font-bold text-slate-800">Personal Information</h2>
-
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                         <div>
-                            <label className="mb-1 block text-sm font-semibold text-slate-700">
-                                Full Name <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                {...regProfile('name')}
-                                type="text"
-                                className={inputClass(!!profileErrors.name)}
-                                placeholder="Your full name"
-                            />
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Full Name <span className="text-red-500">*</span></label>
+                            <input {...regProfile('name')} type="text" className={inputClass(!!profileErrors.name)} placeholder="Your full name" />
                             <FieldError msg={profileErrors.name?.message} />
                         </div>
                         <div>
-                            <label className="mb-1 block text-sm font-semibold text-slate-700">
-                                Email Address <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                {...regProfile('email')}
-                                type="email"
-                                className={inputClass(!!profileErrors.email)}
-                                placeholder="your@email.com"
-                            />
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Email Address <span className="text-red-500">*</span></label>
+                            <input {...regProfile('email')} type="email" className={inputClass(!!profileErrors.email)} placeholder="your@email.com" />
                             <FieldError msg={profileErrors.email?.message} />
                         </div>
                         <div className="sm:col-span-2">
                             <label className="mb-1 block text-sm font-semibold text-slate-700">Mobile Number</label>
-                            <input
-                                {...regProfile('phone')}
-                                type="text"
-                                className={inputClass(!!profileErrors.phone)}
-                                placeholder="+1 (555) 000-0000"
-                            />
+                            <input {...regProfile('phone')} type="text" className={inputClass(!!profileErrors.phone)} placeholder="+1 (555) 000-0000" />
                             <FieldError msg={profileErrors.phone?.message} />
                         </div>
                     </div>
-
-                    <button
-                        type="submit"
-                        disabled={isSavingProfile}
-                        className="mt-5 rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-50"
-                    >
+                    <button type="submit" disabled={isSavingProfile} className="mt-5 rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-50">
                         {isSavingProfile ? 'Saving...' : 'Save Changes'}
                     </button>
                 </form>
             )}
 
-            {/* ── Change password form ─────────────────────────────────────── */}
             {activeSection === 'password' && (
                 <form onSubmit={handlePasswordSubmit(onPasswordSave)} className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100" noValidate>
                     <h2 className="mb-5 text-base font-bold text-slate-800">Change Password</h2>
-
                     <div className="space-y-5">
                         <div>
-                            <label className="mb-1 block text-sm font-semibold text-slate-700">
-                                Current Password <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                {...regPassword('currentPassword')}
-                                type="password"
-                                className={inputClass(!!passwordErrors.currentPassword)}
-                                placeholder="Enter your current password"
-                                autoComplete="current-password"
-                            />
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Current Password <span className="text-red-500">*</span></label>
+                            <input {...regPassword('currentPassword')} type="password" className={inputClass(!!passwordErrors.currentPassword)} placeholder="Enter your current password" autoComplete="current-password" />
                             <FieldError msg={passwordErrors.currentPassword?.message} />
                         </div>
-
                         <div>
-                            <label className="mb-1 block text-sm font-semibold text-slate-700">
-                                New Password <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                {...regPassword('newPassword')}
-                                type="password"
-                                className={inputClass(!!passwordErrors.newPassword)}
-                                placeholder="Minimum 8 characters"
-                                autoComplete="new-password"
-                            />
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">New Password <span className="text-red-500">*</span></label>
+                            <input {...regPassword('newPassword')} type="password" className={inputClass(!!passwordErrors.newPassword)} placeholder="Minimum 8 characters" autoComplete="new-password" />
                             <FieldError msg={passwordErrors.newPassword?.message} />
                         </div>
-
                         <div>
-                            <label className="mb-1 block text-sm font-semibold text-slate-700">
-                                Confirm New Password <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                {...regPassword('confirmPassword')}
-                                type="password"
-                                className={inputClass(!!passwordErrors.confirmPassword)}
-                                placeholder="Re-enter new password"
-                                autoComplete="new-password"
-                            />
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Confirm New Password <span className="text-red-500">*</span></label>
+                            <input {...regPassword('confirmPassword')} type="password" className={inputClass(!!passwordErrors.confirmPassword)} placeholder="Re-enter new password" autoComplete="new-password" />
                             <FieldError msg={passwordErrors.confirmPassword?.message} />
                         </div>
                     </div>
-
-                    <button
-                        type="submit"
-                        disabled={isSavingPassword}
-                        className="mt-5 rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-50"
-                    >
+                    <button type="submit" disabled={isSavingPassword} className="mt-5 rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-50">
                         {isSavingPassword ? 'Updating...' : 'Update Password'}
                     </button>
                 </form>

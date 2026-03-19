@@ -39,7 +39,8 @@ class DiscountService {
     const response = await apiClient.get(
       `${API_CONFIG.ENDPOINTS.PRODUCTS}?${queryParams.toString()}`,
     );
-    return response?.data?.products || [];
+    const payload = response?.data?.data || response?.data || {};
+    return payload?.products || payload?.items || [];
   }
 
   async createDiscount(payload) {

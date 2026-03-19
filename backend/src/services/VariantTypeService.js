@@ -1,15 +1,17 @@
 import { VariantType } from "../models/VariantType.js";
 import { VariantOption } from "../models/VariantOption.js";
 import { BaseService } from "../core/BaseService.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from "../utils/AppError.js";
 import { logger } from "../utils/logger.js";
 import { isValidObjectId, normalizeStatus } from "../utils/shared.js";
+import { VariantTypeRepository } from "../repositories/index.js";
 
 const VALID_STATUS = ["active", "inactive"];
 
 export class VariantTypeService extends BaseService {
-  constructor() {
-    super(VariantType);
+  constructor(repository = new VariantTypeRepository()) {
+    super();
+    this.repository = repository;
   }
 
   normalizeName(name = "") {
@@ -56,13 +58,13 @@ export class VariantTypeService extends BaseService {
     if (normalizedStatus !== "all") query.status = normalizedStatus;
 
     const [items, total] = await Promise.all([
-      this.model
+      this.repository.model
         .find(query)
         .sort({ sortOrder: 1, displayName: 1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      this.model.countDocuments(query),
+      this.repository.model.countDocuments(query),
     ]);
 
     const ids = items.map((item) => item._id);
@@ -86,7 +88,7 @@ export class VariantTypeService extends BaseService {
   }
 
   async listActive() {
-    return this.model
+    return this.repository.model
       .find({ status: "active" })
       .sort({ sortOrder: 1, displayName: 1 })
       .select("_id name displayName sortOrder")
@@ -97,7 +99,7 @@ export class VariantTypeService extends BaseService {
     if (!isValidObjectId(id))
       throw new AppError("Invalid variant type ID", 400);
 
-    const item = await this.model.findById(id).lean();
+    const item = await this.repository.model.findById(id).lean();
     if (!item) throw new AppError("Variant type not found", 404);
 
     const optionsCount = await VariantOption.countDocuments({
@@ -147,7 +149,9 @@ export class VariantTypeService extends BaseService {
     const errors = this.validateData(data);
 
     if (data.name) {
-      const exists = await this.model.findOne({ name: data.name }).lean();
+      const exists = await this.repository.model
+        .findOne({ name: data.name })
+        .lean();
       if (exists)
         errors.push({
           field: "name",
@@ -157,7 +161,7 @@ export class VariantTypeService extends BaseService {
 
     if (errors.length > 0) throw new AppError("Validation failed", 422, errors);
 
-    const item = await this.model.create(data);
+    const item = await this.repository.model.create(data);
     logger.info("Variant type created", { id: item._id });
     return item;
   }
@@ -166,7 +170,7 @@ export class VariantTypeService extends BaseService {
     if (!isValidObjectId(id))
       throw new AppError("Invalid variant type ID", 400);
 
-    const item = await this.model.findById(id);
+    const item = await this.repository.model.findById(id);
     if (!item) throw new AppError("Variant type not found", 404);
 
     const data = {
@@ -188,7 +192,9 @@ export class VariantTypeService extends BaseService {
     const errors = this.validateData(data, id);
 
     if (data.name) {
-      const exists = await this.model.findOne({ name: data.name }).lean();
+      const exists = await this.repository.model
+        .findOne({ name: data.name })
+        .lean();
       if (exists && String(exists._id) !== String(id)) {
         errors.push({
           field: "name",
@@ -209,7 +215,7 @@ export class VariantTypeService extends BaseService {
     if (!isValidObjectId(id))
       throw new AppError("Invalid variant type ID", 400);
 
-    const item = await this.model.findById(id);
+    const item = await this.repository.model.findById(id);
     if (!item) throw new AppError("Variant type not found", 404);
 
     const linkedOptions = await VariantOption.countDocuments({

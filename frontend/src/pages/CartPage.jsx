@@ -1,104 +1,81 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import authService from '../services/authService';
-import apiClient from '../services/apiClient';
-import { API_CONFIG } from '../constants';
-import { getPrimaryCartItemImage, resolveImageUrl } from '../utils/imageUrl';
-import notify from '../utils/notify';
-import { useSiteSettings } from '../context/useSiteSettings';
-import { formatCurrency } from '../utils/currency';
-import { logger } from '../utils/logger.js';
+import { useCart, useValidateCoupon, useClearCart, useUpdateCartItem, useRemoveFromCart } from '@/hooks/queries';
+import { getPrimaryCartItemImage, resolveImageUrl } from '@/utils/imageUrl';
+import notify from '@/utils/notify';
+import { useSiteSettings } from '@/context/useSiteSettings';
+import { formatCurrency } from '@/utils/currency';
+import { logger } from '@/utils/logger.js';
 
 const CartPage = () => {
     const { settings } = useSiteSettings();
     const navigate = useNavigate();
-    const [cart, setCart] = useState({ items: [], summary: { totalItems: 0, mrpTotal: 0, discountTotal: 0, subTotal: 0, shippingCost: 0, totalAmount: 0 } });
-    const [isLoading, setIsLoading] = useState(true);
-    const [isBusy, setIsBusy] = useState(false);
+
+    const { data: cart, isLoading } = useCart();
+    const cartData = cart || { items: [], summary: { totalItems: 0, mrpTotal: 0, discountTotal: 0, subTotal: 0, shippingCost: 0, totalAmount: 0 } };
+
+    const { mutate: updateCartItem, isPending: isUpdating } = useUpdateCartItem();
+    const { mutate: removeCartItem, isPending: isRemoving } = useRemoveFromCart();
+    const isBusy = isUpdating || isRemoving;
+
     const [couponCode, setCouponCode] = useState('');
     const [couponError, setCouponError] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState(null);
-    const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
-    const loadCart = async () => {
-        try {
-            setIsLoading(true);
-            const data = await apiClient.get(API_CONFIG.ENDPOINTS.CART);
-            setCart(data.data || cart);
-        } catch (error) { logger.error('Cart load error:', error); } finally { setIsLoading(false); }
-    };
+    const { mutate: clearCartMutate } = useClearCart();
+    const { mutate: validateCouponMutate, isPending: isApplyingCoupon } = useValidateCoupon();
 
-    useEffect(() => { loadCart(); }, []);
-
-    const applyCoupon = async (forcedCode = null, options = {}) => {
+    const applyCoupon = (forcedCode = null, options = {}) => {
         const code = String(forcedCode ?? couponCode ?? '').trim().toUpperCase();
         if (!code) {
             if (!options.silent) setCouponError('Please enter a coupon code');
-            return false;
+            return;
         }
 
-        try {
-            setIsApplyingCoupon(true);
-            const data = await apiClient.post(`${API_CONFIG.ENDPOINTS.COUPONS}/validate`, {
-                code, total: Number(cart.summary?.subTotal || 0),
-            });
-
-            const validatedCoupon = {
-                code,
-                type: data.data?.type,
-                value: Number(data.data?.value || 0),
-                discount: Number(data.data?.discount || 0),
-            };
-
-            setAppliedCoupon(validatedCoupon);
-            setCouponCode(code);
-            setCouponError('');
-            if (!options.silent) notify.success(`Coupon ${code} applied`);
-            return true;
-        } catch (error) {
-            if (!options.silent) setCouponError(error.message || 'Failed to apply coupon');
-            return false;
-        } finally {
-            setIsApplyingCoupon(false);
-        }
+        validateCouponMutate(code, {
+            onSuccess: (data) => {
+                const result = data?.data ?? data;
+                const validatedCoupon = {
+                    code,
+                    type: result?.type,
+                    value: Number(result?.value || 0),
+                    discount: Number(result?.discount || 0),
+                };
+                setAppliedCoupon(validatedCoupon);
+                setCouponCode(code);
+                setCouponError('');
+                if (!options.silent) notify.success(`Coupon ${code} applied`);
+            },
+            onError: (error) => {
+                if (!options.silent) setCouponError(error.response?.data?.message || error.message || 'Failed to apply coupon');
+            },
+        });
     };
 
     const applyCouponRef = useRef(applyCoupon);
-    useEffect(() => { applyCouponRef.current = applyCoupon; });
+    applyCouponRef.current = applyCoupon;
 
-    useEffect(() => {
-        if (!appliedCoupon?.code) return;
-        applyCouponRef.current(appliedCoupon.code, { silent: true });
-    }, [cart.summary?.subTotal, appliedCoupon?.code]);
-
-    const updateQuantity = async (itemId, quantity) => {
+    const updateQuantity = (itemId, quantity) => {
         if (quantity < 1) return;
-        try {
-            setIsBusy(true);
-            const data = await apiClient.put(`${API_CONFIG.ENDPOINTS.CART}/${itemId}`, { quantity });
-            setCart(data.data || cart);
-            window.dispatchEvent(new Event('cart:changed'));
-        } catch (error) { notify.error(error, 'Failed to update cart'); } finally { setIsBusy(false); }
+        updateCartItem({ id: itemId, quantity }, {
+            onError: (error) => notify.error(error, 'Failed to update cart'),
+        });
     };
 
-    const removeItem = async (itemId) => {
-        try {
-            setIsBusy(true);
-            const data = await apiClient.delete(`${API_CONFIG.ENDPOINTS.CART}/${itemId}`);
-            setCart(data.data || cart);
-            window.dispatchEvent(new Event('cart:changed'));
-        } catch (error) { notify.error(error, 'Failed to remove item'); } finally { setIsBusy(false); }
+    const removeItem = (itemId) => {
+        removeCartItem(itemId, {
+            onError: (error) => notify.error(error, 'Failed to remove item'),
+        });
     };
 
-    const clearCart = async () => {
-        try {
-            setIsBusy(true);
-            const data = await apiClient.delete(API_CONFIG.ENDPOINTS.CART);
-            setCart(data.data || cart);
-            setAppliedCoupon(null);
-            setCouponCode('');
-            window.dispatchEvent(new Event('cart:changed'));
-        } catch (error) { notify.error(error, 'Failed to clear cart'); } finally { setIsBusy(false); }
+    const clearCart = () => {
+        clearCartMutate(undefined, {
+            onSuccess: () => {
+                setAppliedCoupon(null);
+                setCouponCode('');
+            },
+            onError: (error) => notify.error(error, 'Failed to clear cart'),
+        });
     };
 
     if (isLoading) return (
@@ -111,8 +88,8 @@ const CartPage = () => {
     );
 
     const fmt = (n) => formatCurrency(n, settings);
-    const couponDiscount = Math.min(Number(appliedCoupon?.discount || 0), Number(cart.summary?.subTotal || 0));
-    const payableTotal = Math.max(0, Number(cart.summary?.subTotal || 0) - couponDiscount) + Number(cart.summary?.shippingCost || 0);
+    const couponDiscount = Math.min(Number(appliedCoupon?.discount || 0), Number(cartData.summary?.subTotal || 0));
+    const payableTotal = Math.max(0, Number(cartData.summary?.subTotal || 0) - couponDiscount) + Number(cartData.summary?.shippingCost || 0);
     const getVariantLabel = (item) => {
         const options = Array.isArray(item?.variant?.options) ? item.variant.options : [];
         if (options.length) {
@@ -120,7 +97,6 @@ const CartPage = () => {
                 .map((option) => `${option.typeDisplayName || option.typeName}: ${option.displayValue || option.value}`)
                 .join(' • ');
         }
-
         if (item?.variant?.displayName) return item.variant.displayName;
         if (item?.variant?.sku) return `SKU: ${item.variant.sku}`;
         return null;
@@ -131,12 +107,12 @@ const CartPage = () => {
             <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <p className="store-eyebrow mb-1">My Account</p>
-                    <h1 className="store-display text-2xl text-slate-900 sm:text-3xl">Shopping Cart <span className="text-base font-normal text-slate-500">({cart.items.length} items)</span></h1>
+                    <h1 className="store-display text-2xl text-slate-900 sm:text-3xl">Shopping Cart <span className="text-base font-normal text-slate-500">({cartData.items.length} items)</span></h1>
                 </div>
-                <button onClick={clearCart} disabled={isBusy || !cart.items.length} className="store-btn-secondary tap-bounce rounded-xl px-5 py-2.5 text-sm disabled:opacity-40">Clear Cart</button>
+                <button onClick={clearCart} disabled={isBusy || !cartData.items.length} className="store-btn-secondary tap-bounce rounded-xl px-5 py-2.5 text-sm disabled:opacity-40">Clear Cart</button>
             </div>
 
-            {!cart.items.length ? (
+            {!cartData.items.length ? (
                 <div className="store-surface py-16 text-center">
                     <div className="mb-3 text-5xl">🛒</div>
                     <h2 className="store-display mb-2 text-xl text-primary-800">Your cart is empty</h2>
@@ -146,7 +122,7 @@ const CartPage = () => {
             ) : (
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                     <div className="space-y-4 lg:col-span-2">
-                        {cart.items.map((item) => {
+                        {cartData.items.map((item) => {
                             const variantLabel = getVariantLabel(item);
                             return (
                             <div key={item._id} className="store-surface p-4">
@@ -232,14 +208,14 @@ const CartPage = () => {
                             )}
                         </div>
                         <div className="space-y-3 text-sm">
-                            <div className="flex justify-between text-slate-500"><span>Items</span><span className="font-semibold">{cart.summary.totalItems}</span></div>
-                            <div className="flex justify-between text-slate-500"><span>MRP Total</span><span className="font-semibold">{fmt(cart.summary.mrpTotal)}</span></div>
-                            <div className="flex justify-between text-success-600"><span>Discount</span><span className="font-semibold">- {fmt(cart.summary.discountTotal)}</span></div>
-                            <div className="flex justify-between text-slate-500"><span>Subtotal</span><span className="font-semibold">{fmt(cart.summary.subTotal)}</span></div>
+                            <div className="flex justify-between text-slate-500"><span>Items</span><span className="font-semibold">{cartData.summary.totalItems}</span></div>
+                            <div className="flex justify-between text-slate-500"><span>MRP Total</span><span className="font-semibold">{fmt(cartData.summary.mrpTotal)}</span></div>
+                            <div className="flex justify-between text-success-600"><span>Discount</span><span className="font-semibold">- {fmt(cartData.summary.discountTotal)}</span></div>
+                            <div className="flex justify-between text-slate-500"><span>Subtotal</span><span className="font-semibold">{fmt(cartData.summary.subTotal)}</span></div>
                             {appliedCoupon && couponDiscount > 0 && (
                                 <div className="flex justify-between text-success-600"><span>Coupon Discount</span><span className="font-semibold">- {fmt(couponDiscount)}</span></div>
                             )}
-                            <div className="flex justify-between text-slate-500"><span>Shipping</span><span className="font-semibold">{fmt(cart.summary.shippingCost)}</span></div>
+                            <div className="flex justify-between text-slate-500"><span>Shipping</span><span className="font-semibold">{fmt(cartData.summary.shippingCost)}</span></div>
                             <div className="flex justify-between border-t border-[rgba(165,187,252,0.25)] pt-3 text-base font-bold text-slate-900"><span>Total</span><span>{fmt(payableTotal)}</span></div>
                         </div>
                         <button onClick={() => navigate('/checkout')} className="store-btn-primary tap-bounce mt-5 w-full rounded-2xl py-3.5 text-sm font-bold">Proceed to Checkout</button>

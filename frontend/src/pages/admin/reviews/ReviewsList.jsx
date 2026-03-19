@@ -52,7 +52,7 @@ const ReviewsList = () => {
             };
 
             const response = await reviewService.getReviews(query);
-            const payload = response?.data || {};
+            const payload = response?.data?.data || response?.data || {};
             setReviews(payload.reviews || []);
             setPagination((prev) => ({ ...prev, ...(payload.pagination || {}) }));
         } catch (error) {
@@ -65,9 +65,38 @@ const ReviewsList = () => {
 
     const loadProductOptions = async () => {
         try {
-            const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.PRODUCTS}?page=1&limit=500&status=active`);
-            const items = data?.data?.products || data?.data?.items || data?.data || [];
-            setProducts(Array.isArray(items) ? items : []);
+            const pageSize = 100;
+            const maxItems = 500;
+            const pagesToFetch = Math.ceil(maxItems / pageSize);
+            const collected = [];
+
+            for (let page = 1; page <= pagesToFetch; page += 1) {
+                const data = await apiClient.get(
+                    `${API_CONFIG.ENDPOINTS.PRODUCTS}?page=${page}&limit=${pageSize}&status=active`,
+                );
+                const payload = data?.data?.data || data?.data || {};
+                const items = payload?.products || payload?.items || [];
+
+                if (!Array.isArray(items) || items.length === 0) {
+                    break;
+                }
+
+                collected.push(...items);
+
+                if (items.length < pageSize || collected.length >= maxItems) {
+                    break;
+                }
+            }
+
+            const uniqueProducts = Array.from(
+                new Map(
+                    collected
+                        .filter((item) => item && item._id)
+                        .map((item) => [String(item._id), item]),
+                ).values(),
+            );
+
+            setProducts(uniqueProducts.slice(0, maxItems));
         } catch {
             setProducts([]);
         }

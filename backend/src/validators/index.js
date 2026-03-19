@@ -1,5 +1,5 @@
 import { validationResult } from "express-validator";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from "../utils/AppError.js";
 
 export const validate = (req, res, next) => {
   const errors = validationResult(req);
@@ -23,3 +23,12 @@ export * from "./orderValidators.js";
 export * from "./brandValidators.js";
 export * from "./couponValidators.js";
 export * from "./reviewValidators.js";
+export * from "./categoryValidators.js";
+export * from "./cartValidators.js";
+export * from "./wishlistValidators.js";
+export * from "./discountValidators.js";
+export * from "./bannerValidators.js";
+export * from "./settingsValidators.js";
+export * from "./userValidators.js";
+export * from "./variantTypeValidators.js";
+export * from "./variantOptionValidators.js";

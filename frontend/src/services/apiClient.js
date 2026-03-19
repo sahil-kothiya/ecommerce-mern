@@ -1,372 +1,89 @@
-import { API_CONFIG } from "../constants";
-import toast from "react-hot-toast";
+import axios from "axios";
+import { API_CONFIG } from "@/constants";
 
-class ApiClient {
-  constructor() {
-    this.baseURL = API_CONFIG.BASE_URL;
-    this.timeout = API_CONFIG.TIMEOUT || 10000;
-    this.requestInterceptors = [];
-    this.responseInterceptors = [];
-    this.errorInterceptors = [];
-    this._isRefreshing = false;
-    this._refreshQueue = [];
+const getCookieValue = (name) => {
+  const match = document.cookie.match(
+    new RegExp(`(^|;)\\s*${name}\\s*=\\s*([^;]+)`),
+  );
+  return match ? decodeURIComponent(match[2]) : null;
+};
 
-    this.setupDefaultInterceptors();
-  }
+const apiClient = axios.create({
+  baseURL: API_CONFIG.BASE_URL,
+  timeout: API_CONFIG.TIMEOUT,
+  withCredentials: true,
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  },
+});
 
-  setupDefaultInterceptors() {
-    this.addRequestInterceptor(async (config) => {
-      config.metadata = { startTime: new Date() };
-      return config;
-    });
-
-    this.addResponseInterceptor(async (response) => {
-      const endTime = new Date();
-      const duration = response.config.metadata
-        ? endTime - response.config.metadata.startTime
-        : 0;
-      return response;
-    });
-
-    this.addErrorInterceptor(async (error) => {
-      if (error.response?.status === 401) {
-        const url = error.response?.config?.url || error.config?.url || "";
-        const isAuthEndpoint =
-          url.includes("/auth/login") ||
-          url.includes("/auth/register") ||
-          url.includes("/auth/refresh-token");
-        if (!isAuthEndpoint) {
-          const refreshed = await this.attemptTokenRefresh();
-          if (refreshed && error.response?.config) {
-            return this.retryOriginalRequest(error.response.config);
-          }
-          this.handleUnauthorizedRedirect();
-        }
+// ─── Request interceptor — attach CSRF token ─────────────────────────────
+apiClient.interceptors.request.use(
+  (config) => {
+    const method = config.method?.toUpperCase();
+    if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+      const csrfToken = getCookieValue("csrfToken");
+      if (csrfToken) {
+        config.headers["X-CSRF-Token"] = csrfToken;
       }
-
-      return Promise.reject(error);
-    });
-  }
-
-  async attemptTokenRefresh() {
-    if (this._isRefreshing) {
-      return new Promise((resolve) => {
-        this._refreshQueue.push(resolve);
-      });
     }
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
 
-    this._isRefreshing = true;
-    try {
-      const response = await fetch(`${this.baseURL}/api/auth/refresh-token`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-      });
+// ─── Response interceptor — 401 refresh + global error normalisation ─────
+let isRefreshing = false;
+let failedQueue = [];
 
-      if (!response.ok) {
-        this._refreshQueue.forEach((cb) => cb(false));
-        this._refreshQueue = [];
-        return false;
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) =>
+    error ? prom.reject(error) : prom.resolve(token),
+  );
+  failedQueue = [];
+};
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes("/auth/refresh-token") &&
+      !originalRequest.url?.includes("/auth/login")
+    ) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => apiClient(originalRequest))
+          .catch((err) => Promise.reject(err));
       }
 
-      const data = await response.json();
-      if (data?.data?.user) {
-        localStorage.setItem("auth_user", JSON.stringify(data.data.user));
-      }
-
-      this._refreshQueue.forEach((cb) => cb(true));
-      this._refreshQueue = [];
-      return true;
-    } catch {
-      this._refreshQueue.forEach((cb) => cb(false));
-      this._refreshQueue = [];
-      return false;
-    } finally {
-      this._isRefreshing = false;
-    }
-  }
-
-  async retryOriginalRequest(config) {
-    const retryConfig = { ...config, _retry: true };
-    return this.executeRequest(retryConfig);
-  }
-
-  handleUnauthorizedRedirect() {
-    const wasAuthenticated = localStorage.getItem("auth_user");
-
-    localStorage.removeItem("auth_user");
-    window.dispatchEvent(new Event("auth:logout"));
-
-    if (wasAuthenticated) {
-      sessionStorage.setItem("sessionExpired", "true");
-      toast.error("Your session has expired. Please login again.", {
-        duration: 4000,
-        position: "top-center",
-        id: "session-expired",
-      });
-    }
-
-    if (!window.location.pathname.startsWith("/login")) {
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 500);
-    }
-  }
-
-  addRequestInterceptor(interceptor) {
-    this.requestInterceptors.push(interceptor);
-  }
-
-  addResponseInterceptor(interceptor) {
-    this.responseInterceptors.push(interceptor);
-  }
-
-  addErrorInterceptor(interceptor) {
-    this.errorInterceptors.push(interceptor);
-  }
-
-  async executeRequest(config) {
-    try {
-      let finalConfig = { ...config };
-      for (const interceptor of this.requestInterceptors) {
-        finalConfig = await interceptor(finalConfig);
-      }
-
-      const url = finalConfig.url.startsWith("http")
-        ? finalConfig.url
-        : `${this.baseURL}${finalConfig.url}`;
-
-      const fetchOptions = {
-        method: finalConfig.method || "GET",
-        headers: {
-          ...finalConfig.headers,
-        },
-        credentials:
-          finalConfig.withCredentials === false ? "same-origin" : "include",
-        ...(finalConfig.signal && { signal: finalConfig.signal }),
-      };
-
-      const method = String(fetchOptions.method || "GET").toUpperCase();
-      if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
-        const csrfToken = this.getCookieValue("csrfToken");
-        if (csrfToken && !fetchOptions.headers["X-CSRF-Token"]) {
-          fetchOptions.headers["X-CSRF-Token"] = csrfToken;
-        }
-      }
-
-      if (finalConfig.body !== undefined) {
-        if (finalConfig.body instanceof FormData) {
-          fetchOptions.body = finalConfig.body;
-        } else {
-          fetchOptions.headers["Content-Type"] = "application/json";
-          fetchOptions.body = JSON.stringify(finalConfig.body);
-        }
-      }
-
-      const timeoutController = new AbortController();
-      const timeoutId = setTimeout(
-        () => timeoutController.abort(),
-        this.timeout,
-      );
+      originalRequest._retry = true;
+      isRefreshing = true;
 
       try {
-        const response = await fetch(url, {
-          ...fetchOptions,
-          signal: fetchOptions.signal || timeoutController.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        const contentType = response.headers.get("content-type");
-        let data;
-
-        if (contentType && contentType.includes("application/json")) {
-          data = await response.json();
-        } else {
-          data = await response.text();
-        }
-
-        let responseObj = {
-          data,
-          status: response.status,
-          statusText: response.statusText,
-          headers: response.headers,
-          config: finalConfig,
-        };
-
-        if (!response.ok) {
-          const error = new Error(data.message || "Request failed");
-          error.response = responseObj;
-          throw error;
-        }
-
-        for (const interceptor of this.responseInterceptors) {
-          responseObj = await interceptor(responseObj);
-        }
-
-        return responseObj.data;
-      } catch (error) {
-        clearTimeout(timeoutId);
-        throw error;
+        await apiClient.post(`${API_CONFIG.ENDPOINTS.AUTH}/refresh-token`);
+        processQueue(null);
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        // Import dynamically to avoid circular deps
+        const { useAuthStore } = await import("@/store/authStore");
+        useAuthStore.getState().clearUser();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
-    } catch (error) {
-      for (const interceptor of this.errorInterceptors) {
-        try {
-          const result = await interceptor(error);
-          if (result !== undefined && !(result instanceof Error)) {
-            return result;
-          }
-        } catch {
-          // Interceptor rejected; continue to normalizeError
-        }
-      }
-
-      throw this.normalizeError(error);
-    }
-  }
-
-  getCookieValue(name) {
-    if (typeof document === "undefined") {
-      return "";
-    }
-    const match = document.cookie
-      .split("; ")
-      .find((part) => part.startsWith(`${name}=`));
-    if (!match) {
-      return "";
-    }
-    return decodeURIComponent(match.split("=").slice(1).join("="));
-  }
-
-  normalizeError(error) {
-    if (error.name === "AbortError") {
-      const err = new Error("Request timeout");
-      err.type = "TIMEOUT";
-      err.originalError = error;
-      return err;
     }
 
-    if (error.response) {
-      const err = new Error(
-        error.response.data?.message || error.message || "Request failed",
-      );
-      err.type = "API_ERROR";
-      err.status = error.response.status;
-      err.data = error.response.data;
-      err.originalError = error;
-      return err;
-    }
+    return Promise.reject(error);
+  },
+);
 
-    const err = new Error(error.message || "Network error");
-    err.type = "NETWORK_ERROR";
-    err.originalError = error;
-    return err;
-  }
-
-  async get(url, config = {}) {
-    return this.executeRequest({ ...config, url, method: "GET" });
-  }
-
-  async post(url, data, config = {}) {
-    return this.executeRequest({ ...config, url, method: "POST", body: data });
-  }
-
-  async put(url, data, config = {}) {
-    return this.executeRequest({ ...config, url, method: "PUT", body: data });
-  }
-
-  async patch(url, data, config = {}) {
-    return this.executeRequest({ ...config, url, method: "PATCH", body: data });
-  }
-
-  async delete(url, config = {}) {
-    return this.executeRequest({ ...config, url, method: "DELETE" });
-  }
-
-  async upload(url, formData, onProgress, method = "POST", _retried = false) {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-
-      const timeoutId = setTimeout(() => xhr.abort(), this.timeout);
-
-      if (onProgress) {
-        xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) {
-            const percentComplete = (e.loaded / e.total) * 100;
-            onProgress(percentComplete);
-          }
-        });
-      }
-
-      xhr.addEventListener("load", () => {
-        clearTimeout(timeoutId);
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            resolve(JSON.parse(xhr.responseText));
-          } catch {
-            resolve(xhr.responseText);
-          }
-        } else {
-          if (xhr.status === 401 && !_retried) {
-            this.attemptTokenRefresh().then((refreshed) => {
-              if (refreshed) {
-                this.upload(url, formData, onProgress, method, true).then(
-                  resolve,
-                  reject,
-                );
-              } else {
-                this.handleUnauthorizedRedirect();
-                const authErr = new Error("Session expired");
-                authErr.type = "API_ERROR";
-                authErr.status = 401;
-                reject(authErr);
-              }
-            });
-            return;
-          }
-          try {
-            const errorData = JSON.parse(xhr.responseText);
-            const err = new Error(
-              errorData?.message || `Upload failed with status ${xhr.status}`,
-            );
-            err.type = "API_ERROR";
-            err.status = xhr.status;
-            err.data = errorData;
-            if (errorData?.errors) err.errors = errorData.errors;
-            reject(err);
-          } catch {
-            const err = new Error(`Upload failed with status ${xhr.status}`);
-            err.type = "API_ERROR";
-            err.status = xhr.status;
-            reject(err);
-          }
-        }
-      });
-
-      xhr.addEventListener("abort", () => {
-        clearTimeout(timeoutId);
-        const err = new Error("Request timeout");
-        err.type = "TIMEOUT";
-        reject(err);
-      });
-
-      xhr.addEventListener("error", () => {
-        clearTimeout(timeoutId);
-        const err = new Error("Network error occurred during upload");
-        err.type = "NETWORK_ERROR";
-        reject(err);
-      });
-
-      xhr.open(method, `${this.baseURL}${url}`);
-      xhr.withCredentials = true;
-      const csrfToken = this.getCookieValue("csrfToken");
-      if (csrfToken) {
-        xhr.setRequestHeader("X-CSRF-Token", csrfToken);
-      }
-      xhr.send(formData);
-    });
-  }
-}
-
-export const apiClient = new ApiClient();
+export { apiClient };
 export default apiClient;

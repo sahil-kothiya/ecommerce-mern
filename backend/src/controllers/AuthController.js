@@ -1,7 +1,7 @@
 import { BaseController } from "../core/BaseController.js";
 import { AuthService } from "../services/AuthService.js";
 import { logger } from "../utils/logger.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from "../utils/AppError.js";
 import { config } from "../config/index.js";
 
 export class AuthController extends BaseController {

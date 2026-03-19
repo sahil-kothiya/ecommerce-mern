@@ -1,5 +1,5 @@
 ﻿import { variantOptionService } from "../services/VariantOptionService.js";
-import { asyncHandler } from "../middleware/errorHandler.js";
+import { asyncHandler } from '../utils/AppError.js';
 
 class VariantOptionController {
   index = asyncHandler(async (req, res) => {

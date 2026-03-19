@@ -2,7 +2,7 @@ import Stripe from "stripe";
 import { Setting } from "../models/Setting.js";
 import { Cart } from "../models/Cart.js";
 import { Order } from "../models/Order.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from '../utils/AppError.js';
 import { logger } from "../utils/logger.js";
 import { config } from "../config/index.js";
 import { calculateCartTotals } from "../utils/pricing.js";

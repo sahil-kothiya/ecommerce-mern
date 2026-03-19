@@ -85,7 +85,7 @@ const CouponForm = () => {
             try {
                 setIsLoading(true);
                 const response = await couponService.getCouponById(id);
-                const coupon = response?.data;
+                const coupon = response?.data?.data || response?.data;
                 if (!coupon?._id) {
                     notify.error('Coupon not found');
                     navigate('/admin/coupons');

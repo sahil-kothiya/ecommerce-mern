@@ -107,7 +107,7 @@ const SettingsPage = () => {
         try {
             setIsLoading(true);
             const response = await settingsService.getSettings();
-            const settings = response?.data || {};
+            const settings = response?.data?.data || response?.data || {};
             reset({ ...defaultValues, ...settings });
         } catch (error) {
             notify.error(error, 'Failed to load settings');
@@ -143,7 +143,8 @@ const SettingsPage = () => {
             if (faviconFile) payload.append('favicon', faviconFile);
 
             const response = await settingsService.updateSettings(payload);
-            reset({ ...defaultValues, ...(response?.data || {}) });
+            const updatedSettings = response?.data?.data || response?.data || {};
+            reset({ ...defaultValues, ...updatedSettings });
             setLogoFile(null);
             setFaviconFile(null);
             notify.success('Settings updated successfully');

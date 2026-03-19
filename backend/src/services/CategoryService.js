@@ -3,7 +3,7 @@ import { Product } from "../models/Product.js";
 import { Brand } from "../models/Brand.js";
 import { Filter } from "../models/Filter.js";
 import { BaseService } from "../core/BaseService.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from '../utils/AppError.js';
 import { logger } from "../utils/logger.js";
 import mongoose from "mongoose";
 import path from "path";
@@ -15,6 +15,7 @@ import {
 } from "../utils/requestCache.js";
 import { parseBoolean, normalizeStatus } from "../utils/shared.js";
 import { imageProcessingService } from "./ImageProcessingService.js";
+import { CategoryRepository } from '../repositories/index.js';
 
 const CACHE_TTL = 15000;
 
@@ -44,8 +45,9 @@ function normalizeIdArray(...values) {
 }
 
 export class CategoryService extends BaseService {
-  constructor() {
-    super(Category);
+  constructor(repository = new CategoryRepository()) {
+    super();
+    this.repository = repository;
   }
 
   buildTree(categories, parentId = null) {
@@ -74,7 +76,7 @@ export class CategoryService extends BaseService {
     const filter = excludeId
       ? { _id: { $ne: excludeId }, code: { $exists: true, $ne: null } }
       : { code: { $exists: true, $ne: null } };
-    const existing = await this.model.find(filter).select("code").lean();
+    const existing = await this.repository.model.find(filter).select("code").lean();
     const used = new Set(existing.map((i) => i.code).filter(Boolean));
     if (!used.has(base)) return base;
     const prefix = base.slice(0, 2);
@@ -139,7 +141,7 @@ export class CategoryService extends BaseService {
       ? Math.min(200, Math.max(1, parsedLimitRaw))
       : null;
 
-    let q = this.model.find(query).sort(sort);
+    let q = this.repository.model.find(query).sort(sort);
     if (parsedLimit)
       q = q.skip((parsedPage - 1) * parsedLimit).limit(parsedLimit);
     const data = await q.lean();
@@ -244,7 +246,7 @@ export class CategoryService extends BaseService {
   }
 
   async getCategoryById(id, includeChildren = false) {
-    const category = await this.model.findById(id).lean();
+    const category = await this.repository.model.findById(id).lean();
     if (!category || category.status !== "active")
       throw new AppError("Category not found", 404);
     if (includeChildren === "true") {
@@ -311,7 +313,7 @@ export class CategoryService extends BaseService {
     id,
     { page = 1, limit = 20, sort = "-createdAt" } = {},
   ) {
-    const category = await this.model.findById(id).lean();
+    const category = await this.repository.model.findById(id).lean();
     if (!category) throw new AppError("Category not found", 404);
     const skip = (page - 1) * limit;
     const [products, total] = await Promise.all([
@@ -334,7 +336,7 @@ export class CategoryService extends BaseService {
   }
 
   async getCategoryBrands(id) {
-    const category = await this.model.findById(id).lean();
+    const category = await this.repository.model.findById(id).lean();
     if (!category) throw new AppError("Category not found", 404);
     const configuredIds = Array.isArray(category.brandIds)
       ? category.brandIds
@@ -400,7 +402,7 @@ export class CategoryService extends BaseService {
     );
     const code = await this.generateUniqueCode(title);
 
-    const category = await this.model.create({
+    const category = await this.repository.model.create({
       title,
       summary: body.summary ?? null,
       photo: photoPath,
@@ -427,7 +429,7 @@ export class CategoryService extends BaseService {
   }
 
   async updateCategory(id, body, file) {
-    const category = await this.model.findById(id);
+    const category = await this.repository.model.findById(id);
     if (!category) throw new AppError("Category not found", 404);
     const previousTitle = category.title;
 
@@ -548,9 +550,9 @@ export class CategoryService extends BaseService {
   }
 
   async deleteCategory(id) {
-    const category = await this.model.findById(id);
+    const category = await this.repository.model.findById(id);
     if (!category) throw new AppError("Category not found", 404);
-    if ((await this.model.countDocuments({ parentId: id })) > 0)
+    if ((await this.repository.model.countDocuments({ parentId: id })) > 0)
       throw new AppError("Cannot delete category with child categories", 400);
     if ((await Product.countDocuments({ "category.id": id })) > 0)
       throw new AppError("Cannot delete category with products", 400);
@@ -574,7 +576,7 @@ export class CategoryService extends BaseService {
         },
       },
     }));
-    await this.model.bulkWrite(ops);
+    await this.repository.model.bulkWrite(ops);
     invalidateCacheByPrefix("categories:index:");
     invalidateCacheByPrefix("products:index:");
   }

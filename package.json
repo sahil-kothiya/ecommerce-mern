@@ -7,7 +7,8 @@
     "private": true,
     "workspaces": [
         "backend",
-        "frontend"
+        "frontend",
+        "shared"
     ],
     "scripts": {
         "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",

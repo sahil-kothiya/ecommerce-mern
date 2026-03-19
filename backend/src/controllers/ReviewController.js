@@ -1,5 +1,5 @@
 import { ReviewService } from "../services/ReviewService.js";
-import { asyncHandler } from "../middleware/errorHandler.js";
+import { asyncHandler } from '../utils/AppError.js';
 
 const reviewService = new ReviewService();
 

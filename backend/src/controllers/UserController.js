@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import { BaseController } from "../core/BaseController.js";
 import { UserService } from "../services/UserService.js";
 import { User } from "../models/User.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from '../utils/AppError.js';
 
 export class UserController extends BaseController {
   constructor() {

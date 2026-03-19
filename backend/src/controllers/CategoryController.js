@@ -1,5 +1,5 @@
 import { CategoryService } from "../services/CategoryService.js";
-import { asyncHandler, ApiResponse } from "../middleware/errorHandler.js";
+import { asyncHandler, ApiResponse } from '../utils/AppError.js';
 
 const service = new CategoryService();
 

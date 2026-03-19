@@ -1,5 +1,5 @@
 import { CouponService } from "../services/CouponService.js";
-import { asyncHandler, ApiResponse } from "../middleware/errorHandler.js";
+import { asyncHandler, ApiResponse } from '../utils/AppError.js';
 
 const service = new CouponService();
 

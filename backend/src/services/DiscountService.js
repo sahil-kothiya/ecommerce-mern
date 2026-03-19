@@ -3,11 +3,13 @@ import { BaseService } from "../core/BaseService.js";
 import { Discount } from "../models/Discount.js";
 import { Category } from "../models/Category.js";
 import { Product } from "../models/Product.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from "../utils/AppError.js";
+import { DiscountRepository } from "../repositories/index.js";
 
 export class DiscountService extends BaseService {
-  constructor() {
-    super(Discount);
+  constructor(repository = new DiscountRepository()) {
+    super();
+    this.repository = repository;
   }
 
   normalizeType(value) {
@@ -309,7 +311,12 @@ export class DiscountService extends BaseService {
   }
 
   async getDiscounts(filters = {}) {
-    const { page = 1, limit = 20, isActive, type, search } = filters;
+    const { isActive, type, search } = filters;
+    const page = Math.max(1, Number.parseInt(filters.page, 10) || 1);
+    const limit = Math.min(
+      500,
+      Math.max(1, Number.parseInt(filters.limit, 10) || 20),
+    );
 
     const skip = (page - 1) * limit;
     const query = {};

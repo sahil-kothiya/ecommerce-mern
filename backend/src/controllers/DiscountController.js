@@ -3,7 +3,7 @@ import { DiscountService } from "../services/DiscountService.js";
 import { Discount } from "../models/Discount.js";
 import { Category } from "../models/Category.js";
 import { Product } from "../models/Product.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from '../utils/AppError.js';
 import { logger } from "../utils/logger.js";
 
 export class DiscountController extends BaseController {

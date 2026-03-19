@@ -1,12 +1,14 @@
 import mongoose from "mongoose";
 import { BaseService } from "../core/BaseService.js";
 import { User } from "../models/User.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from '../utils/AppError.js';
 import { imageProcessingService } from "./ImageProcessingService.js";
+import { UserRepository } from '../repositories/index.js';
 
 export class UserService extends BaseService {
-  constructor() {
-    super(User);
+  constructor(repository = new UserRepository()) {
+    super();
+    this.repository = repository;
   }
 
   isValidEmail(value) {

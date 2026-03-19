@@ -1,16 +1,18 @@
 import { Brand } from "../models/Brand.js";
 import { Product } from "../models/Product.js";
 import { BaseService } from "../core/BaseService.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from "../utils/AppError.js";
 import slugify from "slugify";
+import { BrandRepository } from "../repositories/index.js";
 
 export class BrandService extends BaseService {
-  constructor() {
-    super(Brand);
+  constructor(repository = new BrandRepository()) {
+    super();
+    this.repository = repository;
   }
 
   async createBrand(brandData) {
-    const existingBrand = await this.model
+    const existingBrand = await this.repository.model
       .findOne({
         title: brandData.title,
       })
@@ -35,7 +37,7 @@ export class BrandService extends BaseService {
         strict: true,
       });
 
-      const existingBrand = await this.model
+      const existingBrand = await this.repository.model
         .findOne({
           slug: updateData.slug,
           _id: { $ne: id },

@@ -1,89 +1,88 @@
+import { BaseController } from "../core/BaseController.js";
 import { ProductService } from "../services/ProductService.js";
-import { asyncHandler } from "../middleware/errorHandler.js";
 
-const productService = new ProductService();
+export class ProductController extends BaseController {
+  constructor() {
+    super(new ProductService());
+  }
 
-export class ProductController {
-  index = asyncHandler(async (req, res) => {
+  index = this.catchAsync(async (req, res) => {
     const bypass =
       String(req.query.noCache || "")
         .trim()
         .toLowerCase() === "true";
     const cacheKey = bypass ? null : `products:index:${req.originalUrl}`;
 
-    const result = await productService.listProducts(req.query, cacheKey);
+    const result = await this.service.listProducts(req.query, cacheKey);
     res.set("X-Cache", result.cacheHit ? "HIT" : bypass ? "BYPASS" : "MISS");
-    res.json(result);
+    this.sendSuccess(res, result.data);
   });
 
-  featured = asyncHandler(async (req, res) => {
-    const limit = parseInt(req.query.limit) || 10;
-    const data = await productService.getFeaturedProducts(limit);
-    res.json({ success: true, data });
-  });
-
-  search = asyncHandler(async (req, res) => {
-    const { q, ...filters } = req.query;
-    const result = await productService.searchProducts(q, filters);
-    res.json({ success: true, data: result });
-  });
-
-  show = asyncHandler(async (req, res) => {
-    const data = await productService.getProductBySlugOrId(
-      req.params.slug,
-      true,
+  featured = this.catchAsync(async (req, res) => {
+    const limit = Math.min(
+      50,
+      Math.max(1, parseInt(req.query.limit, 10) || 10),
     );
-    res.json({ success: true, data });
+    const data = await this.service.getFeaturedProducts(limit);
+    this.sendSuccess(res, data);
   });
 
-  adminShow = asyncHandler(async (req, res) => {
-    const data = await productService.getProductAdmin(req.params.id);
-    res.json({ success: true, data });
+  search = this.catchAsync(async (req, res) => {
+    const { q, page, limit, ...filters } = req.query;
+    const result = await this.service.searchProducts(q, filters, page, limit);
+    this.sendSuccess(res, result);
   });
 
-  store = asyncHandler(async (req, res) => {
-    const product = await productService.storeProduct(
-      req.body,
-      req.files || [],
-    );
-    res
-      .status(201)
-      .json({
-        success: true,
-        message: "Product created successfully",
-        data: product,
-      });
+  show = this.catchAsync(async (req, res) => {
+    const data = await this.service.getProductBySlugOrId(req.params.slug, true);
+    this.sendSuccess(res, data);
   });
 
-  update = asyncHandler(async (req, res) => {
-    const product = await productService.updateFullProduct(
+  adminShow = this.catchAsync(async (req, res) => {
+    const data = await this.service.getProductAdmin(req.params.id);
+    this.sendSuccess(res, data);
+  });
+
+  store = this.catchAsync(async (req, res) => {
+    const product = await this.service.storeProduct(req.body, req.files || []);
+    this.logAction("Product Created", {
+      productId: product._id,
+      userId: this.getUserId(req),
+    });
+    this.sendCreated(res, product, "Product created successfully");
+  });
+
+  update = this.catchAsync(async (req, res) => {
+    const product = await this.service.updateFullProduct(
       req.params.id,
       req.body,
       req.files || [],
     );
-    res.json({
-      success: true,
-      message: "Product updated successfully",
-      data: product,
+    this.logAction("Product Updated", {
+      productId: req.params.id,
+      userId: this.getUserId(req),
     });
+    this.sendSuccess(res, product, 200, "Product updated successfully");
   });
 
-  appendImages = asyncHandler(async (req, res) => {
-    const product = await productService.appendImages(
+  appendImages = this.catchAsync(async (req, res) => {
+    const product = await this.service.appendImages(
       req.params.id,
       req.files || [],
     );
-    res.json({
-      success: true,
-      message: "Images uploaded successfully",
-      data: product,
+    this.logAction("Product Images Appended", {
+      productId: req.params.id,
+      userId: this.getUserId(req),
     });
+    this.sendSuccess(res, product, 200, "Images uploaded successfully");
   });
 
-  destroy = asyncHandler(async (req, res) => {
-    await productService.deleteProduct(req.params.id);
-    res.json({ success: true, message: "Product deleted successfully" });
+  destroy = this.catchAsync(async (req, res) => {
+    await this.service.deleteProduct(req.params.id);
+    this.logAction("Product Deleted", {
+      productId: req.params.id,
+      userId: this.getUserId(req),
+    });
+    this.sendNoContent(res);
   });
 }
-
-export const productController = new ProductController();

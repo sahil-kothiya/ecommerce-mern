@@ -1,43 +1,26 @@
-import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import authService from '../services/authService';
-import apiClient from '../services/apiClient';
-import { API_CONFIG } from '../constants';
-import { formatPrice, getProductDisplayPricing } from '../utils/productUtils';
-import { getPrimaryProductImage, resolveImageUrl } from '../utils/imageUrl';
-import notify from '../utils/notify';
-import { useSiteSettings } from '../context/useSiteSettings';
+import { formatPrice, getProductDisplayPricing } from '@/utils/productUtils';
+import { getPrimaryProductImage, resolveImageUrl } from '@/utils/imageUrl';
+import { useSiteSettings } from '@/context/useSiteSettings';
+import { useWishlist, useRemoveFromWishlist } from '@/hooks/queries';
+import apiClient from '@/services/apiClient';
+import { API_CONFIG } from '@/constants';
+import notify from '@/utils/notify';
+import { useQueryClient } from '@tanstack/react-query';
+import { WISHLIST_KEYS } from '@/hooks/queries/useWishlist';
 
 const WishlistPage = () => {
     const navigate = useNavigate();
     const { settings } = useSiteSettings();
+    const qc = useQueryClient();
     const currencyCode = String(settings?.currencyCode || 'USD').toUpperCase();
-    const [items, setItems] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isBusy, setIsBusy] = useState(false);
 
-    const loadWishlist = async () => {
-        try {
-            setIsLoading(true);
-            const data = await apiClient.get(API_CONFIG.ENDPOINTS.WISHLIST);
-            setItems(data?.data?.items || []);
-        } catch (err) {
-            notify.error(err?.message || 'Failed to load wishlist');
-            setItems([]);
-        } finally { setIsLoading(false); }
-    };
+    const { data: wishlistData, isLoading } = useWishlist();
+    const items = wishlistData?.items || [];
 
-    const removeItem = async (id) => {
-        try {
-            setIsBusy(true);
-            await apiClient.delete(`${API_CONFIG.ENDPOINTS.WISHLIST}/${id}`);
-            notify.success('Removed from wishlist');
-            window.dispatchEvent(new Event('wishlist:changed'));
-            loadWishlist();
-        } catch (err) {
-            notify.error(err.message || 'Failed to remove item');
-        } finally { setIsBusy(false); }
-    };
+    const { mutate: removeFromWishlist, isPending: isRemoving } = useRemoveFromWishlist();
+
+    const removeItem = (id) => removeFromWishlist(id);
 
     const moveToCart = async (item) => {
         const product = item.productId;
@@ -55,18 +38,13 @@ const WishlistPage = () => {
         }
 
         try {
-            setIsBusy(true);
             await apiClient.post(`${API_CONFIG.ENDPOINTS.WISHLIST}/${item._id}/move-to-cart`);
             notify.success('Item moved to cart!');
-            window.dispatchEvent(new Event('wishlist:changed'));
-            window.dispatchEvent(new Event('cart:changed'));
-            loadWishlist();
+            qc.invalidateQueries({ queryKey: WISHLIST_KEYS.wishlist });
         } catch (err) {
             notify.error(err.message || 'Failed to move to cart');
-        } finally { setIsBusy(false); }
+        }
     };
-
-    useEffect(() => { loadWishlist(); }, []);
 
     return (
         <div className="mx-auto max-w-5xl px-4 pb-16 sm:px-6 lg:px-8">
@@ -118,11 +96,11 @@ const WishlistPage = () => {
                                         {product.brand?.title && <p className="text-xs text-slate-400">{product.brand.title}</p>}
                                     </div>
                                     <div className="flex flex-shrink-0 flex-col sm:flex-row items-center gap-2">
-                                        <button onClick={() => moveToCart(item)} disabled={isBusy}
+                                        <button onClick={() => moveToCart(item)} disabled={isRemoving}
                                             className="store-btn-primary tap-bounce rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-40 whitespace-nowrap">
                                             {product.hasVariants ? 'Select Options' : 'Move to Cart'}
                                         </button>
-                                        <button onClick={() => removeItem(item._id)} disabled={isBusy}
+                                        <button onClick={() => removeItem(item._id)} disabled={isRemoving}
                                             className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 disabled:opacity-40 transition">
                                             Remove
                                         </button>

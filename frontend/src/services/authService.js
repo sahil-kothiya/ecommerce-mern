@@ -1,132 +1,70 @@
-import { logger } from "../utils/logger.js";
-
 import apiClient from "./apiClient";
-import { API_CONFIG } from "../constants";
+import { API_CONFIG } from "@/constants";
+import { useAuthStore } from "@/store/authStore";
+
+const AUTH = API_CONFIG.ENDPOINTS.AUTH;
+
+const extractUser = (response) => {
+  const data = response?.data?.data ?? response?.data;
+  return data?.user ?? null;
+};
 
 class AuthService {
-  constructor() {
-    this.USER_KEY = "auth_user";
-    this._userCache = null;
-    this._pendingUserFetch = null;
-
-    if (typeof window !== "undefined") {
-      window.addEventListener("auth:logout", () => this.reset());
-    }
-  }
-
   async login(email, password, rememberMe = false) {
     const trimmedEmail = email?.trim();
-    if (!trimmedEmail || !password) {
+    if (!trimmedEmail || !password)
       throw new Error("Email and password are required");
-    }
 
-    try {
-      const response = await apiClient.post(
-        `${API_CONFIG.ENDPOINTS.AUTH}/login`,
-        {
-          email: trimmedEmail,
-          password,
-          rememberMe: Boolean(rememberMe),
-        },
-      );
+    const response = await apiClient.post(`${AUTH}/login`, {
+      email: trimmedEmail,
+      password,
+      rememberMe: Boolean(rememberMe),
+    });
 
-      const user = response?.data?.user ?? response?.user;
-
-      this.setUser(user);
-      this._emitAuthEvent("auth:login", { user });
-
-      return response;
-    } catch (error) {
-      logger.error("Login failed", {
-        error: error.message,
-        status: error.status,
-      });
-      throw error;
-    }
+    const user = extractUser(response);
+    if (user) useAuthStore.getState().setUser(user);
+    return response.data;
   }
 
   async register(userData) {
     const trimmedEmail = userData?.email?.trim();
     const trimmedName = userData?.name?.trim();
-
     if (!trimmedEmail || !trimmedName || !userData?.password) {
       throw new Error("Name, email, and password are required");
     }
 
-    try {
-      // Strip fields that must not be sent to the server
-      const { role: _role, ...rest } = userData;
-      const sanitizedData = {
-        ...rest,
-        email: trimmedEmail,
-        name: trimmedName,
-      };
+    const { role: _role, ...rest } = userData;
+    const response = await apiClient.post(`${AUTH}/register`, {
+      ...rest,
+      email: trimmedEmail,
+      name: trimmedName,
+    });
 
-      const response = await apiClient.post(
-        `${API_CONFIG.ENDPOINTS.AUTH}/register`,
-        sanitizedData,
-      );
-
-      const user = response?.data?.user ?? response?.user;
-
-      this.setUser(user);
-      this._emitAuthEvent("auth:login", { user });
-
-      return response;
-    } catch (error) {
-      logger.error("Registration failed", {
-        error: error.message,
-        status: error.status,
-      });
-      throw error;
-    }
+    const user = extractUser(response);
+    if (user) useAuthStore.getState().setUser(user);
+    return response.data;
   }
 
   async logout() {
     try {
-      await apiClient.post(`${API_CONFIG.ENDPOINTS.AUTH}/logout`);
-    } catch (error) {
-      logger.warn("Logout API call failed, clearing local data anyway", {
-        error: error.message,
-      });
+      await apiClient.post(`${AUTH}/logout`);
+    } catch {
+      // clear local state even if the API call fails
     } finally {
-      this.reset();
+      useAuthStore.getState().clearUser();
     }
   }
 
   async getCurrentUser() {
-    if (this._pendingUserFetch) {
-      logger.debug("getCurrentUser: returning pending request");
-      return this._pendingUserFetch;
-    }
-
-    this._pendingUserFetch = this._fetchCurrentUser();
-
     try {
-      return await this._pendingUserFetch;
-    } finally {
-      this._pendingUserFetch = null;
-    }
-  }
-
-  async _fetchCurrentUser() {
-    try {
-      const response = await apiClient.get(`${API_CONFIG.ENDPOINTS.AUTH}/me`);
-      const user = response?.data?.user ?? response?.user;
-
-      this.setUser(user);
-
-      return this.getUser();
+      const response = await apiClient.get(`${AUTH}/me`);
+      const user = extractUser(response);
+      if (user) useAuthStore.getState().setUser(user);
+      return user;
     } catch (error) {
-      logger.error("Failed to fetch current user", {
-        error: error.message,
-        status: error.status,
-      });
-
-      if (error.status === 401) {
-        this.reset();
+      if (error.response?.status === 401) {
+        useAuthStore.getState().clearUser();
       }
-
       throw error;
     }
   }
@@ -136,240 +74,79 @@ class AuthService {
       throw new Error("Profile data is required");
     }
 
-    try {
-      const sanitizedData = { ...profileData };
-      if (sanitizedData.name) sanitizedData.name = sanitizedData.name.trim();
-      if (sanitizedData.email) sanitizedData.email = sanitizedData.email.trim();
+    const sanitized = { ...profileData };
+    if (sanitized.name) sanitized.name = sanitized.name.trim();
+    if (sanitized.email) sanitized.email = sanitized.email.trim();
 
-      const response = await apiClient.put(
-        `${API_CONFIG.ENDPOINTS.AUTH}/profile`,
-        sanitizedData,
-      );
-      const user = response?.data?.user ?? response?.user;
-
-      this.setUser(user);
-
-      return this.getUser();
-    } catch (error) {
-      logger.error("Profile update failed", {
-        error: error.message,
-        status: error.status,
-      });
-      throw error;
-    }
+    const response = await apiClient.put(`${AUTH}/profile`, sanitized);
+    const user = extractUser(response);
+    if (user) useAuthStore.getState().setUser(user);
+    return user;
   }
 
   async changePassword(currentPassword, newPassword, confirmPassword) {
     if (!currentPassword || !newPassword) {
       throw new Error("Current password and new password are required");
     }
-
-    if (newPassword.length < 8) {
+    if (newPassword.length < 8)
       throw new Error("New password must be at least 8 characters");
-    }
 
-    try {
-      const response = await apiClient.put(
-        `${API_CONFIG.ENDPOINTS.AUTH}/change-password`,
-        {
-          currentPassword,
-          newPassword,
-          confirmPassword: confirmPassword || newPassword,
-        },
-      );
-
-      return response;
-    } catch (error) {
-      logger.error("Password change failed", {
-        error: error.message,
-        status: error.status,
-      });
-      throw error;
-    }
-  }
-
-  getUser() {
-    if (this._userCache) return this._userCache;
-
-    try {
-      const raw = localStorage.getItem(this.USER_KEY);
-      if (!raw) return null;
-
-      const parsed = JSON.parse(raw);
-
-      if (!this._isValidUserObject(parsed)) {
-        logger.warn("Invalid user object in localStorage, clearing auth");
-        this.reset();
-        return null;
-      }
-
-      this._userCache = parsed;
-      return this._userCache;
-    } catch (error) {
-      logger.error("Error parsing stored user data", { error: error.message });
-      this.reset();
-      return null;
-    }
-  }
-
-  setUser(user) {
-    if (!user) {
-      this.reset();
-      return;
-    }
-
-    const sanitizedUser = {
-      _id: user._id,
-      role: user.role,
-      name: user.name,
-    };
-
-    this._userCache = sanitizedUser;
-    localStorage.setItem(this.USER_KEY, JSON.stringify(sanitizedUser));
-  }
-
-  _isValidUserObject(obj) {
-    return (
-      obj &&
-      typeof obj === "object" &&
-      typeof obj._id === "string" &&
-      obj._id.length > 0 &&
-      typeof obj.role === "string" &&
-      ["user", "customer", "admin", "vendor"].includes(obj.role)
-    );
-  }
-
-  handleUnauthorizedResponse(response) {
-    if (response?.status !== 401) {
-      return false;
-    }
-
-    logger.warn("Unauthorized response detected, clearing auth");
-
-    this.reset();
-    sessionStorage.setItem("sessionExpired", "true");
-
-    this._emitAuthEvent("auth:unauthorized");
-
-    if (
-      typeof window !== "undefined" &&
-      !window.location.pathname.startsWith("/login")
-    ) {
-      setTimeout(() => {
-        if (!window.location.pathname.startsWith("/login")) {
-          window.location.href = "/login";
-        }
-      }, 100);
-    }
-
-    return true;
-  }
-
-  isAuthenticated() {
-    const user = this.getUser();
-    return !!user;
-  }
-
-  isAdmin() {
-    const user = this.getUser();
-    return user?.role === "admin";
-  }
-
-  hasRole(role) {
-    const user = this.getUser();
-    return user?.role === role;
-  }
-
-  getAuthHeaders(customHeaders = {}, includeContentType = true) {
-    const csrfToken = this.getCsrfToken();
-    const headers = {
-      ...(includeContentType ? { "Content-Type": "application/json" } : {}),
-      ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
-      ...customHeaders,
-    };
-
-    return headers;
-  }
-
-  getCsrfToken() {
-    if (typeof document === "undefined") {
-      return "";
-    }
-    const match = document.cookie
-      .split("; ")
-      .find((part) => part.startsWith("csrfToken="));
-    if (!match) {
-      return "";
-    }
-    return decodeURIComponent(match.split("=").slice(1).join("="));
-  }
-
-  reset() {
-    this._userCache = null;
-    this._pendingUserFetch = null;
-    localStorage.removeItem(this.USER_KEY);
-  }
-
-  clearAuth() {
-    this.reset();
+    const response = await apiClient.put(`${AUTH}/change-password`, {
+      currentPassword,
+      newPassword,
+      confirmPassword: confirmPassword || newPassword,
+    });
+    return response.data;
   }
 
   async forgotPassword(email) {
     const trimmedEmail = email?.trim();
-    if (!trimmedEmail) {
-      throw new Error("Email is required");
-    }
+    if (!trimmedEmail) throw new Error("Email is required");
 
-    try {
-      const response = await apiClient.post(
-        `${API_CONFIG.ENDPOINTS.AUTH}/forgot-password`,
-        { email: trimmedEmail },
-      );
-
-      return response;
-    } catch (error) {
-      logger.error("Forgot password request failed", {
-        error: error.message,
-        status: error.status,
-      });
-      throw error;
-    }
+    const response = await apiClient.post(`${AUTH}/forgot-password`, {
+      email: trimmedEmail,
+    });
+    return response.data;
   }
 
   async resetPassword(token, newPassword, confirmPassword) {
-    if (!token || !newPassword) {
+    if (!token || !newPassword)
       throw new Error("Token and new password are required");
-    }
-
-    if (newPassword.length < 8) {
+    if (newPassword.length < 8)
       throw new Error("Password must be at least 8 characters");
-    }
 
-    try {
-      const response = await apiClient.post(
-        `${API_CONFIG.ENDPOINTS.AUTH}/reset-password`,
-        { token, newPassword, confirmPassword: confirmPassword || newPassword },
-      );
-
-      return response;
-    } catch (error) {
-      logger.error("Reset password failed", {
-        error: error.message,
-        status: error.status,
-      });
-      throw error;
-    }
+    const response = await apiClient.post(`${AUTH}/reset-password`, {
+      token,
+      newPassword,
+      confirmPassword: confirmPassword || newPassword,
+    });
+    return response.data;
   }
 
-  _emitAuthEvent(eventName, detail = {}) {
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent(eventName, { detail }));
-    }
+  // ─── Synchronous getters — read from Zustand store ───────────────────────
+  getUser() {
+    return useAuthStore.getState().user;
   }
 
-  _resetForTesting() {
-    this._userCache = null;
-    this._pendingUserFetch = null;
+  isAuthenticated() {
+    return useAuthStore.getState().isAuthenticated;
+  }
+
+  isAdmin() {
+    return useAuthStore.getState().user?.role === "admin";
+  }
+
+  hasRole(role) {
+    return useAuthStore.getState().user?.role === role;
+  }
+
+  // Keep for backward compatibility — no-op now that Zustand handles state
+  reset() {
+    useAuthStore.getState().clearUser();
+  }
+
+  clearAuth() {
+    useAuthStore.getState().clearUser();
   }
 }
 

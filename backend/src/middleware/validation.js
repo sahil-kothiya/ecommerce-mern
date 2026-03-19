@@ -1,3 +1,5 @@
+import { createErrorEnvelope } from "../utils/responseEnvelope.js";
+
 export const validateRequest = (validationType) => {
   return (req, res, next) => {
     const errors = [];
@@ -103,11 +105,15 @@ export const validateRequest = (validationType) => {
     }
 
     if (errors.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Validation failed",
-        errors,
-      });
+      return res.status(400).json(
+        createErrorEnvelope({
+          message: "Validation failed",
+          errors,
+          meta: {
+            validationType,
+          },
+        }),
+      );
     }
 
     next();

@@ -2,15 +2,17 @@ import mongoose from "mongoose";
 import { VariantType } from "../models/VariantType.js";
 import { VariantOption } from "../models/VariantOption.js";
 import { BaseService } from "../core/BaseService.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from '../utils/AppError.js';
 import { logger } from "../utils/logger.js";
 import { isValidObjectId, normalizeStatus } from "../utils/shared.js";
+import { VariantOptionRepository } from '../repositories/index.js';
 
 const VALID_STATUS = ["active", "inactive"];
 
 export class VariantOptionService extends BaseService {
-  constructor() {
-    super(VariantOption);
+  constructor(repository = new VariantOptionRepository()) {
+    super();
+    this.repository = repository;
   }
 
   normalizeValue(value = "") {
@@ -74,7 +76,7 @@ export class VariantOptionService extends BaseService {
         .skip(skip)
         .limit(limit)
         .lean(),
-      this.model.countDocuments(query),
+      this.repository.model.countDocuments(query),
     ]);
 
     return {
@@ -179,7 +181,7 @@ export class VariantOptionService extends BaseService {
 
     if (errors.length > 0) throw new AppError("Validation failed", 422, errors);
 
-    const item = await this.model.create(data);
+    const item = await this.repository.model.create(data);
     const populated = await this.model
       .findById(item._id)
       .populate("variantTypeId", "name displayName status")
@@ -193,7 +195,7 @@ export class VariantOptionService extends BaseService {
     if (!isValidObjectId(id))
       throw new AppError("Invalid variant option ID", 400);
 
-    const item = await this.model.findById(id);
+    const item = await this.repository.model.findById(id);
     if (!item) throw new AppError("Variant option not found", 404);
 
     const data = {
@@ -269,7 +271,7 @@ export class VariantOptionService extends BaseService {
     if (!isValidObjectId(id))
       throw new AppError("Invalid variant option ID", 400);
 
-    const item = await this.model.findById(id);
+    const item = await this.repository.model.findById(id);
     if (!item) throw new AppError("Variant option not found", 404);
 
     await item.deleteOne();

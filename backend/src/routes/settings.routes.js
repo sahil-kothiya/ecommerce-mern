@@ -5,6 +5,11 @@ import {
   createDynamicUpload,
   handleDynamicUploadError,
 } from "../middleware/dynamicUpload.js";
+import {
+  validate,
+  updateSettingsValidator,
+  testEmailValidator,
+} from "../validators/index.js";
 
 const router = Router();
 
@@ -27,16 +32,19 @@ router.put(
     ],
   }),
   handleDynamicUploadError,
+  updateSettingsValidator,
+  validate,
   settingController.update.bind(settingController),
 );
 router.post(
   "/test-email",
   protect,
   authorize("admin"),
+  testEmailValidator,
+  validate,
   settingController.testEmail.bind(settingController),
 );
 
-// Image settings routes
 router.get(
   "/image",
   settingController.getImageSettings.bind(settingController),

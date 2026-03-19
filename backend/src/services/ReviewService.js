@@ -2,8 +2,9 @@ import { Review } from "../models/Review.js";
 import { Product } from "../models/Product.js";
 import { Order } from "../models/Order.js";
 import { BaseService } from "../core/BaseService.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from '../utils/AppError.js';
 import mongoose from "mongoose";
+import { ReviewRepository } from '../repositories/index.js';
 
 const SORT_OPTIONS = {
   recent: { createdAt: -1 },
@@ -14,8 +15,9 @@ const SORT_OPTIONS = {
 };
 
 export class ReviewService extends BaseService {
-  constructor() {
-    super(Review);
+  constructor(repository = new ReviewRepository()) {
+    super();
+    this.repository = repository;
   }
 
   async listReviews({
@@ -57,7 +59,7 @@ export class ReviewService extends BaseService {
         .skip(skip)
         .limit(limit)
         .lean(),
-      this.model.countDocuments(query),
+      this.repository.model.countDocuments(query),
     ]);
     return {
       reviews,
@@ -82,7 +84,7 @@ export class ReviewService extends BaseService {
         .skip(skip)
         .limit(limit)
         .lean(),
-      this.model.countDocuments({ userId }),
+      this.repository.model.countDocuments({ userId }),
     ]);
     const normalized = reviews.map((r) => ({ ...r, product: r.productId }));
     return {
@@ -115,7 +117,7 @@ export class ReviewService extends BaseService {
         .skip(skip)
         .limit(limit)
         .lean(),
-      this.model.countDocuments(filter),
+      this.repository.model.countDocuments(filter),
     ]);
     const enriched = reviews.map((r) => ({
       ...r,
@@ -140,7 +142,7 @@ export class ReviewService extends BaseService {
     if (userRole === "admin")
       return { canReview: false, reason: "Admins cannot submit reviews" };
 
-    const existing = await this.model.findOne({ productId, userId }).lean();
+    const existing = await this.repository.model.findOne({ productId, userId }).lean();
     if (existing)
       return {
         canReview: false,
@@ -195,11 +197,11 @@ export class ReviewService extends BaseService {
         403,
       );
 
-    const existing = await this.model.findOne({ productId, userId }).lean();
+    const existing = await this.repository.model.findOne({ productId, userId }).lean();
     if (existing)
       throw new AppError("You have already reviewed this product", 400);
 
-    const review = await this.model.create({
+    const review = await this.repository.model.create({
       productId,
       orderId,
       userId,
@@ -220,7 +222,7 @@ export class ReviewService extends BaseService {
   async updateReview(userId, reviewId, updateData) {
     if (!mongoose.Types.ObjectId.isValid(reviewId))
       throw new AppError("Invalid review ID", 400);
-    const review = await this.model.findById(reviewId);
+    const review = await this.repository.model.findById(reviewId);
     if (!review) throw new AppError("Review not found", 404);
     if (String(review.userId) !== String(userId))
       throw new AppError("You can only edit your own review", 403);
@@ -255,7 +257,7 @@ export class ReviewService extends BaseService {
   async deleteReview(userId, reviewId, isAdmin = false) {
     if (!mongoose.Types.ObjectId.isValid(reviewId))
       throw new AppError("Invalid review ID", 400);
-    const review = await this.model.findById(reviewId);
+    const review = await this.repository.model.findById(reviewId);
     if (!review) throw new AppError("Review not found", 404);
     if (!isAdmin && String(review.userId) !== String(userId))
       throw new AppError("Not authorized to delete this review", 403);
@@ -281,7 +283,7 @@ export class ReviewService extends BaseService {
     );
 
     if (alreadyVoted) {
-      await this.model.updateOne(
+      await this.repository.model.updateOne(
         { _id: reviewId },
         { $pull: { helpfulVoters: userId }, $inc: { helpful: -1 } },
       );
@@ -299,7 +301,7 @@ export class ReviewService extends BaseService {
       );
     }
 
-    await this.model.updateOne(
+    await this.repository.model.updateOne(
       { _id: reviewId },
       { $addToSet: { helpfulVoters: userId }, $inc: { helpful: 1 } },
     );
@@ -316,7 +318,7 @@ export class ReviewService extends BaseService {
     if (!["active", "inactive"].includes(status))
       throw new AppError("Status must be active or inactive", 400);
 
-    const review = await this.model.findById(reviewId);
+    const review = await this.repository.model.findById(reviewId);
     if (!review) throw new AppError("Review not found", 404);
     review.status = status;
     await review.save();

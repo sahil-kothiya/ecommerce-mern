@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import apiClient from '../../services/apiClient';
-import authService from '../../services/authService';
-import { API_CONFIG } from '../../constants';
-import { resolveImageUrl } from '../../utils/imageUrl';
-import { useSiteSettings } from '../../context/useSiteSettings';
-import { formatCurrency } from '../../utils/currency';
+import { useOrders } from '@/hooks/queries';
+import { useAuthStore } from '@/store/authStore';
+import apiClient from '@/services/apiClient';
+import { API_CONFIG } from '@/constants';
+import { resolveImageUrl } from '@/utils/imageUrl';
+import { useSiteSettings } from '@/context/useSiteSettings';
+import { formatCurrency } from '@/utils/currency';
 
 const STATUS_CONFIG = {
     new:       { label: 'Order Placed',  badge: 'bg-primary-100 text-primary-700 ring-primary-200',      dot: 'bg-primary-500',   step: 1 },
@@ -56,9 +57,7 @@ const OrderTracker = ({ status }) => {
 
     return (
         <div className="relative flex items-start justify-between px-2">
-            {/* Background connector */}
             <div className="absolute left-0 right-0 top-4 mx-8 h-0.5 bg-slate-200" />
-            {/* Active progress */}
             <div
                 className="absolute left-0 top-4 mx-8 h-0.5 bg-primary-500 transition-all duration-700"
                 style={{ width: `${((currentStep - 1) / (TRACKING_STEPS.length - 1)) * 100}%` }}
@@ -111,12 +110,7 @@ const ItemRow = ({ item, orderId, canReview, settings }) => {
     const Thumbnail = (
         <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200">
             {imgSrc ? (
-                <img
-                    src={imgSrc}
-                    alt={title}
-                    className="h-full w-full object-cover"
-                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = resolveImageUrl(null); }}
-                />
+                <img src={imgSrc} alt={title} className="h-full w-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = resolveImageUrl(null); }} />
             ) : (
                 <div className="flex h-full w-full items-center justify-center">
                     <svg className="h-8 w-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,15 +123,10 @@ const ItemRow = ({ item, orderId, canReview, settings }) => {
 
     return (
         <div className="flex items-start gap-4 py-4">
-            {productLink
-                ? <Link to={productLink} className="flex-shrink-0">{Thumbnail}</Link>
-                : Thumbnail}
-
+            {productLink ? <Link to={productLink} className="flex-shrink-0">{Thumbnail}</Link> : Thumbnail}
             <div className="min-w-0 flex-1">
                 {productLink ? (
-                    <Link to={productLink} className="font-semibold leading-snug text-slate-800 hover:text-primary-600 transition-colors">
-                        {title}
-                    </Link>
+                    <Link to={productLink} className="font-semibold leading-snug text-slate-800 hover:text-primary-600 transition-colors">{title}</Link>
                 ) : (
                     <p className="font-semibold leading-snug text-slate-800">{title}</p>
                 )}
@@ -151,10 +140,7 @@ const ItemRow = ({ item, orderId, canReview, settings }) => {
             <div className="flex-shrink-0 text-right">
                 <p className="text-base font-bold text-slate-800">{formatCurrency(amount, settings)}</p>
                 {canReview && productLink && (
-                    <Link
-                        to={`${productLink}?orderId=${orderId}`}
-                        className="mt-2 inline-flex items-center rounded-lg border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700 hover:bg-primary-100"
-                    >
+                    <Link to={`${productLink}?orderId=${orderId}`} className="mt-2 inline-flex items-center rounded-lg border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700 hover:bg-primary-100">
                         Rate & Review
                     </Link>
                 )}
@@ -174,30 +160,15 @@ const PriceSummary = ({ order, settings }) => {
         <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
             <h4 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">Price Details</h4>
             <div className="space-y-2.5 text-sm">
-                <div className="flex justify-between text-slate-600">
-                    <span>Subtotal ({itemCount} item{itemCount !== 1 ? 's' : ''})</span>
-                    <span>{formatCurrency(sub, settings)}</span>
-                </div>
+                <div className="flex justify-between text-slate-600"><span>Subtotal ({itemCount} item{itemCount !== 1 ? 's' : ''})</span><span>{formatCurrency(sub, settings)}</span></div>
                 <div className="flex justify-between text-slate-600">
                     <span>Delivery Charges</span>
-                    <span className={shipping === 0 ? 'font-medium text-green-600' : ''}>
-                        {shipping === 0 ? 'FREE' : formatCurrency(shipping, settings)}
-                    </span>
+                    <span className={shipping === 0 ? 'font-medium text-green-600' : ''}>{shipping === 0 ? 'FREE' : formatCurrency(shipping, settings)}</span>
                 </div>
-                {discount > 0 && (
-                    <div className="flex justify-between text-green-600">
-                        <span>Coupon Discount</span>
-                        <span>- {formatCurrency(discount, settings)}</span>
-                    </div>
-                )}
+                {discount > 0 && <div className="flex justify-between text-green-600"><span>Coupon Discount</span><span>- {formatCurrency(discount, settings)}</span></div>}
                 <div className="my-1 border-t border-slate-200" />
-                <div className="flex justify-between text-base font-bold text-slate-800">
-                    <span>Total Amount</span>
-                    <span>{formatCurrency(total, settings)}</span>
-                </div>
-                {shipping === 0 && sub > 0 && (
-                    <p className="text-xs font-medium text-green-600">🎉 Free delivery on this order!</p>
-                )}
+                <div className="flex justify-between text-base font-bold text-slate-800"><span>Total Amount</span><span>{formatCurrency(total, settings)}</span></div>
+                {shipping === 0 && sub > 0 && <p className="text-xs font-medium text-green-600">🎉 Free delivery on this order!</p>}
             </div>
         </div>
     );
@@ -213,9 +184,7 @@ const DeliveryAddress = ({ order }) => (
             Delivery Address
         </h4>
         <div className="space-y-1 text-sm text-slate-600">
-            <p className="font-semibold text-slate-800">
-                {[order.firstName, order.lastName].filter(Boolean).join(' ')}
-            </p>
+            <p className="font-semibold text-slate-800">{[order.firstName, order.lastName].filter(Boolean).join(' ')}</p>
             {order.address1 && <p>{order.address1}</p>}
             {order.address2 && <p>{order.address2}</p>}
             <p>{[order.city, order.state, order.postCode].filter(Boolean).join(', ')}</p>
@@ -238,48 +207,27 @@ const PaymentInfo = ({ order }) => (
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
         </svg>
         <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="font-semibold text-slate-700">
-                {PAYMENT_METHOD_LABEL[order.paymentMethod] || order.paymentMethod}
-            </span>
+            <span className="font-semibold text-slate-700">{PAYMENT_METHOD_LABEL[order.paymentMethod] || order.paymentMethod}</span>
             <span className="text-slate-300">·</span>
             <Badge className={PAYMENT_BADGE[order.paymentStatus] || 'bg-slate-100 text-slate-600 ring-slate-200'}>
-                {order.paymentStatus === 'paid'
-                    ? '✓ Paid'
-                    : order.paymentStatus === 'refunded'
-                    ? '↩ Refunded'
-                    : 'Unpaid'}
+                {order.paymentStatus === 'paid' ? '✓ Paid' : order.paymentStatus === 'refunded' ? '↩ Refunded' : 'Unpaid'}
             </Badge>
-            {order.transactionId && (
-                <span className="text-xs text-slate-400">Ref: {order.transactionId.slice(-8).toUpperCase()}</span>
-            )}
+            {order.transactionId && <span className="text-xs text-slate-400">Ref: {order.transactionId.slice(-8).toUpperCase()}</span>}
         </div>
     </div>
 );
 
 const AccountOrders = () => {
     const { settings } = useSiteSettings();
-    const [orders, setOrders]             = useState([]);
-    const [isLoading, setIsLoading]       = useState(true);
-    const [error, setError]               = useState('');
-    const [actionOrderId, setActionOrderId] = useState(null);
-    const [message, setMessage]           = useState({ text: '', success: false });
-    const [statusFilter, setStatusFilter] = useState('');
-    const [expandedOrder, setExpandedOrder] = useState(null);
+    const user = useAuthStore((s) => s.user);
 
-    useEffect(() => {
-        const load = async () => {
-            try {
-                setIsLoading(true);
-                const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.ORDERS}?limit=50&sort=-createdAt`);
-                setOrders(Array.isArray(data?.data?.orders) ? data.data.orders : data?.orders || []);
-            } catch (err) {
-                setError(err.message);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        load();
-    }, []);
+    const { data: ordersData, isLoading, error } = useOrders({ limit: 50, sort: '-createdAt' });
+    const orders = Array.isArray(ordersData?.orders) ? ordersData.orders : (Array.isArray(ordersData) ? ordersData : []);
+
+    const [actionOrderId, setActionOrderId] = useState(null);
+    const [message, setMessage]             = useState({ text: '', success: false });
+    const [statusFilter, setStatusFilter]   = useState('');
+    const [expandedOrder, setExpandedOrder] = useState(null);
 
     const filteredOrders = useMemo(() =>
         statusFilter ? orders.filter((o) => o.status === statusFilter) : orders,
@@ -294,11 +242,11 @@ const AccountOrders = () => {
         try {
             setActionOrderId(orderId);
             const data = await apiClient.post(`${API_CONFIG.ENDPOINTS.ORDERS}/${orderId}/reorder`);
-            const added   = data?.data?.addedItems?.length  || 0;
-            const skipped = data?.data?.skippedItems?.length || 0;
+            const added   = data?.data?.data?.addedItems?.length  || data?.data?.addedItems?.length  || 0;
+            const skipped = data?.data?.data?.skippedItems?.length || data?.data?.skippedItems?.length || 0;
             notify(`Reorder complete: ${added} item(s) added to cart${skipped ? `, ${skipped} skipped` : ''}.`);
         } catch (err) {
-            notify(err.message, false);
+            notify(err.response?.data?.message || err.message, false);
         } finally {
             setActionOrderId(null);
         }
@@ -312,12 +260,10 @@ const AccountOrders = () => {
         }
         try {
             setActionOrderId(orderId);
-            await apiClient.post(`${API_CONFIG.ENDPOINTS.ORDERS}/${orderId}/returns`, {
-                reason: reason.trim()
-            });
+            await apiClient.post(`${API_CONFIG.ENDPOINTS.ORDERS}/${orderId}/returns`, { reason: reason.trim() });
             notify('Return request submitted successfully.');
         } catch (err) {
-            notify(err.message, false);
+            notify(err.response?.data?.message || err.message, false);
         } finally {
             setActionOrderId(null);
         }
@@ -333,19 +279,12 @@ const AccountOrders = () => {
 
     return (
         <div className="space-y-5">
-            {/* Header */}
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-slate-800">My Orders</h1>
-                    <p className="text-sm text-slate-500">
-                        {orders.length} order{orders.length !== 1 ? 's' : ''} total
-                    </p>
+                    <p className="text-sm text-slate-500">{orders.length} order{orders.length !== 1 ? 's' : ''} total</p>
                 </div>
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                     <option value="">All Orders</option>
                     <option value="new">New</option>
                     <option value="process">Processing</option>
@@ -355,73 +294,42 @@ const AccountOrders = () => {
                 </select>
             </div>
 
-            {/* Toast */}
             {message.text && (
-                <div className={`rounded-xl px-4 py-3 text-sm ring-1 ${
-                    message.success
-                        ? 'bg-green-50 text-green-700 ring-green-200'
-                        : 'bg-red-50 text-red-700 ring-red-200'
-                }`}>
+                <div className={`rounded-xl px-4 py-3 text-sm ring-1 ${message.success ? 'bg-green-50 text-green-700 ring-green-200' : 'bg-red-50 text-red-700 ring-red-200'}`}>
                     {message.text}
                 </div>
             )}
 
             {error && (
-                <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">{error}</div>
+                <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">{error.message}</div>
             )}
 
-            {/* Empty state */}
             {filteredOrders.length === 0 ? (
                 <div className="rounded-2xl bg-white py-16 text-center shadow-sm ring-1 ring-slate-100">
                     <svg className="mx-auto mb-4 h-14 w-14 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
-                    <p className="font-medium text-slate-500">
-                        {statusFilter ? `No ${statusFilter} orders found.` : "You haven't placed any orders yet."}
-                    </p>
-                    <Link to="/products" className="mt-4 inline-block rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700">
-                        Start Shopping
-                    </Link>
+                    <p className="font-medium text-slate-500">{statusFilter ? `No ${statusFilter} orders found.` : "You haven't placed any orders yet."}</p>
+                    <Link to="/products" className="mt-4 inline-block rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700">Start Shopping</Link>
                 </div>
             ) : (
                 <div className="space-y-4">
                     {filteredOrders.map((order) => {
                         const statusCfg  = STATUS_CONFIG[order.status] || STATUS_CONFIG.new;
                         const isExpanded = expandedOrder === order._id;
-                        const orderDate  = new Date(order.createdAt).toLocaleDateString('en-US', {
-                            year: 'numeric', month: 'long', day: 'numeric',
-                        });
+                        const orderDate  = new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
                         return (
                             <div key={order._id} className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 transition hover:shadow-md">
-
-                                {/* ── Amazon-style order header bar ── */}
                                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs text-slate-500">
                                     <div className="flex flex-wrap gap-6">
-                                        <div>
-                                            <span className="block font-semibold uppercase tracking-wider text-slate-400">Order Placed</span>
-                                            <span className="font-medium text-slate-700">{orderDate}</span>
-                                        </div>
-                                        <div>
-                                            <span className="block font-semibold uppercase tracking-wider text-slate-400">Total</span>
-                                            <span className="font-medium text-slate-700">{formatCurrency(order.totalAmount, settings)}</span>
-                                        </div>
-                                        <div>
-                                            <span className="block font-semibold uppercase tracking-wider text-slate-400">Ship To</span>
-                                            <span className="font-medium text-slate-700">
-                                                {[order.firstName, order.lastName].filter(Boolean).join(' ') || '—'}
-                                            </span>
-                                        </div>
+                                        <div><span className="block font-semibold uppercase tracking-wider text-slate-400">Order Placed</span><span className="font-medium text-slate-700">{orderDate}</span></div>
+                                        <div><span className="block font-semibold uppercase tracking-wider text-slate-400">Total</span><span className="font-medium text-slate-700">{formatCurrency(order.totalAmount, settings)}</span></div>
+                                        <div><span className="block font-semibold uppercase tracking-wider text-slate-400">Ship To</span><span className="font-medium text-slate-700">{[order.firstName, order.lastName].filter(Boolean).join(' ') || '—'}</span></div>
                                     </div>
-                                    <div className="text-right">
-                                        <span className="block font-semibold uppercase tracking-wider text-slate-400">Order #</span>
-                                        <span className="font-mono font-bold text-slate-700">
-                                            {order.orderNumber || order._id.slice(-8).toUpperCase()}
-                                        </span>
-                                    </div>
+                                    <div className="text-right"><span className="block font-semibold uppercase tracking-wider text-slate-400">Order #</span><span className="font-mono font-bold text-slate-700">{order.orderNumber || order._id.slice(-8).toUpperCase()}</span></div>
                                 </div>
 
-                                {/* ── Status + toggle row ── */}
                                 <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <Badge className={`${statusCfg.badge} ring-1`}>
@@ -431,93 +339,47 @@ const AccountOrders = () => {
                                         <Badge className={`${PAYMENT_BADGE[order.paymentStatus] || 'bg-slate-100 text-slate-600 ring-slate-200'} ring-1`}>
                                             {String(order.paymentStatus || '').charAt(0).toUpperCase() + String(order.paymentStatus || '').slice(1)}
                                         </Badge>
-                                        <span className="text-sm text-slate-500">
-                                            {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}
-                                        </span>
+                                        <span className="text-sm text-slate-500">{order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}</span>
                                     </div>
-                                    <button
-                                        onClick={() => setExpandedOrder(isExpanded ? null : order._id)}
-                                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow"
-                                    >
-                                        {isExpanded ? (
-                                            <>
-                                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
-                                                Hide Details
-                                            </>
-                                        ) : (
-                                            <>
-                                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                                                View Details
-                                            </>
-                                        )}
+                                    <button onClick={() => setExpandedOrder(isExpanded ? null : order._id)} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow">
+                                        {isExpanded ? (<><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>Hide Details</>) : (<><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>View Details</>)}
                                     </button>
                                 </div>
 
-                                {/* ── Expanded Order Detail ── */}
                                 {isExpanded && (
                                     <div className="space-y-6 border-t border-slate-100 px-5 pb-6 pt-5">
-
-                                        {/* Tracking stepper */}
                                         <div>
                                             <p className="mb-4 text-xs font-bold uppercase tracking-wide text-slate-500">Order Tracking</p>
                                             <OrderTracker status={order.status} />
                                         </div>
-
-                                        {/* Items */}
                                         {order.items?.length > 0 && (
                                             <div>
                                                 <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">Items Ordered</p>
                                                 <div className="divide-y divide-slate-100 rounded-2xl px-4 ring-1 ring-slate-100">
                                                     {order.items.map((item, idx) => (
-                                                        <ItemRow key={item._id || idx} item={item} orderId={order._id} canReview={order.status === 'delivered' && authService.getUser()?.role !== 'admin'} settings={settings} />
+                                                        <ItemRow key={item._id || idx} item={item} orderId={order._id} canReview={order.status === 'delivered' && user?.role !== 'admin'} settings={settings} />
                                                     ))}
                                                 </div>
                                             </div>
                                         )}
-
-                                        {/* Address + Price summary side by side */}
                                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                             <DeliveryAddress order={order} />
                                             <PriceSummary order={order} settings={settings} />
                                         </div>
-
-                                        {/* Payment info */}
                                         <div>
                                             <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Payment</p>
                                             <PaymentInfo order={order} />
                                         </div>
-
-                                        {/* Action buttons */}
                                         <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
-                                            <button
-                                                onClick={() => handleReorder(order._id)}
-                                                disabled={!!actionOrderId}
-                                                className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
-                                            >
-                                                {actionOrderId === order._id ? (
-                                                    <span className="flex items-center gap-2">
-                                                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                                        Processing...
-                                                    </span>
-                                                ) : '↺ Reorder'}
+                                            <button onClick={() => handleReorder(order._id)} disabled={!!actionOrderId} className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50">
+                                                {actionOrderId === order._id ? (<span className="flex items-center gap-2"><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />Processing...</span>) : '↺ Reorder'}
                                             </button>
-
                                             {order.status === 'delivered' && (
-                                                <button
-                                                    onClick={() => handleReturnRequest(order._id)}
-                                                    disabled={!!actionOrderId}
-                                                    className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-                                                >
+                                                <button onClick={() => handleReturnRequest(order._id)} disabled={!!actionOrderId} className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50">
                                                     Return / Refund
                                                 </button>
                                             )}
-
-                                            <Link
-                                                to="/account/returns"
-                                                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-                                            >
-                                                View Returns
-                                            </Link>
+                                            <Link to="/account/returns" className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">View Returns</Link>
                                         </div>
                                     </div>
                                 )}
@@ -531,4 +393,3 @@ const AccountOrders = () => {
 };
 
 export default AccountOrders;
-

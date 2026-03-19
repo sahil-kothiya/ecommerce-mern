@@ -1,10 +1,11 @@
 import { Banner } from "../models/Banner.js";
 import { Discount } from "../models/Discount.js";
 import { BaseService } from "../core/BaseService.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from '../utils/AppError.js';
 import { imageProcessingService } from "./ImageProcessingService.js";
 import { logger } from "../utils/logger.js";
 import mongoose from "mongoose";
+import { BannerRepository } from '../repositories/index.js';
 
 function parseJsonField(value, fallback, fieldName) {
   if (value === undefined || value === null || value === "") return fallback;
@@ -53,8 +54,9 @@ function resolveDiscountIds(discountIds, discounts) {
 }
 
 export class BannerService extends BaseService {
-  constructor() {
-    super(Banner);
+  constructor(repository = new BannerRepository()) {
+    super();
+    this.repository = repository;
   }
 
   async listBanners({
@@ -76,7 +78,7 @@ export class BannerService extends BaseService {
         .limit(parseInt(limit))
         .populate("discountIds", "title type value startsAt endsAt isActive")
         .lean(),
-      this.model.countDocuments(query),
+      this.repository.model.countDocuments(query),
     ]);
     const pages = Math.ceil(total / limit);
     return {
@@ -145,7 +147,7 @@ export class BannerService extends BaseService {
       discountIds: resolveDiscountIds(body.discountIds, body.discounts),
     };
     try {
-      return await this.model.create(data);
+      return await this.repository.model.create(data);
     } catch (error) {
       if (processedPath) await imageProcessingService.deleteFile(processedPath);
       if (error.code === 11000)
@@ -167,7 +169,7 @@ export class BannerService extends BaseService {
       );
       processedPath = result.path;
     }
-    const banner = await this.model.findById(id);
+    const banner = await this.repository.model.findById(id);
     if (!banner) {
       if (processedPath) await imageProcessingService.deleteFile(processedPath);
       throw new AppError("Banner not found", 404);
@@ -216,7 +218,7 @@ export class BannerService extends BaseService {
   async deleteBanner(id) {
     if (!mongoose.Types.ObjectId.isValid(id))
       throw new AppError("Invalid banner ID", 400);
-    const banner = await this.model.findById(id);
+    const banner = await this.repository.model.findById(id);
     if (!banner) throw new AppError("Banner not found", 404);
     if (banner.image) await imageProcessingService.deleteFile(banner.image);
     await banner.deleteOne();
@@ -225,7 +227,7 @@ export class BannerService extends BaseService {
   async trackView(id) {
     if (!mongoose.Types.ObjectId.isValid(id))
       throw new AppError("Invalid banner ID", 400);
-    const banner = await this.model.findById(id);
+    const banner = await this.repository.model.findById(id);
     if (!banner) throw new AppError("Banner not found", 404);
     await banner.incrementViewCount();
   }
@@ -233,7 +235,7 @@ export class BannerService extends BaseService {
   async trackClick(id) {
     if (!mongoose.Types.ObjectId.isValid(id))
       throw new AppError("Invalid banner ID", 400);
-    const banner = await this.model.findById(id);
+    const banner = await this.repository.model.findById(id);
     if (!banner) throw new AppError("Banner not found", 404);
     await banner.incrementClickCount();
   }

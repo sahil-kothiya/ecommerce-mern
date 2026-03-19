@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import apiClient from '../../services/apiClient';
-import { API_CONFIG } from '../../constants';
+import { useCurrentUser, useOrders } from '@/hooks/queries';
 
 const StatCard = ({ label, value, icon, to, color }) => (
     <Link to={to} className="group flex items-center gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 transition hover:shadow-md hover:ring-primary-200">
@@ -23,30 +22,13 @@ const ORDER_STATUS_COLORS = {
 };
 
 const AccountDashboard = () => {
-    const [user, setUser] = useState(null);
-    const [orders, setOrders] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState('');
+    const { data: userData, isLoading: isLoadingUser, error: userError } = useCurrentUser();
+    const { data: ordersData, isLoading: isLoadingOrders } = useOrders();
 
-    useEffect(() => {
-        const load = async () => {
-            try {
-                setIsLoading(true);
-                const [profileData, ordersData] = await Promise.all([
-                    apiClient.get(`${API_CONFIG.ENDPOINTS.AUTH}/me`),
-                    apiClient.get(API_CONFIG.ENDPOINTS.ORDERS),
-                ]);
-
-                if (profileData) setUser(profileData?.data?.user || profileData?.user || null);
-                if (ordersData) setOrders(Array.isArray(ordersData?.data?.orders) ? ordersData.data.orders : ordersData?.orders || []);
-            } catch (err) {
-                setError(err.message || 'Failed to load dashboard');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        load();
-    }, []);
+    const user = userData?.user || userData || null;
+    const orders = Array.isArray(ordersData?.orders) ? ordersData.orders : (Array.isArray(ordersData) ? ordersData : []);
+    const isLoading = isLoadingUser || isLoadingOrders;
+    const error = userError?.message || '';
 
     const stats = useMemo(() => {
         const total = orders.length;
@@ -110,7 +92,7 @@ const AccountDashboard = () => {
                 />
             </div>
 
-            {/* Recent orders  */}
+            {/* Recent orders */}
             <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
                 <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-base font-bold text-slate-800">Recent Orders</h2>

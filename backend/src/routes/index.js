@@ -1,0 +1,17 @@
+export { default as adminProductRoutes } from "./adminProduct.routes.js";
+export { default as authRoutes } from "./auth.routes.js";
+export { default as bannerRoutes } from "./banner.routes.js";
+export { default as brandRoutes } from "./brand.routes.js";
+export { default as cartRoutes } from "./cart.routes.js";
+export { default as categoryRoutes } from "./category.routes.js";
+export { default as couponRoutes } from "./coupon.routes.js";
+export { default as discountRoutes } from "./discount.routes.js";
+export { default as orderRoutes } from "./order.routes.js";
+export { default as paymentRoutes } from "./payment.routes.js";
+export { default as productRoutes } from "./product.routes.js";
+export { default as reviewRoutes } from "./review.routes.js";
+export { default as settingsRoutes } from "./settings.routes.js";
+export { default as userRoutes } from "./user.routes.js";
+export { default as variantOptionRoutes } from "./variantOption.routes.js";
+export { default as variantTypeRoutes } from "./variantType.routes.js";
+export { default as wishlistRoutes } from "./wishlist.routes.js";

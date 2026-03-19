@@ -238,12 +238,13 @@ const DiscountForm = () => {
                 discountService.getFormOptions(),
                 discountService.getAllActiveProducts({ limit: 200 }),
             ]);
-            setCategories(optionsResponse?.data?.categories || []);
+            const optionsPayload = optionsResponse?.data?.data || optionsResponse?.data || {};
+            setCategories(optionsPayload?.categories || []);
             setProducts(activeProducts);
 
             if (isEdit) {
                 const discountResponse = await discountService.getDiscountById(id);
-                const discount = discountResponse?.data;
+                const discount = discountResponse?.data?.data || discountResponse?.data;
                 if (!discount) {
                     notify.error('Discount not found');
                     navigate('/admin/discounts');

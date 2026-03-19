@@ -20,6 +20,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           react: ["react", "react-dom", "react-router-dom"],
+          query: ["@tanstack/react-query", "@tanstack/react-query-devtools"],
+          state: ["zustand", "axios"],
         },
       },
     },
@@ -27,6 +29,17 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@components": path.resolve(__dirname, "./src/components"),
+      "@pages": path.resolve(__dirname, "./src/pages"),
+      "@hooks": path.resolve(__dirname, "./src/hooks"),
+      "@context": path.resolve(__dirname, "./src/context"),
+      "@services": path.resolve(__dirname, "./src/services"),
+      "@utils": path.resolve(__dirname, "./src/utils"),
+      "@assets": path.resolve(__dirname, "./src/assets"),
+      "@store": path.resolve(__dirname, "./src/store"),
+      "@constants": path.resolve(__dirname, "./src/constants"),
+      "@layouts": path.resolve(__dirname, "./src/layouts"),
+      "@shared": path.resolve(__dirname, "../shared"),
       "@/components": path.resolve(__dirname, "./src/components"),
       "@/pages": path.resolve(__dirname, "./src/pages"),
       "@/hooks": path.resolve(__dirname, "./src/hooks"),
@@ -34,6 +47,10 @@ export default defineConfig({
       "@/services": path.resolve(__dirname, "./src/services"),
       "@/utils": path.resolve(__dirname, "./src/utils"),
       "@/assets": path.resolve(__dirname, "./src/assets"),
+      "@/store": path.resolve(__dirname, "./src/store"),
+      "@/constants": path.resolve(__dirname, "./src/constants"),
+      "@/layouts": path.resolve(__dirname, "./src/layouts"),
+      "@/shared": path.resolve(__dirname, "../shared"),
     },
   },
   server: {

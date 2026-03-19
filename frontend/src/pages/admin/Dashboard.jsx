@@ -35,10 +35,10 @@ const Dashboard = () => {
                 apiClient.get(`${API_CONFIG.ENDPOINTS.ORDERS}/admin/all?page=1&limit=5&sort=-createdAt`),
             ]);
 
-            const productsData = productsRes?.data || {};
-            const usersData = usersRes?.data || {};
-            const orderSummaryData = orderSummaryRes?.data || {};
-            const recentOrdersData = recentOrdersRes?.data || {};
+            const productsData = productsRes?.data?.data || productsRes?.data || {};
+            const usersData = usersRes?.data?.data || usersRes?.data || {};
+            const orderSummaryData = orderSummaryRes?.data?.data || orderSummaryRes?.data || {};
+            const recentOrdersData = recentOrdersRes?.data?.data || recentOrdersRes?.data || {};
 
             setStats({
                 totalProducts: Number(productsData?.pagination?.total || 0),

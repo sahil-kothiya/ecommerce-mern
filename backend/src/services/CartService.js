@@ -1,7 +1,8 @@
 import { Cart } from "../models/Cart.js";
 import { Product } from "../models/Product.js";
 import { BaseService } from "../core/BaseService.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from '../utils/AppError.js';
+import { CartRepository } from '../repositories/index.js';
 
 const round = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
@@ -126,8 +127,9 @@ export const buildCartPayload = (items) => {
 };
 
 export class CartService extends BaseService {
-  constructor() {
-    super(Cart);
+  constructor(repository = new CartRepository()) {
+    super();
+    this.repository = repository;
   }
 
   async getCartForUser(userId) {

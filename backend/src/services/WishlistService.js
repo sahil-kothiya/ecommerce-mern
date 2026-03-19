@@ -2,13 +2,15 @@ import { Wishlist } from "../models/Wishlist.js";
 import { Cart } from "../models/Cart.js";
 import { Product } from "../models/Product.js";
 import { BaseService } from "../core/BaseService.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from '../utils/AppError.js';
+import { WishlistRepository } from '../repositories/index.js';
 
 const round = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
 export class WishlistService extends BaseService {
-  constructor() {
-    super(Wishlist);
+  constructor(repository = new WishlistRepository()) {
+    super();
+    this.repository = repository;
   }
 
   async getWishlist(userId) {

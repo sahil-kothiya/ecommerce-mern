@@ -1,12 +1,13 @@
 import { Setting } from "../models/Setting.js";
 import { BaseService } from "../core/BaseService.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from '../utils/AppError.js';
 import { logger } from "../utils/logger.js";
 import {
   clearImageSettingsCache,
   DEFAULT_IMAGE_SETTINGS,
 } from "../utils/settingsCache.js";
 import { imageProcessingService } from "./ImageProcessingService.js";
+import { SettingRepository } from '../repositories/index.js';
 
 const PUBLIC_FIELDS = [
   "siteName",
@@ -58,14 +59,15 @@ const UPDATABLE_FIELDS = [
 ];
 
 export class SettingService extends BaseService {
-  constructor() {
-    super(Setting);
+  constructor(repository = new SettingRepository()) {
+    super();
+    this.repository = repository;
   }
 
   async getOrCreate() {
-    let settings = await this.model.findOne({ key: "main" });
+    let settings = await this.repository.model.findOne({ key: "main" });
     if (!settings) {
-      settings = await this.model.create({ key: "main" });
+      settings = await this.repository.model.create({ key: "main" });
     }
     return settings;
   }

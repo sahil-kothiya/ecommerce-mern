@@ -22,7 +22,8 @@ const DiscountsList = () => {
         try {
             setIsLoading(true);
             const response = await discountService.getDiscounts({ limit: 200 });
-            setDiscounts(response?.data?.discounts || []);
+            const payload = response?.data?.data || response?.data || {};
+            setDiscounts(payload?.discounts || []);
         } catch (error) {
             notify.error(error, 'Failed to load discounts');
         } finally {

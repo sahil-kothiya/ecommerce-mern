@@ -1,8 +1,8 @@
 import { settingService } from "../services/SettingService.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from '../utils/AppError.js';
 import { deleteUploadedFile } from "../middleware/uploadEnhanced.js";
 import { emailService } from "../utils/emailService.js";
-import { asyncHandler } from "../middleware/errorHandler.js";
+import { asyncHandler } from '../utils/AppError.js';
 
 class SettingController {
   index = asyncHandler(async (req, res) => {

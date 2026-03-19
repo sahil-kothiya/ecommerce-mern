@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import { BaseController } from "../core/BaseController.js";
 import { OrderService } from "../services/OrderService.js";
 import { Order } from "../models/Order.js";
-import { AppError } from "../middleware/errorHandler.js";
+import { AppError } from '../utils/AppError.js';
 
 const ORDER_STATUSES = ["new", "process", "delivered", "cancelled"];
 const PAYMENT_STATUSES = ["paid", "unpaid"];
