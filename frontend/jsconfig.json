@@ -8,6 +8,7 @@
       "@hooks/*": ["src/hooks/*"],
       "@context/*": ["src/context/*"],
       "@services/*": ["src/services/*"],
+      "@types/*": ["src/types/*"],
       "@utils/*": ["src/utils/*"],
       "@assets/*": ["src/assets/*"],
       "@store/*": ["src/store/*"],

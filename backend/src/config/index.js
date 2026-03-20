@@ -96,6 +96,42 @@ const parseOrigins = (value, fallback) => {
     .filter(Boolean);
 };
 
+const parseRedisConfig = (urlString, defaultTtl, defaultConcurrency) => {
+  const fallback = {
+    url: urlString || "redis://localhost:6379",
+    host: "127.0.0.1",
+    port: 6379,
+    password: undefined,
+    ttl: defaultTtl,
+    queueConcurrency: defaultConcurrency,
+  };
+
+  try {
+    const parsed = new URL(fallback.url);
+    const parsedPort = parseInt(parsed.port || "6379", 10);
+    const parsedTtl = parseInt(defaultTtl || "3600", 10);
+    const parsedConcurrency = parseInt(defaultConcurrency || "5", 10);
+
+    return {
+      url: fallback.url,
+      host: parsed.hostname || fallback.host,
+      port: Number.isNaN(parsedPort) ? fallback.port : parsedPort,
+      password: parsed.password || undefined,
+      ttl: Number.isNaN(parsedTtl) ? 3600 : parsedTtl,
+      queueConcurrency: Number.isNaN(parsedConcurrency) ? 5 : parsedConcurrency,
+    };
+  } catch {
+    const parsedTtl = parseInt(defaultTtl || "3600", 10);
+    const parsedConcurrency = parseInt(defaultConcurrency || "5", 10);
+
+    return {
+      ...fallback,
+      ttl: Number.isNaN(parsedTtl) ? 3600 : parsedTtl,
+      queueConcurrency: Number.isNaN(parsedConcurrency) ? 5 : parsedConcurrency,
+    };
+  }
+};
+
 const assertRequiredEnvInNonLocal = (nodeEnv, envMap) => {
   const localEnvironments = new Set(["development", "test", "local"]);
   if (localEnvironments.has(nodeEnv)) {
@@ -210,13 +246,17 @@ export const config = Object.freeze({
   logLevel: process.env.LOG_LEVEL || "info",
 
   redis: {
-    url: process.env.REDIS_URL || "redis://localhost:6379",
-    ttl: parseInt(process.env.REDIS_DEFAULT_TTL || "3600", 10),
+    ...parseRedisConfig(
+      process.env.REDIS_URL,
+      process.env.REDIS_DEFAULT_TTL,
+      process.env.QUEUE_CONCURRENCY,
+    ),
   },
 
   performance: {
     enableMonitoring: parseBoolean(
-      process.env.ENABLE_PERFORMANCE_MONITORING,
+      process.env.ENABLE_PERFORMANCE_MONITORING ||
+        process.env.ENABLE_MONITORING,
       true,
     ),
     slowRouteThresholdMs: Number.isNaN(parsedSlowRouteThresholdMs)

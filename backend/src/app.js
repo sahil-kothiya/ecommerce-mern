@@ -18,6 +18,7 @@ import mongoose from "mongoose";
 import { handleStripeWebhook } from "./routes/payment.routes.js";
 import { apiRouteRegistry } from "./routes/registry.js";
 import { createSuccessEnvelope } from "./utils/responseEnvelope.js";
+import { getQueueHealth } from "./queues/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -167,7 +168,7 @@ app.get("/", (_req, res) => {
   );
 });
 
-app.get(`/api/${config.apiVersion}/health`, (_req, res) => {
+app.get(`/api/${config.apiVersion}/health`, async (_req, res) => {
   const memoryUsage = process.memoryUsage();
   const dbState = mongoose.connection.readyState;
   const dbStatusMap = {
@@ -176,6 +177,8 @@ app.get(`/api/${config.apiVersion}/health`, (_req, res) => {
     2: "connecting",
     3: "disconnecting",
   };
+  const queue = await getQueueHealth();
+
   res.status(200).json(
     createSuccessEnvelope({
       data: {
@@ -188,6 +191,12 @@ app.get(`/api/${config.apiVersion}/health`, (_req, res) => {
           heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB`,
         },
         database: { status: dbStatusMap[dbState] || "unknown" },
+        redis: {
+          status: queue.status,
+          host: config.redis.host,
+          port: config.redis.port,
+        },
+        queue,
       },
       message: "Server is running",
     }),

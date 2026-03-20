@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@config/*": ["src/config/*"],
+      "@constants/*": ["src/constants/*"],
+      "@controllers/*": ["src/controllers/*"],
+      "@core/*": ["src/core/*"],
+      "@middleware/*": ["src/middleware/*"],
+      "@models/*": ["src/models/*"],
+      "@queues/*": ["src/queues/*"],
+      "@repositories/*": ["src/repositories/*"],
+      "@routes/*": ["src/routes/*"],
+      "@services/*": ["src/services/*"],
+      "@utils/*": ["src/utils/*"],
+      "@validators/*": ["src/validators/*"],
+      "@shared/*": ["../shared/*"]
+    }
+  },
+  "exclude": ["node_modules"]
+}
