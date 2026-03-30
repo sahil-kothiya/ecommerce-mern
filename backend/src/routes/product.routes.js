@@ -22,11 +22,11 @@ router.get(
   optionalAuth,
   productQueryValidator,
   validate,
-  cacheMiddleware(30),
+  cacheMiddleware(300),
   (req, res, next) => productController.index(req, res, next),
 );
 
-router.get("/featured", cacheMiddleware(120), (req, res, next) =>
+router.get("/featured", cacheMiddleware(600), (req, res, next) =>
   productController.featured(req, res, next),
 );
 
@@ -34,7 +34,7 @@ router.get(
   "/search",
   productQueryValidator,
   validate,
-  cacheMiddleware(30),
+  cacheMiddleware(300),
   (req, res, next) => productController.search(req, res, next),
 );
 
@@ -47,7 +47,7 @@ router.get(
   (req, res, next) => productController.adminShow(req, res, next),
 );
 
-router.get("/:slug", optionalAuth, cacheMiddleware(60), (req, res, next) =>
+router.get("/:slug", optionalAuth, cacheMiddleware(300), (req, res, next) =>
   productController.show(req, res, next),
 );
 

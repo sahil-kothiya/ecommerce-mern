@@ -3,7 +3,8 @@ import dotenv from "dotenv";
 dotenv.config({
   quiet: process.env.NODE_ENV === "test",
 });
-const isTestEnvironment = (process.env.NODE_ENV || "development") === "test";
+const resolvedNodeEnv = process.env.NODE_ENV || "development";
+const isTestEnvironment = resolvedNodeEnv === "test";
 
 const parsedPort = parseInt(process.env.PORT || "5001", 10);
 const parsedEmailPort = parseInt(process.env.SMTP_PORT || "587", 10);
@@ -156,7 +157,7 @@ const resolvedFrontendOrigins = parseOrigins(
 );
 
 export const config = Object.freeze({
-  nodeEnv: process.env.NODE_ENV || "development",
+  nodeEnv: resolvedNodeEnv,
   port: Number.isNaN(parsedPort) ? 5001 : parsedPort,
   apiUrl: process.env.API_URL || "http://localhost:5001",
   frontendUrl: resolvedFrontendUrl,
@@ -251,6 +252,11 @@ export const config = Object.freeze({
       process.env.REDIS_DEFAULT_TTL,
       process.env.QUEUE_CONCURRENCY,
     ),
+    enabled: parseBoolean(
+      process.env.QUEUE_ENABLED,
+      resolvedNodeEnv === "production",
+    ),
+    cacheEnabled: parseBoolean(process.env.REDIS_CACHE_ENABLED, true),
   },
 
   performance: {

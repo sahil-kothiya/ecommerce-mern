@@ -476,9 +476,10 @@ const ProductsPage = () => {
                 if (String(effectiveFilters.maxPrice).trim()) params.set('maxPrice', String(effectiveFilters.maxPrice).trim());
 
                 const payload = await apiClient.get(`${API_CONFIG.ENDPOINTS.PRODUCTS}?${params.toString()}`);
+                const productsPayload = payload?.data?.data || payload?.data || {};
 
-                setProducts(Array.isArray(payload?.data?.products) ? payload.data.products : []);
-                setPagination(payload?.data?.pagination || {
+                setProducts(Array.isArray(productsPayload.products) ? productsPayload.products : []);
+                setPagination(productsPayload.pagination || {
                     page: 1,
                     limit: pageSize,
                     total: 0,

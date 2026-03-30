@@ -1,6 +1,28 @@
 import { body, param, query } from "express-validator";
 import mongoose from "mongoose";
 
+const ALLOWED_PRODUCT_SORTS = [
+  "newest",
+  "oldest",
+  "price-low",
+  "price-high",
+  "rating",
+  "popular",
+  "popularity",
+  "createdAt",
+  "-createdAt",
+  "basePrice",
+  "-basePrice",
+  "salesCount",
+  "-salesCount",
+  "viewCount",
+  "-viewCount",
+  "ratings.average",
+  "-ratings.average",
+  "title",
+  "-title",
+];
+
 export const createProductValidator = [
   body("title")
     .trim()
@@ -102,16 +124,7 @@ export const productQueryValidator = [
 
   query("sort")
     .optional()
-    .isIn([
-      "price",
-      "-price",
-      "createdAt",
-      "-createdAt",
-      "name",
-      "-name",
-      "salesCount",
-      "-salesCount",
-    ])
+    .isIn(ALLOWED_PRODUCT_SORTS)
     .withMessage("Invalid sort field"),
 
   query("status")

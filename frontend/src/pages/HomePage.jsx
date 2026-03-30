@@ -275,7 +275,9 @@ const HomePage = () => {
                 apiClient.get(API_CONFIG.ENDPOINTS.CATEGORIES),
                 apiClient.get(`${API_CONFIG.ENDPOINTS.BANNERS}?limit=5&status=active`).catch(() => null),
             ]);
-            const apiProducts = (prodsData?.data?.products || []).map((p) => ({ ...p, images: Array.isArray(p.images) ? p.images : [] }));
+            const productsPayload = prodsData?.data?.data || prodsData?.data || {};
+            const apiProducts = (Array.isArray(productsPayload.products) ? productsPayload.products : [])
+                .map((p) => ({ ...p, images: Array.isArray(p.images) ? p.images : [] }));
             const apiCategories = parseCategoryList(catsData);
             if (!apiProducts.length) throw new Error('No products');
             const fallbackCategories = Object.values(

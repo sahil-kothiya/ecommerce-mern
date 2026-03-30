@@ -2,6 +2,8 @@ import Queue from "bull";
 import { config } from "../config/index.js";
 import { logger } from "../utils/logger.js";
 
+const isQueueEnabled = Boolean(config.redis?.enabled);
+
 const redisConfig = {
   host: config.redis.host,
   port: config.redis.port,
@@ -9,15 +11,42 @@ const redisConfig = {
   maxRetriesPerRequest: 3,
 };
 
-export const ratingsQueue = new Queue("product-ratings", {
-  redis: redisConfig,
-});
-export const emailQueue = new Queue("emails", { redis: redisConfig });
-export const imageProcessingQueue = new Queue("image-processing", {
-  redis: redisConfig,
+const createDisabledQueue = (name) => ({
+  name,
+  add: async () => null,
+  getJobCounts: async () => ({
+    waiting: 0,
+    active: 0,
+    completed: 0,
+    failed: 0,
+    delayed: 0,
+    paused: 0,
+  }),
+  process: () => {},
+  on: () => {},
+  close: async () => {},
 });
 
+export const ratingsQueue = isQueueEnabled
+  ? new Queue("product-ratings", { redis: redisConfig })
+  : createDisabledQueue("product-ratings");
+
+export const emailQueue = isQueueEnabled
+  ? new Queue("emails", { redis: redisConfig })
+  : createDisabledQueue("emails");
+
+export const imageProcessingQueue = isQueueEnabled
+  ? new Queue("image-processing", { redis: redisConfig })
+  : createDisabledQueue("image-processing");
+
 export const getQueueHealth = async () => {
+  if (!isQueueEnabled) {
+    return {
+      status: "disabled",
+      counts: null,
+    };
+  }
+
   try {
     const [ratings, emails, imageProcessing] = await Promise.all([
       ratingsQueue.getJobCounts(),
@@ -42,16 +71,39 @@ export const getQueueHealth = async () => {
   }
 };
 
-ratingsQueue.on("error", (error) => {
-  logger.error("Ratings queue error:", error);
-});
+const lastQueueErrorLog = new Map();
 
-emailQueue.on("error", (error) => {
-  logger.error("Email queue error:", error);
-});
+const logQueueError = (queueName, error) => {
+  const now = Date.now();
+  const previous = lastQueueErrorLog.get(queueName) ?? 0;
+  if (now - previous < 30_000) {
+    return;
+  }
 
-imageProcessingQueue.on("error", (error) => {
-  logger.error("Image processing queue error:", error);
-});
+  lastQueueErrorLog.set(queueName, now);
+  logger.error(
+    `${queueName} queue error: ${error?.message || "Unknown error"}`,
+  );
+};
 
-logger.info("Queue system initialized");
+if (isQueueEnabled) {
+  ratingsQueue.on("error", (error) => {
+    logQueueError("Ratings", error);
+  });
+
+  emailQueue.on("error", (error) => {
+    logQueueError("Email", error);
+  });
+
+  imageProcessingQueue.on("error", (error) => {
+    logQueueError("Image processing", error);
+  });
+}
+
+if (isQueueEnabled) {
+  logger.info("Queue system initialized");
+} else {
+  logger.warn(
+    "Queue system disabled. Set QUEUE_ENABLED=true and start Redis to enable background jobs.",
+  );
+}

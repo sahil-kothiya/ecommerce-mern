@@ -1,20 +1,9 @@
 import { logger } from "../utils/logger.js";
-
-const store = new Map();
-
-/**
- * Evict all entries whose TTL has expired.
- * Runs periodically to prevent unbounded memory growth.
- */
-const evictExpired = () => {
-  const now = Date.now();
-  for (const [key, entry] of store) {
-    if (now > entry.expiresAt) store.delete(key);
-  }
-};
-
-// Sweep every 2 minutes
-setInterval(evictExpired, 120_000).unref();
+import {
+  getCachedResponse,
+  setCachedResponse,
+  invalidateCacheByPrefix,
+} from "../utils/requestCache.js";
 
 /**
  * Invalidate all cached entries whose key starts with a given prefix.
@@ -22,9 +11,11 @@ setInterval(evictExpired, 120_000).unref();
  * @param {string} prefix
  */
 export const invalidateCache = (prefix) => {
-  for (const key of store.keys()) {
-    if (key.startsWith(prefix)) store.delete(key);
-  }
+  void invalidateCacheByPrefix(prefix).catch((error) => {
+    logger.warn(
+      `[CACHE] invalidate failed for prefix=${prefix}: ${error.message}`,
+    );
+  });
 };
 
 /**
@@ -35,22 +26,24 @@ export const invalidateCache = (prefix) => {
  */
 export const cacheMiddleware =
   (ttlSeconds = 60) =>
-  (req, res, next) => {
+  async (req, res, next) => {
     if (req.method !== "GET") return next();
 
     const key = req.originalUrl;
-    const cached = store.get(key);
+    const cached = await getCachedResponse(key);
 
-    if (cached && Date.now() <= cached.expiresAt) {
+    if (cached) {
       res.setHeader("X-Cache", "HIT");
-      return res.json(cached.body);
+      return res.json(cached);
     }
 
     // Intercept res.json to store the response before sending
     const originalJson = res.json.bind(res);
     res.json = (body) => {
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        store.set(key, { body, expiresAt: Date.now() + ttlSeconds * 1000 });
+        void setCachedResponse(key, body, ttlSeconds * 1000).catch((error) => {
+          logger.warn(`[CACHE] set failed for ${key}: ${error.message}`);
+        });
         logger.debug(`[CACHE] SET ${key} ttl=${ttlSeconds}s`);
       }
       res.setHeader("X-Cache", "MISS");

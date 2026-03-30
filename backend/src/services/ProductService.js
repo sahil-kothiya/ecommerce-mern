@@ -152,7 +152,7 @@ export class ProductService extends BaseService {
 
   async listProducts(options = {}, cacheKey = null) {
     if (cacheKey) {
-      const cached = getCachedResponse(cacheKey);
+      const cached = await getCachedResponse(cacheKey);
       if (cached) return { ...cached, cacheHit: true };
     }
 
@@ -216,7 +216,7 @@ export class ProductService extends BaseService {
     };
 
     if (cacheKey)
-      setCachedResponse(
+      await setCachedResponse(
         cacheKey,
         { success: true, data: payload },
         CACHE_TTL_MS,
@@ -454,7 +454,7 @@ export class ProductService extends BaseService {
       },
     });
 
-    invalidateCacheByPrefix("products:index:");
+    await invalidateCacheByPrefix("products:index:");
     return product;
   }
 
@@ -575,13 +575,13 @@ export class ProductService extends BaseService {
       product.baseSku = undefined;
     }
 
-    invalidateCacheByPrefix("products:index:");
+    await invalidateCacheByPrefix("products:index:");
     return product;
   }
 
   async deleteProduct(id) {
     await this.repository.deleteByIdOrFail(id);
-    invalidateCacheByPrefix("products:index:");
+    await invalidateCacheByPrefix("products:index:");
   }
 
   async getProductsByCategory(categoryId, options = {}) {

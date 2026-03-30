@@ -3,7 +3,7 @@ import { Product } from "../models/Product.js";
 import { Brand } from "../models/Brand.js";
 import { Filter } from "../models/Filter.js";
 import { BaseService } from "../core/BaseService.js";
-import { AppError } from '../utils/AppError.js';
+import { AppError } from "../utils/AppError.js";
 import { logger } from "../utils/logger.js";
 import mongoose from "mongoose";
 import path from "path";
@@ -15,7 +15,7 @@ import {
 } from "../utils/requestCache.js";
 import { parseBoolean, normalizeStatus } from "../utils/shared.js";
 import { imageProcessingService } from "./ImageProcessingService.js";
-import { CategoryRepository } from '../repositories/index.js';
+import { CategoryRepository } from "../repositories/index.js";
 
 const CACHE_TTL = 15000;
 
@@ -76,7 +76,10 @@ export class CategoryService extends BaseService {
     const filter = excludeId
       ? { _id: { $ne: excludeId }, code: { $exists: true, $ne: null } }
       : { code: { $exists: true, $ne: null } };
-    const existing = await this.repository.model.find(filter).select("code").lean();
+    const existing = await this.repository.model
+      .find(filter)
+      .select("code")
+      .lean();
     const used = new Set(existing.map((i) => i.code).filter(Boolean));
     if (!used.has(base)) return base;
     const prefix = base.slice(0, 2);
@@ -115,7 +118,7 @@ export class CategoryService extends BaseService {
         .toLowerCase() === "true";
     const cacheKey = `categories:index:${JSON.stringify({ parent, includeChildren, status, sort, page, limit })}`;
     if (!bypass) {
-      const cached = getCachedResponse(cacheKey);
+      const cached = await getCachedResponse(cacheKey);
       if (cached) return { ...cached, cacheHit: true };
     }
 
@@ -131,7 +134,7 @@ export class CategoryService extends BaseService {
         .lean();
       const data = this.buildTree(all);
       const payload = { data };
-      if (!bypass) setCachedResponse(cacheKey, payload, CACHE_TTL);
+      if (!bypass) await setCachedResponse(cacheKey, payload, CACHE_TTL);
       return { ...payload, cacheHit: false };
     }
 
@@ -147,7 +150,7 @@ export class CategoryService extends BaseService {
     const data = await q.lean();
 
     const payload = { data };
-    if (!bypass) setCachedResponse(cacheKey, payload, CACHE_TTL);
+    if (!bypass) await setCachedResponse(cacheKey, payload, CACHE_TTL);
     return { ...payload, cacheHit: false };
   }
 
@@ -423,8 +426,8 @@ export class CategoryService extends BaseService {
       addedBy: userId || null,
     });
 
-    invalidateCacheByPrefix("categories:index:");
-    invalidateCacheByPrefix("products:index:");
+    await invalidateCacheByPrefix("categories:index:");
+    await invalidateCacheByPrefix("products:index:");
     return category;
   }
 
@@ -544,8 +547,8 @@ export class CategoryService extends BaseService {
     }
 
     await category.save();
-    invalidateCacheByPrefix("categories:index:");
-    invalidateCacheByPrefix("products:index:");
+    await invalidateCacheByPrefix("categories:index:");
+    await invalidateCacheByPrefix("products:index:");
     return category;
   }
 
@@ -557,8 +560,8 @@ export class CategoryService extends BaseService {
     if ((await Product.countDocuments({ "category.id": id })) > 0)
       throw new AppError("Cannot delete category with products", 400);
     await category.deleteOne();
-    invalidateCacheByPrefix("categories:index:");
-    invalidateCacheByPrefix("products:index:");
+    await invalidateCacheByPrefix("categories:index:");
+    await invalidateCacheByPrefix("products:index:");
   }
 
   async bulkReorder(updates) {
@@ -577,7 +580,7 @@ export class CategoryService extends BaseService {
       },
     }));
     await this.repository.model.bulkWrite(ops);
-    invalidateCacheByPrefix("categories:index:");
-    invalidateCacheByPrefix("products:index:");
+    await invalidateCacheByPrefix("categories:index:");
+    await invalidateCacheByPrefix("products:index:");
   }
 }

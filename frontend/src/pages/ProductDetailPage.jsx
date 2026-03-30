@@ -257,10 +257,11 @@ const ProductDetailPage = () => {
             if (categoryId) url += `&categoryId=${categoryId}`;
 
             const data = await apiClient.get(url);
+            const productsPayload = data?.data?.data || data?.data || {};
 
-            const products = Array.isArray(data?.data?.products)
-                ? data.data.products
-                : (Array.isArray(data?.data) ? data.data : []);
+            const products = Array.isArray(productsPayload.products)
+                ? productsPayload.products
+                : (Array.isArray(productsPayload) ? productsPayload : []);
 
             setSimilarProducts(products.filter(p => p._id !== productId).slice(0, 12));
         } catch {
