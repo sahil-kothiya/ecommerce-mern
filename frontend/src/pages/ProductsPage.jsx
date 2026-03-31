@@ -54,19 +54,15 @@ const SkeletonCard = () => (
     </div>
 );
 
-const HeroBanner = ({ banners }) => {
+const HeroBanner = ({ banners = [] }) => {
     const [idx, setIdx] = useState(0);
     const timerRef = useRef(null);
-    const slides = banners.length
-        ? banners
-        : [{
-            title: 'Featured Deals',
-            description: 'Discover top products, curated offers, and fresh arrivals.',
-            image: null,
-        }];
+    const slides = Array.isArray(banners) ? banners.filter(Boolean) : [];
+    const hasSlides = slides.length > 0;
+    const activeIndex = hasSlides ? idx % slides.length : 0;
 
     useEffect(() => {
-        if (idx >= slides.length) setIdx(0);
+        if (slides.length > 0 && idx >= slides.length) setIdx(0);
     }, [idx, slides.length]);
 
     useEffect(() => {
@@ -77,15 +73,19 @@ const HeroBanner = ({ banners }) => {
         return () => clearInterval(timerRef.current);
     }, [slides.length]);
 
-    const b = slides[idx];
+    const b = hasSlides ? slides[activeIndex] : null;
     const action = resolveBannerAction(b);
+
+    if (!hasSlides) {
+        return null;
+    }
 
     return (
         <div className="relative mb-8 overflow-hidden rounded-2xl shadow-lg" style={{ minHeight: 220 }}>
             <div className="absolute inset-0">
                 <div
                     className="flex h-full transition-transform duration-700 ease-out"
-                    style={{ width: `${slides.length * 100}%`, transform: `translateX(-${idx * (100 / slides.length)}%)` }}
+                    style={{ width: `${slides.length * 100}%`, transform: `translateX(-${activeIndex * (100 / slides.length)}%)` }}
                 >
                     {slides.map((slide, slideIndex) => {
                         const imgUrl = resolveImageUrl(slide.image || slide.photo, { placeholder: null });
@@ -140,7 +140,7 @@ const HeroBanner = ({ banners }) => {
                             onClick={() => setIdx(i)}
                             aria-label={`Go to slide ${i + 1}`}
                             className={`h-2 rounded-full transition-all ${
-                                i === idx ? 'w-6 bg-secondary-400' : 'w-2 bg-white/50 hover:bg-white/80'
+                                i === activeIndex ? 'w-6 bg-secondary-400' : 'w-2 bg-white/50 hover:bg-white/80'
                             }`}
                         />
                     ))}
@@ -372,10 +372,17 @@ const ProductsPage = () => {
                 setBrands(parseBrandList(brandsData));
 
                 if (bannersData?.data) {
-                    const bArr = Array.isArray(bannersData.data)
-                        ? bannersData.data
-                        : (bannersData.data?.banners || []);
-                    setBanners(bArr.slice(0, 5));
+                    const payload = bannersData?.data?.data || bannersData.data;
+                    const bArr = Array.isArray(payload)
+                        ? payload
+                        : (payload?.banners || payload?.items || []);
+                    const validBanners = bArr.filter((banner) => (
+                        Boolean(
+                            banner
+                            && (banner.title || banner.description || banner.image || banner.photo),
+                        )
+                    ));
+                    setBanners(validBanners.slice(0, 5));
                 }
             } catch {
                 setCategories([]);

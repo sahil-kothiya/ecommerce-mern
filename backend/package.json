@@ -1,84 +1,84 @@
 {
-    "name": "backend",
-    "version": "1.0.0",
-    "description": "Backend API for Enterprise E-commerce",
-    "type": "module",
-    "main": "src/server.js",
-    "scripts": {
-        "dev": "nodemon src/server.js",
-        "start": "node src/server.js",
-        "test": "node --no-warnings --experimental-vm-modules ../node_modules/jest/bin/jest.js --coverage",
-        "test:watch": "node --no-warnings --experimental-vm-modules ../node_modules/jest/bin/jest.js --watch",
-        "lint": "eslint .",
-        "lint:fix": "eslint . --fix",
-        "format": "prettier --write \"src/**/*.js\"",
-        "seed": "node seeder.js --import",
-        "seed:destroy": "node seeder.js --destroy",
-        "seed:minimal": "node seeder.js --import --products 50 --users 12 --orders 20 --reviews 20",
-        "seed:development": "node seeder.js --import --products 500 --users 80 --orders 250 --reviews 300",
-        "seed:production": "node seeder.js --import --products 10000 --users 2000 --orders 5000 --reviews 6000",
-        "seed:products": "node seeder.js --import --users 10 --orders 10 --reviews 10",
-        "migrate:coupons": "node scripts/migrate-coupons-canonical.js",
-        "migrate:coupons:dry": "node scripts/migrate-coupons-canonical.js --dry-run",
-        "queue:start": "node src/queues/worker.js"
-    },
-    "keywords": [
-        "ecommerce",
-        "api",
-        "express",
-        "mongodb",
-        "javascript"
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Backend API for Enterprise E-commerce",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "test": "node --no-warnings --experimental-vm-modules ../node_modules/jest/bin/jest.js --coverage",
+    "test:watch": "node --no-warnings --experimental-vm-modules ../node_modules/jest/bin/jest.js --watch",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.js\"",
+    "seed": "node seeder.js --import",
+    "seed:destroy": "node seeder.js --destroy",
+    "seed:minimal": "node seeder.js --import --products 50 --users 12 --orders 20 --reviews 20",
+    "seed:development": "node seeder.js --import --products 500 --users 80 --orders 250 --reviews 300",
+    "seed:production": "node seeder.js --import --products 10000 --users 2000 --orders 5000 --reviews 6000",
+    "seed:products": "node seeder.js --import --users 10 --orders 10 --reviews 10",
+    "migrate:coupons": "node scripts/migrate-coupons-canonical.js",
+    "migrate:coupons:dry": "node scripts/migrate-coupons-canonical.js --dry-run",
+    "queue:start": "node src/queues/worker.js"
+  },
+  "keywords": [
+    "ecommerce",
+    "api",
+    "express",
+    "mongodb",
+    "javascript"
+  ],
+  "author": "Enterprise Team",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "bull": "^4.12.0",
+    "compression": "^1.7.4",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^7.5.1",
+    "express-validator": "^7.2.0",
+    "helmet": "^8.0.0",
+    "hpp": "^0.2.3",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.23.0",
+    "morgan": "^1.10.1",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^7.0.13",
+    "sharp": "^0.34.5",
+    "slugify": "^1.6.6",
+    "stripe": "^17.2.1",
+    "uuid": "^11.0.2",
+    "winston": "^3.15.0"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=9.0.0"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.3.0",
+    "eslint": "^9.39.3",
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.14",
+    "prettier": "^3.8.1",
+    "supertest": "^7.2.2"
+  },
+  "jest": {
+    "testMatch": [
+      "**/?(*.)+(spec|test).[jt]s?(x)",
+      "**/?(*.)+(spec|test).cjs"
     ],
-    "author": "Enterprise Team",
-    "license": "MIT",
-    "dependencies": {
-        "bcryptjs": "^2.4.3",
-        "bull": "^4.12.0",
-        "compression": "^1.7.4",
-        "cookie-parser": "^1.4.7",
-        "cors": "^2.8.6",
-        "dotenv": "^17.3.1",
-        "express": "^5.2.1",
-        "express-mongo-sanitize": "^2.2.0",
-        "express-rate-limit": "^7.5.1",
-        "express-validator": "^7.2.0",
-        "helmet": "^8.0.0",
-        "hpp": "^0.2.3",
-        "jsonwebtoken": "^9.0.3",
-        "mongoose": "^8.23.0",
-        "morgan": "^1.10.1",
-        "multer": "^1.4.5-lts.1",
-        "nodemailer": "^7.0.13",
-        "sharp": "^0.34.5",
-        "slugify": "^1.6.6",
-        "stripe": "^17.2.1",
-        "uuid": "^11.0.2",
-        "winston": "^3.15.0"
-    },
-    "engines": {
-        "node": ">=22.0.0",
-        "npm": ">=9.0.0"
-    },
-    "devDependencies": {
-        "@faker-js/faker": "^10.3.0",
-        "eslint": "^9.39.3",
-        "jest": "^29.7.0",
-        "nodemon": "^3.1.14",
-        "prettier": "^3.8.1",
-        "supertest": "^7.2.2"
-    },
-    "jest": {
-        "testMatch": [
-            "**/?(*.)+(spec|test).[jt]s?(x)",
-            "**/?(*.)+(spec|test).cjs"
-        ],
-        "coverageThreshold": {
-            "global": {
-                "lines": 20,
-                "functions": 10,
-                "branches": 5,
-                "statements": 20
-            }
-        }
+    "coverageThreshold": {
+      "global": {
+        "lines": 20,
+        "functions": 10,
+        "branches": 5,
+        "statements": 20
+      }
     }
+  }
 }

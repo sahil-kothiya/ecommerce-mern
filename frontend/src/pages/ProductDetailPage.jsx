@@ -217,7 +217,7 @@ const ProductDetailPage = () => {
         try {
             setIsLoading(true);
             const data = await apiClient.get(`${API_CONFIG.ENDPOINTS.PRODUCTS}/${id}`);
-            const p = data?.data || data;
+            const p = data?.data?.data || data?.data || data;
             if (p) {
                 p.images = Array.isArray(p.images) ? p.images : [];
                 const variants = Array.isArray(p.variants) ? p.variants.filter(v => !v.status || v.status === 'active') : [];
