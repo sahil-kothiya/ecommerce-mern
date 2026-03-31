@@ -11,11 +11,13 @@ import {
  * @param {string} prefix
  */
 export const invalidateCache = (prefix) => {
-  void invalidateCacheByPrefix(prefix).catch((error) => {
+  try {
+    invalidateCacheByPrefix(prefix);
+  } catch (error) {
     logger.warn(
       `[CACHE] invalidate failed for prefix=${prefix}: ${error.message}`,
     );
-  });
+  }
 };
 
 /**
@@ -26,11 +28,11 @@ export const invalidateCache = (prefix) => {
  */
 export const cacheMiddleware =
   (ttlSeconds = 60) =>
-  async (req, res, next) => {
+  (req, res, next) => {
     if (req.method !== "GET") return next();
 
     const key = req.originalUrl;
-    const cached = await getCachedResponse(key);
+    const cached = getCachedResponse(key);
 
     if (cached) {
       res.setHeader("X-Cache", "HIT");
@@ -41,10 +43,12 @@ export const cacheMiddleware =
     const originalJson = res.json.bind(res);
     res.json = (body) => {
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        void setCachedResponse(key, body, ttlSeconds * 1000).catch((error) => {
+        try {
+          setCachedResponse(key, body, ttlSeconds * 1000);
+          logger.debug(`[CACHE] SET ${key} ttl=${ttlSeconds}s`);
+        } catch (error) {
           logger.warn(`[CACHE] set failed for ${key}: ${error.message}`);
-        });
-        logger.debug(`[CACHE] SET ${key} ttl=${ttlSeconds}s`);
+        }
       }
       res.setHeader("X-Cache", "MISS");
       return originalJson(body);

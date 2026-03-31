@@ -1,5 +1,4 @@
 import { emailQueue } from "./index.js";
-import { config } from "../config/index.js";
 import { logger } from "../utils/logger.js";
 import { emailService } from "../utils/emailService.js";
 
@@ -29,13 +28,6 @@ emailQueue.process(async (job) => {
 });
 
 export const queueEmail = async (emailData) => {
-  if (!config.redis.enabled) {
-    logger.warn(
-      `Skipping email queue for ${emailData?.to || "unknown recipient"} because queue system is disabled`,
-    );
-    return;
-  }
-
   try {
     await emailQueue.add(emailData, {
       attempts: 3,

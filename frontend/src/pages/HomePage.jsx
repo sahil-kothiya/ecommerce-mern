@@ -304,8 +304,9 @@ const HomePage = () => {
             const indices = {};
             apiProducts.forEach((p) => { indices[p._id] = 0; });
             setCurrentImageIndex(indices);
-            if (bannersData?.data) {
-                const bArr = Array.isArray(bannersData.data) ? bannersData.data : (bannersData.data?.banners || []);
+            if (bannersData?.data?.data) {
+                const payload = bannersData.data.data;
+                const bArr = Array.isArray(payload) ? payload : (payload?.banners || []);
                 setBanners(bArr.slice(0, 5));
             }
         } catch (error) {

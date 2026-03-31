@@ -1,52 +1,77 @@
-import Queue from "bull";
-import { config } from "../config/index.js";
 import { logger } from "../utils/logger.js";
 
-const isQueueEnabled = Boolean(config.redis?.enabled);
+let jobCounter = 0;
 
-const redisConfig = {
-  host: config.redis.host,
-  port: config.redis.port,
-  password: config.redis.password,
-  maxRetriesPerRequest: 3,
-};
-
-const createDisabledQueue = (name) => ({
-  name,
-  add: async () => null,
-  getJobCounts: async () => ({
+const createInProcessQueue = (name) => {
+  const listeners = new Map();
+  const counts = {
     waiting: 0,
     active: 0,
     completed: 0,
     failed: 0,
     delayed: 0,
     paused: 0,
-  }),
-  process: () => {},
-  on: () => {},
-  close: async () => {},
-});
+  };
+  let processor = null;
 
-export const ratingsQueue = isQueueEnabled
-  ? new Queue("product-ratings", { redis: redisConfig })
-  : createDisabledQueue("product-ratings");
+  const emit = (eventName, ...args) => {
+    const handlers = listeners.get(eventName) || [];
+    handlers.forEach((handler) => handler(...args));
+  };
 
-export const emailQueue = isQueueEnabled
-  ? new Queue("emails", { redis: redisConfig })
-  : createDisabledQueue("emails");
+  return {
+    name,
+    add: async (data) => {
+      const job = {
+        id: `${name}-${Date.now()}-${++jobCounter}`,
+        data,
+      };
 
-export const imageProcessingQueue = isQueueEnabled
-  ? new Queue("image-processing", { redis: redisConfig })
-  : createDisabledQueue("image-processing");
+      counts.waiting += 1;
+
+      Promise.resolve().then(async () => {
+        if (!processor) {
+          counts.waiting = Math.max(0, counts.waiting - 1);
+          return;
+        }
+
+        counts.waiting = Math.max(0, counts.waiting - 1);
+        counts.active += 1;
+
+        try {
+          const result = await processor(job);
+          counts.completed += 1;
+          emit("completed", job, result);
+        } catch (error) {
+          counts.failed += 1;
+          emit("failed", job, error);
+          emit("error", error);
+        } finally {
+          counts.active = Math.max(0, counts.active - 1);
+        }
+      });
+
+      return job;
+    },
+    getJobCounts: async () => ({ ...counts }),
+    process: (handler) => {
+      processor = handler;
+    },
+    on: (eventName, handler) => {
+      const existing = listeners.get(eventName) || [];
+      listeners.set(eventName, [...existing, handler]);
+    },
+    close: async () => {},
+  };
+};
+
+export const ratingsQueue = createInProcessQueue("product-ratings");
+
+export const emailQueue = createInProcessQueue("emails");
+
+export const imageProcessingQueue = createInProcessQueue("image-processing");
 
 export const getQueueHealth = async () => {
-  if (!isQueueEnabled) {
-    return {
-      status: "disabled",
-      counts: null,
-    };
-  }
-
   try {
     const [ratings, emails, imageProcessing] = await Promise.all([
       ratingsQueue.getJobCounts(),
@@ -55,7 +80,7 @@ export const getQueueHealth = async () => {
     ]);
 
     return {
-      status: "connected",
+      status: "in-process",
       counts: {
         ratings,
         emails,
@@ -71,39 +96,4 @@ export const getQueueHealth = async () => {
   }
 };
 
-const lastQueueErrorLog = new Map();
-
-const logQueueError = (queueName, error) => {
-  const now = Date.now();
-  const previous = lastQueueErrorLog.get(queueName) ?? 0;
-  if (now - previous < 30_000) {
-    return;
-  }
-
-  lastQueueErrorLog.set(queueName, now);
-  logger.error(
-    `${queueName} queue error: ${error?.message || "Unknown error"}`,
-  );
-};
-
-if (isQueueEnabled) {
-  ratingsQueue.on("error", (error) => {
-    logQueueError("Ratings", error);
-  });
-
-  emailQueue.on("error", (error) => {
-    logQueueError("Email", error);
-  });
-
-  imageProcessingQueue.on("error", (error) => {
-    logQueueError("Image processing", error);
-  });
-}
-
-if (isQueueEnabled) {
-  logger.info("Queue system initialized");
-} else {
-  logger.warn(
-    "Queue system disabled. Set QUEUE_ENABLED=true and start Redis to enable background jobs.",
-  );
-}
+logger.info("Queue system initialized (in-process mode)");

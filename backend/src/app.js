@@ -191,11 +191,7 @@ app.get(`/api/${config.apiVersion}/health`, async (_req, res) => {
           heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB`,
         },
         database: { status: dbStatusMap[dbState] || "unknown" },
-        redis: {
-          status: queue.status,
-          host: config.redis.host,
-          port: config.redis.port,
-        },
+        cache: { type: "in-memory" },
         queue,
       },
       message: "Server is running",

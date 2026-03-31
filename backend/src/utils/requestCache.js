@@ -1,23 +1,11 @@
-import { getRedisClient } from "./redisClient.js";
-
-const CACHE_MAX_ENTRIES = 500;
-const REQUEST_CACHE_PREFIX = "cache:req:";
+// Fast in-memory cache with LRU eviction
+const CACHE_MAX_ENTRIES = 1000;
 
 const store = new Map();
 
 const now = () => Date.now();
 
-const buildRedisKey = (key) => `${REQUEST_CACHE_PREFIX}${key}`;
-
-const evictExpired = () => {
-  const ts = now();
-  for (const [key, entry] of store.entries()) {
-    if (entry.expiresAt <= ts) {
-      store.delete(key);
-    }
-  }
-};
-
+// LRU eviction: delete oldest entries when cache is full
 const evictOverflow = () => {
   if (store.size <= CACHE_MAX_ENTRIES) {
     return;
@@ -35,7 +23,12 @@ const evictOverflow = () => {
   }
 };
 
-const getMemoryCachedResponse = (key) => {
+// Get cached value, delete if expired
+export const getCachedResponse = (key) => {
+  if (!key) {
+    return null;
+  }
+
   const entry = store.get(key);
   if (!entry) {
     return null;
@@ -46,11 +39,21 @@ const getMemoryCachedResponse = (key) => {
     return null;
   }
 
+  // Move to end for LRU (re-insert)
+  store.delete(key);
+  store.set(key, entry);
+
   return entry.value;
 };
 
-const setMemoryCachedResponse = (key, value, ttlMs) => {
-  evictExpired();
+// Set cached value with TTL
+export const setCachedResponse = (key, value, ttlMs) => {
+  if (!key || !Number.isFinite(ttlMs) || ttlMs <= 0) {
+    return;
+  }
+
+  // Delete first if exists to maintain LRU order
+  store.delete(key);
   store.set(key, {
     value,
     expiresAt: now() + ttlMs,
@@ -58,7 +61,12 @@ const setMemoryCachedResponse = (key, value, ttlMs) => {
   evictOverflow();
 };
 
-const invalidateMemoryByPrefix = (prefix) => {
+// Invalidate all keys with given prefix
+export const invalidateCacheByPrefix = (prefix) => {
+  if (!prefix || typeof prefix !== "string") {
+    return 0;
+  }
+
   let deleted = 0;
   for (const key of store.keys()) {
     if (key.startsWith(prefix)) {
@@ -69,62 +77,15 @@ const invalidateMemoryByPrefix = (prefix) => {
   return deleted;
 };
 
-export const getCachedResponse = async (key) => {
-  if (!key) {
-    return null;
-  }
-
-  const redis = await getRedisClient();
-  if (redis) {
-    const cached = await redis.get(buildRedisKey(key));
-    return cached ? JSON.parse(cached) : null;
-  }
-
-  return getMemoryCachedResponse(key);
+// Clear entire cache
+export const clearCache = () => {
+  const size = store.size;
+  store.clear();
+  return size;
 };
 
-export const setCachedResponse = async (key, value, ttlMs) => {
-  if (!key || !Number.isFinite(ttlMs) || ttlMs <= 0) {
-    return;
-  }
-
-  const redis = await getRedisClient();
-  if (redis) {
-    await redis.set(buildRedisKey(key), JSON.stringify(value), {
-      PX: Math.floor(ttlMs),
-    });
-    return;
-  }
-
-  setMemoryCachedResponse(key, value, ttlMs);
-};
-
-export const invalidateCacheByPrefix = async (prefix) => {
-  if (!prefix || typeof prefix !== "string") {
-    return 0;
-  }
-
-  const redis = await getRedisClient();
-  if (redis) {
-    const pattern = `${buildRedisKey(prefix)}*`;
-    let deleted = 0;
-    const keys = [];
-    for await (const batch of redis.scanIterator({
-      MATCH: pattern,
-      COUNT: 100,
-    })) {
-      const batchKeys = Array.isArray(batch) ? batch : [batch];
-      keys.push(...batchKeys);
-      if (keys.length >= 100) {
-        deleted += await redis.del([...keys]);
-        keys.length = 0;
-      }
-    }
-    if (keys.length) {
-      deleted += await redis.del([...keys]);
-    }
-    return deleted;
-  }
-
-  return invalidateMemoryByPrefix(prefix);
-};
+// Get cache stats
+export const getCacheStats = () => ({
+  size: store.size,
+  maxSize: CACHE_MAX_ENTRIES,
+});

@@ -2,7 +2,6 @@ import { ratingsQueue } from "./index.js";
 import { Product } from "../models/Product.js";
 import { Review } from "../models/Review.js";
 import { logger } from "../utils/logger.js";
-import { config } from "../config/index.js";
 
 ratingsQueue.process(async (job) => {
   const { productId } = job.data;
@@ -63,13 +62,6 @@ ratingsQueue.process(async (job) => {
 });
 
 export const queueRatingUpdate = async (productId) => {
-  if (!config.redis.enabled) {
-    logger.warn(
-      `Skipping rating queue for product ${productId} because queue system is disabled`,
-    );
-    return;
-  }
-
   try {
     await ratingsQueue.add(
       { productId: productId.toString() },

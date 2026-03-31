@@ -118,7 +118,7 @@ export class CategoryService extends BaseService {
         .toLowerCase() === "true";
     const cacheKey = `categories:index:${JSON.stringify({ parent, includeChildren, status, sort, page, limit })}`;
     if (!bypass) {
-      const cached = await getCachedResponse(cacheKey);
+      const cached = getCachedResponse(cacheKey);
       if (cached) return { ...cached, cacheHit: true };
     }
 
@@ -134,7 +134,7 @@ export class CategoryService extends BaseService {
         .lean();
       const data = this.buildTree(all);
       const payload = { data };
-      if (!bypass) await setCachedResponse(cacheKey, payload, CACHE_TTL);
+      if (!bypass) setCachedResponse(cacheKey, payload, CACHE_TTL);
       return { ...payload, cacheHit: false };
     }
 
@@ -150,7 +150,7 @@ export class CategoryService extends BaseService {
     const data = await q.lean();
 
     const payload = { data };
-    if (!bypass) await setCachedResponse(cacheKey, payload, CACHE_TTL);
+    if (!bypass) setCachedResponse(cacheKey, payload, CACHE_TTL);
     return { ...payload, cacheHit: false };
   }
 
@@ -426,8 +426,8 @@ export class CategoryService extends BaseService {
       addedBy: userId || null,
     });
 
-    await invalidateCacheByPrefix("categories:index:");
-    await invalidateCacheByPrefix("products:index:");
+    invalidateCacheByPrefix("categories:index:");
+    invalidateCacheByPrefix("products:index:");
     return category;
   }
 
@@ -547,8 +547,8 @@ export class CategoryService extends BaseService {
     }
 
     await category.save();
-    await invalidateCacheByPrefix("categories:index:");
-    await invalidateCacheByPrefix("products:index:");
+    invalidateCacheByPrefix("categories:index:");
+    invalidateCacheByPrefix("products:index:");
     return category;
   }
 
@@ -560,8 +560,8 @@ export class CategoryService extends BaseService {
     if ((await Product.countDocuments({ "category.id": id })) > 0)
       throw new AppError("Cannot delete category with products", 400);
     await category.deleteOne();
-    await invalidateCacheByPrefix("categories:index:");
-    await invalidateCacheByPrefix("products:index:");
+    invalidateCacheByPrefix("categories:index:");
+    invalidateCacheByPrefix("products:index:");
   }
 
   async bulkReorder(updates) {
@@ -580,7 +580,7 @@ export class CategoryService extends BaseService {
       },
     }));
     await this.repository.model.bulkWrite(ops);
-    await invalidateCacheByPrefix("categories:index:");
-    await invalidateCacheByPrefix("products:index:");
+    invalidateCacheByPrefix("categories:index:");
+    invalidateCacheByPrefix("products:index:");
   }
 }
